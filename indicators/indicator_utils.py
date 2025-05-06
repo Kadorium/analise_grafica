@@ -103,71 +103,113 @@ def plot_price_with_indicators(data, plot_config=None):
     Returns:
         str: Base64 encoded image.
     """
-    if plot_config is None:
-        plot_config = {
-            'main_indicators': ['sma_50', 'ema_20'],
-            'subplot_indicators': ['rsi', 'volume'],
-            'title': 'Price Chart with Indicators'
-        }
-    
-    # Filter data by date range if specified
-    temp_data = data.copy()
-    if 'start_date' in plot_config and plot_config['start_date']:
-        start_date = pd.to_datetime(plot_config['start_date'])
-        temp_data = temp_data[temp_data['date'] >= start_date]
+    try:
+        if plot_config is None:
+            plot_config = {
+                'main_indicators': ['sma_50', 'ema_20'],
+                'subplot_indicators': ['rsi', 'volume'],
+                'title': 'Price Chart with Indicators'
+            }
         
-    if 'end_date' in plot_config and plot_config['end_date']:
-        end_date = pd.to_datetime(plot_config['end_date'])
-        temp_data = temp_data[temp_data['date'] <= end_date]
-    
-    # Determine how many subplots to create
-    n_subplots = 1 + len(plot_config.get('subplot_indicators', []))
-    
-    # Create figure and gridspec
-    fig = plt.figure(figsize=(12, 8))
-    gs = fig.add_gridspec(n_subplots, 1, height_ratios=[3] + [1] * (n_subplots - 1))
-    
-    # Main price plot
-    ax_main = fig.add_subplot(gs[0])
-    ax_main.plot(temp_data['date'], temp_data['close'], label='Close Price')
-    
-    # Plot main indicators
-    for indicator in plot_config.get('main_indicators', []):
-        if indicator in temp_data.columns:
+        # Filter data by date range if specified
+        temp_data = data.copy()
+        if 'start_date' in plot_config and plot_config['start_date']:
+            start_date = pd.to_datetime(plot_config['start_date'])
+            temp_data = temp_data[temp_data['date'] >= start_date]
+            
+        if 'end_date' in plot_config and plot_config['end_date']:
+            end_date = pd.to_datetime(plot_config['end_date'])
+            temp_data = temp_data[temp_data['date'] <= end_date]
+        
+        if len(temp_data) == 0:
+            # Not enough data, create a simple message plot
+            fig, ax = plt.subplots(figsize=(10, 6))
+            ax.text(0.5, 0.5, "No data available for the selected date range", 
+                    horizontalalignment='center', verticalalignment='center', fontsize=14)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            
+            # Convert simple plot to base64
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png')
+            buffer.seek(0)
+            image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            plt.close()
+            return image_base64
+        
+        # Check if we have any of the requested indicators
+        main_indicators = [ind for ind in plot_config.get('main_indicators', []) if ind in temp_data.columns]
+        subplot_indicators = [ind for ind in plot_config.get('subplot_indicators', []) if ind in temp_data.columns]
+        
+        # Determine how many subplots to create
+        n_subplots = 1 + len(subplot_indicators)
+        
+        # Create figure and gridspec
+        fig = plt.figure(figsize=(12, 8))
+        gs = fig.add_gridspec(n_subplots, 1, height_ratios=[3] + [1] * (n_subplots - 1))
+        
+        # Main price plot
+        ax_main = fig.add_subplot(gs[0])
+        ax_main.plot(temp_data['date'], temp_data['close'], label='Close Price')
+        
+        # Plot main indicators
+        for indicator in main_indicators:
             ax_main.plot(temp_data['date'], temp_data[indicator], label=indicator)
-    
-    ax_main.set_title(plot_config.get('title', 'Price Chart with Indicators'))
-    ax_main.set_ylabel('Price')
-    ax_main.grid(True)
-    ax_main.legend(loc='upper left')
-    
-    # Create subplots for additional indicators
-    for i, indicator in enumerate(plot_config.get('subplot_indicators', []), 1):
-        if indicator in temp_data.columns:
+        
+        ax_main.set_title(plot_config.get('title', 'Price Chart with Indicators'))
+        ax_main.set_ylabel('Price')
+        ax_main.grid(True)
+        ax_main.legend(loc='upper left')
+        
+        # Create subplots for additional indicators
+        for i, indicator in enumerate(subplot_indicators, 1):
             ax_sub = fig.add_subplot(gs[i], sharex=ax_main)
             ax_sub.plot(temp_data['date'], temp_data[indicator], label=indicator)
             ax_sub.set_ylabel(indicator)
             ax_sub.grid(True)
             ax_sub.legend(loc='upper left')
-    
-    # Format x-axis date
-    date_format = DateFormatter('%Y-%m-%d')
-    ax_main.xaxis.set_major_formatter(date_format)
-    
-    # Remove main x-axis labels to avoid overlap
-    if n_subplots > 1:
-        plt.setp(ax_main.get_xticklabels(), visible=False)
-    
-    plt.tight_layout()
-    
-    # Convert plot to base64 encoded string
-    buffer = io.BytesIO()
-    plt.savefig(buffer, format='png')
-    buffer.seek(0)
-    image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
-    plt.close()
-    
-    return image_base64
+        
+        # Format x-axis date
+        date_format = DateFormatter('%Y-%m-%d')
+        ax_main.xaxis.set_major_formatter(date_format)
+        
+        # Remove main x-axis labels to avoid overlap
+        if n_subplots > 1:
+            plt.setp(ax_main.get_xticklabels(), visible=False)
+        
+        plt.tight_layout()
+        
+        # Convert plot to base64 encoded string
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format='png')
+        buffer.seek(0)
+        image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        plt.close()
+        
+        return image_base64
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error in plot_price_with_indicators: {str(e)}\n{error_trace}")
+        
+        # Create an error message plot
+        try:
+            fig, ax = plt.subplots(figsize=(10, 6))
+            ax.text(0.5, 0.5, f"Error creating chart: {str(e)}", 
+                    horizontalalignment='center', verticalalignment='center', fontsize=12, color='red')
+            ax.set_xticks([])
+            ax.set_yticks([])
+            
+            # Convert error plot to base64
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png')
+            buffer.seek(0)
+            image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            plt.close()
+            return image_base64
+        except:
+            # If even error plot fails, return a minimal encoded empty image
+            return "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
 
 def create_indicator_summary(data, last_n_periods=1):
     """

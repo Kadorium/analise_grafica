@@ -307,21 +307,21 @@
                                         <h5>Strategy Comparison</h5>
                                     </div>
                                     <div class="card-body">
-                                        <form id="strategy-comparison-form" class="mb-3">
+                                        <form id="compare-strategies-form" class="mb-3">
                                             <div class="row">
                                                 <div class="col-md-6">
                                                     <div class="mb-3">
                                                         <label class="form-label">Select Strategies to Compare</label>
                                                         <div class="form-check">
-                                                            <input class="form-check-input" type="checkbox" id="trend-following-check" checked>
+                                                            <input class="form-check-input" type="checkbox" id="trend-following-check" value="trend_following" checked>
                                                             <label class="form-check-label" for="trend-following-check">Trend Following</label>
                                                         </div>
                                                         <div class="form-check">
-                                                            <input class="form-check-input" type="checkbox" id="mean-reversion-check" checked>
+                                                            <input class="form-check-input" type="checkbox" id="mean-reversion-check" value="mean_reversion" checked>
                                                             <label class="form-check-label" for="mean-reversion-check">Mean Reversion</label>
                                                         </div>
                                                         <div class="form-check">
-                                                            <input class="form-check-input" type="checkbox" id="breakout-check" checked>
+                                                            <input class="form-check-input" type="checkbox" id="breakout-check" value="breakout" checked>
                                                             <label class="form-check-label" for="breakout-check">Breakout</label>
                                                         </div>
                                                     </div>
@@ -339,8 +339,12 @@
                                             </div>
                                             <button type="submit" class="btn btn-primary" id="compare-strategies-btn">Compare Strategies</button>
                                         </form>
-                                        <div id="strategy-comparison-results">
+                                        <div id="compare-results">
                                             <!-- Comparison results will be displayed here -->
+                                        </div>
+                                        <div id="comparison-chart-container" style="margin-top: 20px; display: none;">
+                                            <h5>Strategy Comparison</h5>
+                                            <!-- Comparison chart image will be shown here -->
                                         </div>
                                     </div>
                                 </div>
@@ -396,11 +400,9 @@
                                         <div id="backtest-results">
                                             <!-- Backtest results will be displayed here -->
                                         </div>
-                                        <div id="backtest-charts">
-                                            <h6>Equity Curve</h6>
-                                            <img id="equity-curve" class="img-fluid mb-3" style="display: none;">
-                                            <h6>Drawdown</h6>
-                                            <img id="drawdown-curve" class="img-fluid" style="display: none;">
+                                        <div id="equity-curve-container" style="margin-top: 20px; display: none;">
+                                            <h5>Equity Curve</h5>
+                                            <!-- Equity curve image will be shown here -->
                                         </div>
                                     </div>
                                 </div>

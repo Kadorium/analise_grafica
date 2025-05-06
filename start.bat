@@ -30,14 +30,27 @@ if exist venv\Scripts\activate.bat (
 echo Checking dependencies...
 python -c "import fastapi, uvicorn" >nul 2>nul
 if %ERRORLEVEL% neq 0 (
-    echo Installing dependencies...
-    pip install -r requirements.txt
+    echo Installing dependencies with --user flag to avoid permission issues...
+    pip install --user -r requirements.txt
     if %ERRORLEVEL% neq 0 (
         echo Error installing dependencies.
+        echo.
+        echo You may need to run this script as administrator or create a virtual environment.
+        echo.
+        echo To create a virtual environment:
+        echo python -m venv venv
+        echo venv\Scripts\activate
+        echo pip install -r requirements.txt
+        echo.
         pause
         exit /b 1
     )
 )
+
+:: Ensure required directories exist
+echo Creating required directories...
+if not exist data\sample mkdir data\sample
+if not exist results mkdir results
 
 :: Run the application
 echo.

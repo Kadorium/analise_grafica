@@ -7,6 +7,22 @@ import base64
 import json
 from datetime import datetime
 
+# Helper function to convert NumPy types to Python native types
+def convert_numpy_types(obj):
+    """Convert NumPy types to Python native types for JSON serialization."""
+    if isinstance(obj, (np.integer, np.int64, np.int32)):
+        return int(obj)
+    elif isinstance(obj, (np.floating, np.float64, np.float32)):
+        return float(obj)
+    elif isinstance(obj, (np.ndarray,)):
+        return obj.tolist()
+    elif isinstance(obj, (dict,)):
+        return {k: convert_numpy_types(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [convert_numpy_types(i) for i in obj]
+    else:
+        return obj
+
 class Backtester:
     """
     A class for backtesting trading strategies.
@@ -67,6 +83,9 @@ class Backtester:
         # Get performance metrics
         performance_metrics = strategy.get_performance_metrics(backtest_results)
         
+        # Convert NumPy types to Python native types for JSON serialization
+        performance_metrics = convert_numpy_types(performance_metrics)
+        
         # Store results
         strategy_name = strategy.name
         self.results[strategy_name] = {
@@ -98,6 +117,9 @@ class Backtester:
             result = self.run_backtest(strategy, start_date, end_date)
             results[result['strategy_name']] = result['performance_metrics']
             
+        # Convert any remaining NumPy types to Python native types
+        results = convert_numpy_types(results)
+        
         return results
     
     def get_best_strategy(self, metric='sharpe_ratio'):

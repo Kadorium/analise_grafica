@@ -1,0 +1,19 @@
+Data Arrangement Log - 2025-05-06 16:19:10
+==================================================
+
+Processing file: temp_teste.csv
+Detected European CSV format (semicolon separator)
+Raw data shape: (3163, 9)
+Original column names: ['date', 'open', 'high', 'low', 'close', 'volume', 'Unnamed: 6', 'Unnamed: 7', 'Unnamed: 8']
+Column mapping: {'date': 'date', 'open': 'open', 'high': 'high', 'low': 'low', 'close': 'close', 'volume': 'volume'}
+Detected date format: %m/%d/%y
+Added ticker column: TEMP
+Original row count: 3163
+Final row count: 3163
+Data retention: 100.00%
+
+==================================================
+Final shape: (3163, 8)
+Final columns: ['date', 'open', 'high', 'low', 'close', 'volume', 'typical_price', 'ticker']
+Date range: 2013-01-08 to 2025-02-20
+Price range: 11.76 to 259.81

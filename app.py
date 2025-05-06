@@ -1,16 +1,18 @@
 import os
 import pandas as pd
 import json
-from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks
+from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import uvicorn
 import io
 import base64
 from datetime import datetime
+import traceback
 
 # Import our modules
 from data.data_loader import DataLoader
@@ -31,6 +33,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add global exception handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    error_detail = str(exc)
+    stack_trace = traceback.format_exc()
+    print(f"Global exception: {error_detail}\n{stack_trace}")
+    return JSONResponse(
+        status_code=500,
+        content={"success": False, "message": f"Internal server error: {error_detail}"},
+    )
+
+# Add validation exception handler
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"success": False, "message": f"Validation error: {str(exc)}"},
+    )
 
 # Mount the static files
 app.mount("/static", StaticFiles(directory="frontend"), name="static")
@@ -309,35 +330,61 @@ async def add_indicators(indicator_config: IndicatorConfig):
     if PROCESSED_DATA is None:
         return JSONResponse(
             status_code=400,
-            content={"message": "No processed data available. Please upload and process data first."}
+            content={"success": False, "message": "No processed data available. Please upload and process data first."}
         )
     
     try:
         # Convert the indicator config to dict
         indicators_dict = indicator_config.dict(exclude_none=True)
         
+        print(f"Adding indicators with config: {indicators_dict}")
+        
+        # Check that required columns exist
+        required_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
+        missing_columns = [col for col in required_columns if col not in PROCESSED_DATA.columns]
+        if missing_columns:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": f"Missing required columns in data: {', '.join(missing_columns)}"}
+            )
+            
+        # Make a copy to avoid modifying the original data
+        data_for_indicators = PROCESSED_DATA.copy()
+        
         # Add indicators
-        data_with_indicators = combine_indicators(PROCESSED_DATA, indicators_dict)
+        data_with_indicators = combine_indicators(data_for_indicators, indicators_dict)
         
         # Update the processed data
         PROCESSED_DATA = data_with_indicators
-        
-        # Create a summary of the indicators
-        summary = create_indicator_summary(PROCESSED_DATA, last_n_periods=1)
         
         # Get the list of all indicator columns
         indicator_columns = [col for col in PROCESSED_DATA.columns 
                            if col not in ['date', 'open', 'high', 'low', 'close', 'volume']]
         
+        # Create a short summary
+        summary = ""
+        if indicator_columns:
+            try:
+                # Create a summary of the indicators
+                indicator_summary = create_indicator_summary(PROCESSED_DATA, last_n_periods=1)
+                summary = f"<div class='alert alert-info'><strong>Indicators added:</strong> {', '.join(indicator_columns)}</div>"
+            except Exception as e:
+                print(f"Error creating indicator summary: {str(e)}")
+                summary = f"<div class='alert alert-warning'><strong>Indicators added</strong> but could not create summary: {str(e)}</div>"
+        
         return {
+            "success": True,
             "message": "Indicators added successfully",
             "indicator_summary": summary,
             "available_indicators": indicator_columns
         }
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error adding indicators: {str(e)}\n{error_trace}")
         return JSONResponse(
             status_code=500,
-            content={"message": f"Error adding indicators: {str(e)}"}
+            content={"success": False, "message": f"Error adding indicators: {str(e)}"}
         )
 
 @app.post("/api/plot-indicators")
@@ -347,7 +394,7 @@ async def plot_indicators(plot_config: PlotConfig):
     if PROCESSED_DATA is None:
         return JSONResponse(
             status_code=400,
-            content={"message": "No processed data available. Please upload and process data first."}
+            content={"success": False, "message": "No processed data available. Please upload and process data first."}
         )
     
     try:
@@ -358,13 +405,17 @@ async def plot_indicators(plot_config: PlotConfig):
         image_base64 = plot_price_with_indicators(PROCESSED_DATA, plot_dict)
         
         return {
+            "success": True,
             "message": "Plot created successfully",
-            "image": image_base64
+            "chart_image": image_base64
         }
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error creating plot: {str(e)}\n{error_trace}")
         return JSONResponse(
             status_code=500,
-            content={"message": f"Error creating plot: {str(e)}"}
+            content={"success": False, "message": f"Error creating plot: {str(e)}"}
         )
 
 @app.get("/api/available-strategies")
@@ -395,37 +446,79 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
     if PROCESSED_DATA is None:
         return JSONResponse(
             status_code=400,
-            content={"message": "No processed data available. Please upload and process data first."}
+            content={"success": False, "message": "No processed data available. Please upload and process data first."}
         )
     
     try:
+        print(f"Running backtest with strategy: {strategy_config.strategy_type}, params: {strategy_config.parameters}")
+        print(f"Backtest config: {backtest_config}")
+        
+        # Check that required columns exist
+        required_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
+        missing_columns = [col for col in required_columns if col not in PROCESSED_DATA.columns]
+        if missing_columns:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": f"Missing required columns in data: {', '.join(missing_columns)}"}
+            )
+            
+        # Make a copy of the data for backtesting
+        backtest_data = PROCESSED_DATA.copy()
+        
         # Create the strategy
-        strategy = create_strategy(strategy_config.strategy_type, **strategy_config.parameters)
+        try:
+            strategy = create_strategy(strategy_config.strategy_type, **strategy_config.parameters)
+        except Exception as e:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": f"Error creating strategy: {str(e)}"}
+            )
         
         # Create a backtester
-        BACKTESTER = Backtester(
-            data=PROCESSED_DATA,
-            initial_capital=backtest_config.initial_capital,
-            commission=backtest_config.commission
-        )
+        try:
+            BACKTESTER = Backtester(
+                data=backtest_data,
+                initial_capital=backtest_config.initial_capital,
+                commission=backtest_config.commission
+            )
+        except Exception as e:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": f"Error initializing backtester: {str(e)}"}
+            )
         
         # Run the backtest
-        backtest_result = BACKTESTER.run_backtest(
-            strategy=strategy,
-            start_date=backtest_config.start_date,
-            end_date=backtest_config.end_date
-        )
+        try:
+            backtest_result = BACKTESTER.run_backtest(
+                strategy=strategy,
+                start_date=backtest_config.start_date,
+                end_date=backtest_config.end_date
+            )
+        except Exception as e:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": f"Error during backtest execution: {str(e)}"}
+            )
         
-        # Get the equity curve plot
-        equity_curve_image = BACKTESTER.plot_equity_curves([strategy.name])
-        
-        # Get the drawdown plot
-        drawdown_image = BACKTESTER.plot_drawdowns([strategy.name])
-        
-        # Get trade statistics
-        trade_stats = BACKTESTER.get_trade_statistics(strategy.name)
+        # Generate plots and statistics (with proper error handling)
+        try:
+            # Get the equity curve plot
+            equity_curve_image = BACKTESTER.plot_equity_curves([strategy.name])
+            
+            # Get the drawdown plot
+            drawdown_image = BACKTESTER.plot_drawdowns([strategy.name])
+            
+            # Get trade statistics
+            trade_stats = BACKTESTER.get_trade_statistics(strategy.name)
+        except Exception as e:
+            # If plotting fails, we can still return the backtest result
+            print(f"Error generating plots: {str(e)}")
+            equity_curve_image = None
+            drawdown_image = None
+            trade_stats = {}
         
         return {
+            "success": True,
             "message": "Backtest completed successfully",
             "strategy_name": backtest_result["strategy_name"],
             "performance_metrics": backtest_result["performance_metrics"],
@@ -434,9 +527,12 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
             "drawdown_curve": drawdown_image
         }
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error running backtest: {str(e)}\n{error_trace}")
         return JSONResponse(
             status_code=500,
-            content={"message": f"Error running backtest: {str(e)}"}
+            content={"success": False, "message": f"Error running backtest: {str(e)}"}
         )
 
 @app.post("/api/optimize-strategy")
@@ -504,28 +600,57 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
         "metric": optimization_config.metric
     }
 
-@app.get("/api/compare-strategies")
-async def compare_strategies(strategy_types: List[str], start_date: Optional[str] = None, end_date: Optional[str] = None):
+@app.post("/api/compare-strategies")
+async def compare_strategies(request: Request):
     global PROCESSED_DATA, BACKTESTER
     
     if PROCESSED_DATA is None:
         return JSONResponse(
             status_code=400,
-            content={"message": "No processed data available. Please upload and process data first."}
+            content={"success": False, "message": "No processed data available. Please upload and process data first."}
         )
     
     try:
-        # Create strategies
+        # Parse the request body
+        body = await request.json()
+        strategy_types = body.get("strategy_types", [])
+        start_date = body.get("start_date")
+        end_date = body.get("end_date")
+        
+        print(f"Comparing strategies: {strategy_types} from {start_date} to {end_date}")
+        
+        # Validate input
+        if not strategy_types or len(strategy_types) == 0:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "At least one strategy type must be provided"}
+            )
+            
+        # Check all strategy types are valid
+        valid_strategy_types = [s['type'] for s in AVAILABLE_STRATEGIES]
+        invalid_strategies = [s for s in strategy_types if s not in valid_strategy_types]
+        if invalid_strategies:
+            return JSONResponse(
+                status_code=422,
+                content={"success": False, "message": f"Invalid strategy types: {', '.join(invalid_strategies)}. Valid types are: {', '.join(valid_strategy_types)}"}
+            )
+        
+        # Create strategies with error handling
         strategies = []
         for strategy_type in strategy_types:
-            # Get parameters from current config
-            params = CURRENT_CONFIG['strategies'].get(strategy_type, {})
-            strategy = create_strategy(strategy_type, **params)
-            strategies.append(strategy)
+            try:
+                params = CURRENT_CONFIG['strategies'].get(strategy_type, {})
+                strategy = create_strategy(strategy_type, **params)
+                strategies.append(strategy)
+            except Exception as e:
+                return JSONResponse(
+                    status_code=400,
+                    content={"success": False, "message": f"Error creating strategy '{strategy_type}': {str(e)}"}
+                )
         
         # Create a backtester
         BACKTESTER = Backtester(
-            data=PROCESSED_DATA,
+            data=PROCESSED_DATA.copy(),
             initial_capital=CURRENT_CONFIG['backtest']['initial_capital'],
             commission=CURRENT_CONFIG['backtest']['commission']
         )
@@ -537,22 +662,35 @@ async def compare_strategies(strategy_types: List[str], start_date: Optional[str
             end_date=end_date
         )
         
-        # Get the equity curve plot
-        equity_curve_image = BACKTESTER.plot_equity_curves()
-        
-        # Get the drawdown plot
-        drawdown_image = BACKTESTER.plot_drawdowns()
+        # Get equity curve image
+        try:
+            equity_curve_image = BACKTESTER.plot_equity_curves()
+        except Exception as e:
+            print(f"Error generating equity curve: {str(e)}")
+            equity_curve_image = None
+            
+        # Find best strategy
+        best_strategy_name = "Unknown"
+        if results:
+            try:
+                best_strategy_name = max(results.items(), key=lambda x: x[1].get('sharpe_ratio', -float('inf')))[0]
+            except Exception as e:
+                print(f"Error finding best strategy: {str(e)}")
         
         return {
+            "success": True,
             "message": "Strategy comparison completed successfully",
+            "best_strategy": best_strategy_name,
             "results": results,
-            "equity_curve": equity_curve_image,
-            "drawdown_curve": drawdown_image
+            "chart_image": equity_curve_image
         }
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"Error comparing strategies: {str(e)}\n{error_trace}")
         return JSONResponse(
             status_code=500,
-            content={"message": f"Error comparing strategies: {str(e)}"}
+            content={"success": False, "message": f"Error comparing strategies: {str(e)}"}
         )
 
 @app.post("/api/save-config")
@@ -675,6 +813,15 @@ async def get_current_config():
     global CURRENT_CONFIG
     
     return CURRENT_CONFIG
+
+@app.get("/api/data-status")
+async def data_status():
+    global UPLOADED_DATA, PROCESSED_DATA
+    return {
+        "uploaded": UPLOADED_DATA is not None,
+        "processed": PROCESSED_DATA is not None,
+        "shape": PROCESSED_DATA.shape if PROCESSED_DATA is not None else None
+    }
 
 # Run the app
 if __name__ == "__main__":
