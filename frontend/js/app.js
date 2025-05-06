@@ -1577,15 +1577,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 console.log("API response:", data);
                 
-                // Get the list of newly added indicators
-                const newIndicators = data.available_indicators || [];
-                console.log("New indicators added:", newIndicators);
-                
-                // Combine new indicators with existing ones without duplicates
-                const previousIndicators = availableIndicators.slice();  // Make a copy for debugging
-                availableIndicators = [...new Set([...availableIndicators, ...newIndicators])];
-                
-                console.log("Previous indicators:", previousIndicators);
+                // IMPORTANT: Replace the indicators list entirely rather than merging
+                // This ensures previously checked indicators that are now unchecked don't persist
+                availableIndicators = data.available_indicators || [];
                 console.log("Updated indicators list:", availableIndicators);
                 
                 // Update the indicator selection dropdowns
@@ -1846,16 +1840,30 @@ function updateIndicatorDropdowns() {
     const mainIndicatorTypes = ['sma_', 'ema_', 'bb_', 'typical_price'];
     const subplotIndicatorTypes = ['rsi', 'macd', 'stoch', 'obv', 'vpt', 'volume_', 'atr'];
     
+    // Exclude columns that are not indicators
+    const excludedItems = ['ticker', 'index'];
+    const filteredIndicators = availableIndicators.filter(indicator => 
+        !excludedItems.includes(indicator) && 
+        indicator !== 'date' && 
+        indicator !== 'open' && 
+        indicator !== 'high' && 
+        indicator !== 'low' && 
+        indicator !== 'close' && 
+        indicator !== 'volume'
+    );
+    
+    console.log("Filtered indicators (excluding non-indicators):", filteredIndicators);
+    
     const categorizedMain = [];
     const categorizedSubplot = [];
     
     // Initialize typical_price for price display
-    const hasTypicalPrice = availableIndicators.some(ind => ind === 'typical_price');
+    const hasTypicalPrice = filteredIndicators.some(ind => ind === 'typical_price');
     if (!hasTypicalPrice) {
         categorizedMain.push('typical_price');
     }
     
-    availableIndicators.forEach(indicator => {
+    filteredIndicators.forEach(indicator => {
         // Decide which dropdown this indicator belongs to
         let isMainIndicator = mainIndicatorTypes.some(prefix => indicator.startsWith(prefix));
         let isSubplotIndicator = subplotIndicatorTypes.some(prefix => indicator.startsWith(prefix) || indicator === prefix);

@@ -348,18 +348,20 @@ async def add_indicators(indicator_config: IndicatorConfig):
                 content={"success": False, "message": f"Missing required columns in data: {', '.join(missing_columns)}"}
             )
             
-        # Make a copy to avoid modifying the original data
-        data_for_indicators = PROCESSED_DATA.copy()
+        # Make a copy with only the original price data columns, removing any existing indicators
+        base_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
+        data_for_indicators = PROCESSED_DATA[base_columns].copy()
         
-        # Add indicators
+        # Add indicators fresh
         data_with_indicators = combine_indicators(data_for_indicators, indicators_dict)
         
         # Update the processed data
         PROCESSED_DATA = data_with_indicators
         
-        # Get the list of all indicator columns
+        # Get the list of all indicator columns, excluding any that aren't indicators
+        excluded_columns = base_columns + ['ticker', 'index']
         indicator_columns = [col for col in PROCESSED_DATA.columns 
-                           if col not in ['date', 'open', 'high', 'low', 'close', 'volume']]
+                            if col not in excluded_columns]
         
         # Create a short summary
         summary = ""
