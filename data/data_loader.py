@@ -50,7 +50,6 @@ class DataLoader:
                 on_bad_lines='warn',  # Warn on bad lines instead of failing
                 quotechar='"',  # Handle quoted fields
                 skipinitialspace=True,  # Skip spaces after delimiter
-                low_memory=False,  # Better for large files
                 encoding='utf-8',  # Try UTF-8 encoding
                 encoding_errors='replace'  # Replace encoding errors
             )
@@ -72,7 +71,6 @@ class DataLoader:
                     sep=None,  # Let pandas detect the separator
                     engine='python',
                     on_bad_lines='skip',  # Skip bad lines
-                    low_memory=False
                 )
                 print("Successfully loaded data with auto-detected separator.")
                 return self.data
@@ -87,7 +85,6 @@ class DataLoader:
                         header=None,  # Assume no header if everything else fails
                         engine='python',
                         on_bad_lines='skip',
-                        low_memory=False
                     )
                     
                     # If successful, generate default column names
@@ -103,10 +100,26 @@ class DataLoader:
                         raise ValueError("CSV format doesn't match expected structure")
                         
                 except Exception as e3:
-                    raise Exception(f"All attempts to read the CSV file failed:\n"
-                                   f"1. {str(e)}\n"
-                                   f"2. {str(e2)}\n"
-                                   f"3. {str(e3)}")
+                    # Try one more time with 'c' engine for large files
+                    try:
+                        print("Trying with C engine for large files...")
+                        self.data = pd.read_csv(
+                            self.file_path,
+                            engine='c',  # Faster C engine
+                            low_memory=False,  # Compatible with C engine
+                            on_bad_lines='error',  # Default for C engine
+                            skipinitialspace=True,
+                            encoding='utf-8',
+                            encoding_errors='replace'
+                        )
+                        print("Successfully loaded with C engine.")
+                        return self.data
+                    except Exception as e4:
+                        raise Exception(f"All attempts to read the CSV file failed:\n"
+                                      f"1. {str(e)}\n"
+                                      f"2. {str(e2)}\n"
+                                      f"3. {str(e3)}\n"
+                                      f"4. {str(e4)}")
     
     def clean_data(self):
         """
