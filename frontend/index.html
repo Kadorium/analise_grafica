@@ -136,6 +136,8 @@
                                     </div>
                                     <div class="card-body">
                                         <form id="indicators-form">
+                                            <button type="submit" class="btn btn-primary mb-3" id="add-indicators-btn">Add Indicators</button>
+                                            
                                             <div class="mb-3">
                                                 <h6>Moving Averages</h6>
                                                 <div class="form-check">
@@ -182,6 +184,12 @@
                                                     <input class="form-check-input" type="checkbox" id="stoch-checkbox">
                                                     <label class="form-check-label" for="stoch-checkbox">Stochastic Oscillator</label>
                                                 </div>
+                                                <div class="input-group mb-3">
+                                                    <span class="input-group-text">K/D/Slowing</span>
+                                                    <input type="number" class="form-control" id="stoch-k" value="14">
+                                                    <input type="number" class="form-control" id="stoch-d" value="3">
+                                                    <input type="number" class="form-control" id="stoch-slowing" value="3">
+                                                </div>
                                             </div>
 
                                             <div class="mb-3">
@@ -213,8 +221,6 @@
                                                     <label class="form-check-label" for="volume-checkbox">Volume Analysis (OBV, VPT)</label>
                                                 </div>
                                             </div>
-
-                                            <button type="submit" class="btn btn-primary" id="add-indicators-btn">Add Indicators</button>
                                         </form>
                                     </div>
                                 </div>
@@ -227,20 +233,32 @@
                                     <div class="card-body">
                                         <form id="chart-form" class="mb-3">
                                             <div class="row">
-                                                <div class="col-md-6">
+                                                <div class="col-md-5">
                                                     <div class="mb-3">
                                                         <label for="main-indicators" class="form-label">Main Indicators</label>
                                                         <select multiple class="form-select" id="main-indicators" size="5">
                                                             <!-- Options will be added dynamically -->
                                                         </select>
+                                                        <button type="button" class="btn btn-sm btn-danger mt-1" id="remove-main"><i class="bi bi-trash"></i> Remove Selected</button>
                                                     </div>
                                                 </div>
-                                                <div class="col-md-6">
+                                                <div class="col-md-2 d-flex align-items-center justify-content-center">
+                                                    <div class="btn-group-vertical">
+                                                        <button type="button" class="btn btn-primary mb-2" id="move-to-main">
+                                                            <i class="bi bi-arrow-left"></i> To Main
+                                                        </button>
+                                                        <button type="button" class="btn btn-primary" id="move-to-subplot">
+                                                            To Subplot <i class="bi bi-arrow-right"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-5">
                                                     <div class="mb-3">
                                                         <label for="subplot-indicators" class="form-label">Subplot Indicators</label>
                                                         <select multiple class="form-select" id="subplot-indicators" size="5">
                                                             <!-- Options will be added dynamically -->
                                                         </select>
+                                                        <button type="button" class="btn btn-sm btn-danger mt-1" id="remove-subplot"><i class="bi bi-trash"></i> Remove Selected</button>
                                                     </div>
                                                 </div>
                                             </div>

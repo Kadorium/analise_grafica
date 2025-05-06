@@ -810,7 +810,19 @@ async def export_results(format: str):
 
 @app.get("/api/current-config")
 async def get_current_config():
-    global CURRENT_CONFIG
+    global CURRENT_CONFIG, PROCESSED_DATA
+    
+    # Add available indicators to the config
+    if PROCESSED_DATA is not None:
+        # Get the list of indicator columns
+        indicator_columns = [col for col in PROCESSED_DATA.columns 
+                           if col not in ['date', 'open', 'high', 'low', 'close', 'volume']]
+        
+        # Update the current config
+        if 'indicators' not in CURRENT_CONFIG:
+            CURRENT_CONFIG['indicators'] = {}
+        
+        CURRENT_CONFIG['indicators']['available_indicators'] = indicator_columns
     
     return CURRENT_CONFIG
 

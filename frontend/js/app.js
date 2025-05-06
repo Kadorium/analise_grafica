@@ -342,6 +342,13 @@ async function fetchCurrentConfig() {
                 input.value = currentConfig.data.end_date;
             });
         }
+        
+        // Check for available indicators
+        if (currentConfig.indicators && currentConfig.indicators.available_indicators) {
+            availableIndicators = currentConfig.indicators.available_indicators;
+            console.log("Available indicators from config:", availableIndicators);
+            updateIndicatorDropdowns();
+        }
     } catch (error) {
         console.error('Error fetching current config:', error);
     }
@@ -1434,38 +1441,44 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
             // Get selected indicators
-            const indicatorConfig = {
-                moving_averages: null,
-                rsi: null,
-                macd: null,
-                bollinger_bands: null,
-                stochastic: null,
-                volume: false,
-                atr: null
-            };
+            const indicatorConfig = {};
             
-            // Moving Averages
-            const maCheckbox = document.getElementById('ma-checkbox');
-            if (maCheckbox && maCheckbox.checked) {
-                indicatorConfig.moving_averages = {
-                    types: [],
-                    periods: []
-                };
-                
-                const smaCheckbox = document.getElementById('sma-checkbox');
-                const emaCheckbox = document.getElementById('ema-checkbox');
-                
-                if (smaCheckbox && smaCheckbox.checked) {
-                    indicatorConfig.moving_averages.types.push('sma');
-                }
-                if (emaCheckbox && emaCheckbox.checked) {
-                    indicatorConfig.moving_averages.types.push('ema');
+            // Moving Averages (SMA)
+            const smaCheckbox = document.getElementById('sma-checkbox');
+            if (smaCheckbox && smaCheckbox.checked) {
+                if (!indicatorConfig.moving_averages) {
+                    indicatorConfig.moving_averages = {
+                        types: []
+                    };
                 }
                 
-                // Extract periods (comma separated values)
-                const periodsStr = document.getElementById('ma-periods').value;
-                const periods = periodsStr.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p) && p > 0);
-                indicatorConfig.moving_averages.periods = periods;
+                indicatorConfig.moving_averages.types.push('sma');
+                
+                // Extract SMA periods (comma separated values)
+                const smaPeriodsStr = document.getElementById('sma-periods').value;
+                const smaPeriods = smaPeriodsStr.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p) && p > 0);
+                indicatorConfig.moving_averages.sma_periods = smaPeriods;
+                
+                console.log("Adding SMA with periods:", smaPeriods);
+            }
+            
+            // Moving Averages (EMA)
+            const emaCheckbox = document.getElementById('ema-checkbox');
+            if (emaCheckbox && emaCheckbox.checked) {
+                if (!indicatorConfig.moving_averages) {
+                    indicatorConfig.moving_averages = {
+                        types: []
+                    };
+                }
+                
+                indicatorConfig.moving_averages.types.push('ema');
+                
+                // Extract EMA periods (comma separated values)
+                const emaPeriodsStr = document.getElementById('ema-periods').value;
+                const emaPeriods = emaPeriodsStr.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p) && p > 0);
+                indicatorConfig.moving_averages.ema_periods = emaPeriods;
+                
+                console.log("Adding EMA with periods:", emaPeriods);
             }
             
             // RSI
@@ -1475,6 +1488,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 indicatorConfig.rsi = {
                     period: rsiPeriod ? parseInt(rsiPeriod.value) : 14
                 };
+                console.log("Adding RSI with period:", indicatorConfig.rsi.period);
             }
             
             // MACD
@@ -1488,6 +1502,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     slow_period: macdSlow ? parseInt(macdSlow.value) : 26,
                     signal_period: macdSignal ? parseInt(macdSignal.value) : 9
                 };
+                console.log("Adding MACD with parameters:", indicatorConfig.macd);
             }
             
             // Bollinger Bands
@@ -1496,9 +1511,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const bbandsPeriod = document.getElementById('bbands-period');
                 const bbandsStd = document.getElementById('bbands-std');
                 indicatorConfig.bollinger_bands = {
-                    period: bbandsPeriod ? parseInt(bbandsPeriod.value) : 20,
-                    std_dev: bbandsStd ? parseFloat(bbandsStd.value) : 2.0
+                    window: bbandsPeriod ? parseInt(bbandsPeriod.value) : 20,
+                    num_std: bbandsStd ? parseFloat(bbandsStd.value) : 2.0
                 };
+                console.log("Adding Bollinger Bands with parameters:", indicatorConfig.bollinger_bands);
             }
             
             // Stochastic
@@ -1512,12 +1528,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     d_period: stochD ? parseInt(stochD.value) : 3,
                     slowing: stochSlowing ? parseInt(stochSlowing.value) : 3
                 };
+                console.log("Adding Stochastic with parameters:", indicatorConfig.stochastic);
             }
             
             // Volume
             const volumeCheckbox = document.getElementById('volume-checkbox');
             if (volumeCheckbox && volumeCheckbox.checked) {
                 indicatorConfig.volume = true;
+                console.log("Adding Volume indicators");
             }
             
             // ATR
@@ -1527,12 +1545,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 indicatorConfig.atr = {
                     period: atrPeriod ? parseInt(atrPeriod.value) : 14
                 };
+                console.log("Adding ATR with period:", indicatorConfig.atr.period);
+            }
+            
+            // Check if any indicator is selected
+            if (Object.keys(indicatorConfig).length === 0) {
+                showError('Please select at least one indicator to add.');
+                return;
             }
             
             // Disable the add indicators button
             const addIndicatorsBtn = document.getElementById('add-indicators-btn');
             addIndicatorsBtn.disabled = true;
             addIndicatorsBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...';
+            
+            console.log("Sending indicator config:", JSON.stringify(indicatorConfig));
             
             // Call the API
             fetch(API_ENDPOINTS.ADD_INDICATORS, {
@@ -1548,8 +1575,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                     throw new Error(data.message || 'Error adding indicators');
                 }
                 
-                // Update available indicators
-                availableIndicators = data.available_indicators || [];
+                console.log("API response:", data);
+                
+                // Get the list of newly added indicators
+                const newIndicators = data.available_indicators || [];
+                console.log("New indicators added:", newIndicators);
+                
+                // Combine new indicators with existing ones without duplicates
+                const previousIndicators = availableIndicators.slice();  // Make a copy for debugging
+                availableIndicators = [...new Set([...availableIndicators, ...newIndicators])];
+                
+                console.log("Previous indicators:", previousIndicators);
+                console.log("Updated indicators list:", availableIndicators);
                 
                 // Update the indicator selection dropdowns
                 updateIndicatorDropdowns();
@@ -1560,7 +1597,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Ensure dataProcessed flag remains true
                 dataProcessed = true;
                 sessionStorage.setItem('dataProcessed', 'true');
-                
             })
             .catch(error => {
                 console.error('Error adding indicators:', error);
@@ -1589,12 +1625,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             
-            // Get selected indicators for the chart
+            // Get all indicators from the respective lists
             const mainIndicatorsSelect = document.getElementById('main-indicators');
             const subplotIndicatorsSelect = document.getElementById('subplot-indicators');
             
-            const mainIndicators = Array.from(mainIndicatorsSelect.selectedOptions).map(opt => opt.value);
-            const subplotIndicators = Array.from(subplotIndicatorsSelect.selectedOptions).map(opt => opt.value);
+            // Get all options (not just selected ones) from each list
+            const mainIndicators = Array.from(mainIndicatorsSelect.options).map(opt => opt.value);
+            const subplotIndicators = Array.from(subplotIndicatorsSelect.options).map(opt => opt.value);
             
             // Get date range
             const startDate = document.getElementById('chart-start-date').value;
@@ -1768,6 +1805,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+    
+    // Initialize indicator controls
+    initializeIndicatorControls();
 });
 
 // Helper function to show success message
@@ -1800,26 +1840,113 @@ function updateIndicatorDropdowns() {
     mainIndicatorsSelect.innerHTML = '';
     subplotIndicatorsSelect.innerHTML = '';
     
-    // Group indicators by type
-    const mainIndicators = ['price', 'sma', 'ema', 'bollinger_bands'];
-    const subplotIndicators = ['volume', 'rsi', 'macd', 'stochastic', 'atr'];
+    console.log("Updating indicator dropdowns with available indicators:", availableIndicators);
     
-    // Add main indicators
+    // Categorize indicators based on type
+    const mainIndicatorTypes = ['sma_', 'ema_', 'bb_', 'typical_price'];
+    const subplotIndicatorTypes = ['rsi', 'macd', 'stoch', 'obv', 'vpt', 'volume_', 'atr'];
+    
+    const categorizedMain = [];
+    const categorizedSubplot = [];
+    
+    // Initialize typical_price for price display
+    const hasTypicalPrice = availableIndicators.some(ind => ind === 'typical_price');
+    if (!hasTypicalPrice) {
+        categorizedMain.push('typical_price');
+    }
+    
     availableIndicators.forEach(indicator => {
-        const parts = indicator.split('_');
-        const baseType = parts[0];
+        // Decide which dropdown this indicator belongs to
+        let isMainIndicator = mainIndicatorTypes.some(prefix => indicator.startsWith(prefix));
+        let isSubplotIndicator = subplotIndicatorTypes.some(prefix => indicator.startsWith(prefix) || indicator === prefix);
         
-        // Create option element
+        if (isMainIndicator) {
+            categorizedMain.push(indicator);
+        } else if (isSubplotIndicator) {
+            categorizedSubplot.push(indicator);
+        } else {
+            // Default to subplot for unknown indicators
+            categorizedSubplot.push(indicator);
+        }
+    });
+    
+    console.log("Categorized main indicators:", categorizedMain);
+    console.log("Categorized subplot indicators:", categorizedSubplot);
+    
+    // Add categorized indicators to their respective dropdowns
+    categorizedMain.forEach(indicator => {
         const option = document.createElement('option');
         option.value = indicator;
         option.textContent = indicator.replace(/_/g, ' ');
-        
-        // Add to appropriate select based on type
-        if (mainIndicators.includes(baseType)) {
-            mainIndicatorsSelect.appendChild(option);
-        } else if (subplotIndicators.includes(baseType)) {
-            subplotIndicatorsSelect.appendChild(option);
+        mainIndicatorsSelect.appendChild(option);
+    });
+    
+    categorizedSubplot.forEach(indicator => {
+        const option = document.createElement('option');
+        option.value = indicator;
+        option.textContent = indicator.replace(/_/g, ' ');
+        subplotIndicatorsSelect.appendChild(option);
+    });
+}
+
+// Function to initialize indicator control buttons
+function initializeIndicatorControls() {
+    // Add event listeners for the indicator control buttons
+    document.getElementById('move-to-main').addEventListener('click', function() {
+        moveSelectedOptions('subplot-indicators', 'main-indicators');
+    });
+    
+    document.getElementById('move-to-subplot').addEventListener('click', function() {
+        moveSelectedOptions('main-indicators', 'subplot-indicators');
+    });
+    
+    document.getElementById('remove-main').addEventListener('click', function() {
+        removeSelectedOptions('main-indicators');
+    });
+    
+    document.getElementById('remove-subplot').addEventListener('click', function() {
+        removeSelectedOptions('subplot-indicators');
+    });
+}
+
+// Helper function to move selected options between select elements
+function moveSelectedOptions(sourceId, targetId) {
+    const sourceSelect = document.getElementById(sourceId);
+    const targetSelect = document.getElementById(targetId);
+    
+    // Get selected options
+    const selectedOptions = Array.from(sourceSelect.selectedOptions);
+    
+    // Move each selected option to the target
+    selectedOptions.forEach(option => {
+        // Check if this option already exists in the target
+        const existingOption = Array.from(targetSelect.options).find(opt => opt.value === option.value);
+        if (existingOption) {
+            console.log(`Option ${option.value} already exists in target, skipping`);
+            return;
         }
+        
+        // Create a new option for the target
+        const newOption = document.createElement('option');
+        newOption.value = option.value;
+        newOption.textContent = option.textContent;
+        
+        // Add to target and remove from source
+        targetSelect.appendChild(newOption);
+        sourceSelect.removeChild(option);
+    });
+}
+
+// Helper function to remove selected options from a select element
+function removeSelectedOptions(selectId) {
+    const select = document.getElementById(selectId);
+    
+    // Get selected options in reverse order (to avoid index issues when removing)
+    const selectedOptions = Array.from(select.selectedOptions).reverse();
+    
+    // Remove each selected option
+    selectedOptions.forEach(option => {
+        select.removeChild(option);
     });
 }
 

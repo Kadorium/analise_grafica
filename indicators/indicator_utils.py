@@ -37,51 +37,111 @@ def combine_indicators(data, indicators_config=None):
     
     result = data.copy()
     
+    # Track existing and new indicators
+    existing_indicators = [col for col in result.columns 
+                         if col not in ['date', 'open', 'high', 'low', 'close', 'volume']]
+    print(f"Existing indicators: {existing_indicators}")
+    
     # Add Moving Averages
     if 'moving_averages' in indicators_config:
         config = indicators_config['moving_averages']
-        result = add_moving_averages(result, 
-                                   sma_periods=config.get('sma_periods', [20, 50, 200]),
-                                   ema_periods=config.get('ema_periods', [12, 26, 50]))
+        
+        # Handle the case where we have separate sma_periods and ema_periods
+        sma_periods = config.get('sma_periods', [20, 50, 200])
+        ema_periods = config.get('ema_periods', [12, 26, 50])
+        
+        # For backward compatibility, check if 'periods' key exists
+        if 'periods' in config:
+            periods = config['periods']
+            if 'sma' in config.get('types', []):
+                sma_periods = periods
+            if 'ema' in config.get('types', []):
+                ema_periods = periods
+        
+        # Only include the types that are selected
+        types = config.get('types', [])
+        if 'sma' not in types:
+            sma_periods = []
+        if 'ema' not in types:
+            ema_periods = []
+            
+        # Check if indicators already exist before adding
+        expected_sma_columns = [f'sma_{period}' for period in sma_periods]
+        expected_ema_columns = [f'ema_{period}' for period in ema_periods]
+        
+        # Filter out periods that already have indicators
+        sma_periods_to_add = [period for period in sma_periods 
+                            if f'sma_{period}' not in existing_indicators]
+        ema_periods_to_add = [period for period in ema_periods 
+                            if f'ema_{period}' not in existing_indicators]
+        
+        print(f"Adding SMA periods: {sma_periods_to_add} (requested: {sma_periods})")
+        print(f"Adding EMA periods: {ema_periods_to_add} (requested: {ema_periods})")
+        
+        if sma_periods_to_add or ema_periods_to_add:
+            result = add_moving_averages(result, 
+                                      sma_periods=sma_periods_to_add,
+                                      ema_periods=ema_periods_to_add)
     
     # Add Momentum Indicators
     if any(k in indicators_config for k in ['rsi', 'macd', 'stochastic']):
         momentum_params = {}
         
-        if 'rsi' in indicators_config:
+        # Only add RSI if it doesn't already exist
+        if 'rsi' in indicators_config and 'rsi' not in existing_indicators:
             momentum_params['rsi_period'] = indicators_config['rsi'].get('period', 14)
             
-        if 'macd' in indicators_config:
+        # Only add MACD if it doesn't already exist
+        if 'macd' in indicators_config and not all(col in existing_indicators for col in ['macd', 'macd_signal', 'macd_histogram']):
             macd_config = indicators_config['macd']
             momentum_params['macd_fast'] = macd_config.get('fast_period', 12)
             momentum_params['macd_slow'] = macd_config.get('slow_period', 26)
             momentum_params['macd_signal'] = macd_config.get('signal_period', 9)
             
-        if 'stochastic' in indicators_config:
+        # Only add Stochastic if it doesn't already exist
+        if 'stochastic' in indicators_config and not all(col in existing_indicators for col in ['stoch_k', 'stoch_d']):
             stoch_config = indicators_config['stochastic']
             momentum_params['stoch_k'] = stoch_config.get('k_period', 14)
             momentum_params['stoch_d'] = stoch_config.get('d_period', 3)
             momentum_params['stoch_slowing'] = stoch_config.get('slowing', 3)
-            
-        result = add_momentum_indicators(result, **momentum_params)
+        
+        print(f"Adding momentum indicators with params: {momentum_params}")
+        
+        # Only call the function if we have parameters to process
+        if momentum_params:
+            result = add_momentum_indicators(result, **momentum_params)
     
     # Add Volume Indicators
-    if 'volume' in indicators_config:
+    if 'volume' in indicators_config and not any(col in existing_indicators for col in ['obv', 'vpt']):
+        print("Adding volume indicators")
         result = add_volume_indicators(result)
     
     # Add Volatility Indicators
     if any(k in indicators_config for k in ['atr', 'bollinger_bands']):
         volatility_params = {}
         
-        if 'atr' in indicators_config:
+        # Only add ATR if it doesn't already exist
+        if 'atr' in indicators_config and 'atr' not in existing_indicators:
             volatility_params['atr_period'] = indicators_config['atr'].get('period', 14)
             
-        if 'bollinger_bands' in indicators_config:
+        # Only add Bollinger Bands if they don't already exist
+        bb_columns = ['bb_upper', 'bb_middle', 'bb_lower']
+        if 'bollinger_bands' in indicators_config and not all(col in existing_indicators for col in bb_columns):
             bb_config = indicators_config['bollinger_bands']
             volatility_params['bollinger_window'] = bb_config.get('window', 20)
             volatility_params['bollinger_std'] = bb_config.get('num_std', 2)
-            
-        result = add_volatility_indicators(result, **volatility_params)
+        
+        print(f"Adding volatility indicators with params: {volatility_params}")
+        
+        # Only call the function if we have parameters to process
+        if volatility_params:
+            result = add_volatility_indicators(result, **volatility_params)
+    
+    # List new indicators added
+    new_indicators = [col for col in result.columns 
+                    if col not in existing_indicators and 
+                       col not in ['date', 'open', 'high', 'low', 'close', 'volume']]
+    print(f"New indicators added: {new_indicators}")
     
     return result
 
@@ -148,18 +208,72 @@ def plot_price_with_indicators(data, plot_config=None):
         fig = plt.figure(figsize=(12, 8))
         gs = fig.add_gridspec(n_subplots, 1, height_ratios=[3] + [1] * (n_subplots - 1))
         
-        # Main price plot
+        # Main price plot - Create twin axis for indicators
         ax_main = fig.add_subplot(gs[0])
-        ax_main.plot(temp_data['date'], temp_data['close'], label='Close Price')
+        ax_main.plot(temp_data['date'], temp_data['close'], label='Close Price', color='blue', linewidth=2)
+        ax_main.set_ylabel('Price', color='blue')
+        ax_main.tick_params(axis='y', labelcolor='blue')
         
-        # Plot main indicators
-        for indicator in main_indicators:
-            ax_main.plot(temp_data['date'], temp_data[indicator], label=indicator)
+        # Separate price-scale indicators from other indicators
+        price_scale_indicators = [ind for ind in main_indicators if any(ind.startswith(prefix) for prefix in ['bb_', 'sma_', 'ema_'])]
+        other_indicators = [ind for ind in main_indicators if ind not in price_scale_indicators]
+        
+        # For debugging
+        print(f"Main indicators: {main_indicators}")
+        print(f"Price scale indicators: {price_scale_indicators}")
+        print(f"Other indicators: {other_indicators}")
+        
+        # Plot price-scale indicators on the same axis as price
+        bb_colors = {'bb_upper': 'red', 'bb_lower': 'green', 'bb_middle': 'purple'}
+        ma_colors = {'sma': 'orange', 'ema': 'magenta'}
+        
+        for indicator in price_scale_indicators:
+            if indicator in temp_data.columns:  # Make sure the indicator exists in the data
+                # Special colors for Bollinger Bands
+                if indicator in bb_colors:
+                    ax_main.plot(temp_data['date'], temp_data[indicator], 
+                                 label=indicator, color=bb_colors[indicator], alpha=0.7, linestyle='--')
+                # Colors for Moving Averages
+                elif indicator.startswith('sma_'):
+                    ax_main.plot(temp_data['date'], temp_data[indicator], 
+                                 label=indicator, color='orange', alpha=0.7)
+                elif indicator.startswith('ema_'):
+                    ax_main.plot(temp_data['date'], temp_data[indicator], 
+                                 label=indicator, color='magenta', alpha=0.7)
+                else:
+                    ax_main.plot(temp_data['date'], temp_data[indicator], 
+                                 label=indicator, alpha=0.7)
+        
+        # Create a twin axis for non-price-scale indicators if there are any
+        if other_indicators:
+            ax_indicators = ax_main.twinx()
+            
+            # Determine a good color map for the indicators
+            colors = plt.cm.tab10(np.linspace(0, 1, max(1, len(other_indicators))))
+            
+            # Plot other indicators on the twin axis
+            for i, indicator in enumerate(other_indicators):
+                if indicator in temp_data.columns:  # Make sure the indicator exists in the data
+                    ax_indicators.plot(temp_data['date'], temp_data[indicator], 
+                                     label=indicator, color=colors[i % len(colors)], alpha=0.7)
+            
+            ax_indicators.set_ylabel('Indicator Values', color='gray')
+            ax_indicators.tick_params(axis='y', labelcolor='gray')
+            
+            # Create a combined legend for both axes
+            lines1, labels1 = ax_main.get_legend_handles_labels()
+            lines2, labels2 = ax_indicators.get_legend_handles_labels()
+            
+            # Only add legend if we have indicators
+            if lines1 or lines2:
+                ax_main.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
+        else:
+            # Only add legend if we have something to show
+            if ax_main.get_legend_handles_labels()[0]:
+                ax_main.legend(loc='upper left')
         
         ax_main.set_title(plot_config.get('title', 'Price Chart with Indicators'))
-        ax_main.set_ylabel('Price')
         ax_main.grid(True)
-        ax_main.legend(loc='upper left')
         
         # Create subplots for additional indicators
         for i, indicator in enumerate(subplot_indicators, 1):
