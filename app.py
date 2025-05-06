@@ -128,6 +128,8 @@ async def arrange_data(file: UploadFile = File(...)):
     """
     Endpoint to arrange data files (CSV, XLS, XLSX) into a standardized format.
     """
+    global PROCESSED_DATA, UPLOADED_DATA
+    
     try:
         # Save the uploaded file temporarily
         temp_input_path = os.path.join('data', 'temp_' + file.filename)
@@ -162,17 +164,32 @@ async def arrange_data(file: UploadFile = File(...)):
         data_loader = DataLoader(output_file)
         arranged_data = data_loader.load_csv()
         
+        # Set the processed data so it's available for other endpoints
+        UPLOADED_DATA = arranged_data.copy()
+        PROCESSED_DATA = arranged_data.copy()
+        
         # Prepare sample data for JSON serialization
         sample_data = arranged_data.head(5).copy()
         if 'date' in sample_data.columns and pd.api.types.is_datetime64_any_dtype(sample_data['date']):
             sample_data['date'] = sample_data['date'].dt.strftime('%Y-%m-%d')
+        
+        # Include date range info like in process-data endpoint
+        date_range = {
+            "start": PROCESSED_DATA['date'].min() if not pd.isna(PROCESSED_DATA['date'].min()) else "N/A",
+            "end": PROCESSED_DATA['date'].max() if not pd.isna(PROCESSED_DATA['date'].max()) else "N/A"
+        }
+        
+        if pd.api.types.is_datetime64_any_dtype(PROCESSED_DATA['date']):
+            date_range["start"] = date_range["start"].strftime('%Y-%m-%d') if not pd.isna(date_range["start"]) else "N/A"
+            date_range["end"] = date_range["end"].strftime('%Y-%m-%d') if not pd.isna(date_range["end"]) else "N/A"
         
         return {
             "message": f"Data arranged successfully and saved to {output_file}",
             "output_file": output_file,
             "data_shape": arranged_data.shape,
             "data_sample": sample_data.to_dict('records'),
-            "columns": list(arranged_data.columns)
+            "columns": list(arranged_data.columns),
+            "date_range": date_range
         }
     except Exception as e:
         import traceback

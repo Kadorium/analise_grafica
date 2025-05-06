@@ -237,9 +237,13 @@ arrangeBtn.addEventListener('click', async () => {
         // Enable the process button and set dataUploaded flag
         processBtn.disabled = false;
         dataUploaded = true;
+        dataProcessed = true;
         
         // Show success message
         dataInfo.innerHTML += `<div class="alert alert-success mt-2">Data arranged successfully! Saved to ${data.output_file}</div>`;
+        
+        // Fetch current config to update UI date ranges
+        fetchCurrentConfig();
         
     } catch (error) {
         showError(error.message);
