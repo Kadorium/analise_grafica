@@ -88,24 +88,26 @@ async def upload_file(file: UploadFile = File(...)):
     try:
         contents = await file.read()
         
-        # Parse the CSV
-        UPLOADED_DATA = pd.read_csv(io.StringIO(contents.decode('utf-8')))
+        # Save the file temporarily to use with our enhanced DataLoader
+        temp_file_path = os.path.join('data', 'temp_upload.csv')
+        os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
         
-        # Check if the required columns exist
-        required_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
-        missing_columns = [col for col in required_columns if col.lower() not in map(str.lower, UPLOADED_DATA.columns)]
+        with open(temp_file_path, 'wb') as f:
+            f.write(contents)
         
-        if missing_columns:
-            return JSONResponse(
-                status_code=400,
-                content={"message": f"Missing required columns: {', '.join(missing_columns)}"}
-            )
+        # Use our enhanced DataLoader instead of basic pd.read_csv
+        data_loader = DataLoader(temp_file_path)
+        UPLOADED_DATA = data_loader.load_csv()
         
-        # Return a sample of the data
+        # No need to check for required columns here as DataLoader will handle that
+        # during the clean_data step in the process-data endpoint
+        
+        # Return information about the data
         return {
             "message": "File uploaded successfully",
             "data_shape": UPLOADED_DATA.shape,
-            "data_sample": UPLOADED_DATA.head().to_dict('records')
+            "data_sample": UPLOADED_DATA.head().to_dict('records'),
+            "columns": list(UPLOADED_DATA.columns)
         }
     except Exception as e:
         return JSONResponse(
@@ -124,13 +126,11 @@ async def process_data():
         )
     
     try:
-        # Create a DataLoader instance
+        # Create a DataLoader instance and set the data
         data_loader = DataLoader()
-        
-        # Set the data
         data_loader.data = UPLOADED_DATA.copy()
         
-        # Clean the data
+        # Clean the data with our enhanced robust method
         cleaned_data = data_loader.clean_data()
         
         # Store the processed data
