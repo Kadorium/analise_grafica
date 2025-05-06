@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 from datetime import datetime
+import csv
 
 class DataLoader:
     """
@@ -35,10 +36,77 @@ class DataLoader:
             raise ValueError("File path not provided")
             
         try:
-            self.data = pd.read_csv(self.file_path)
+            # First, detect the CSV delimiter by analyzing first few rows
+            with open(self.file_path, 'r', encoding='utf-8', errors='replace') as f:
+                sample = f.read(2048)  # Read a sample to detect delimiter
+                dialect = csv.Sniffer().sniff(sample)
+                delimiter = dialect.delimiter
+            
+            # Try reading with the detected delimiter and various settings for more robustness
+            self.data = pd.read_csv(
+                self.file_path,
+                delimiter=delimiter,
+                engine='python',  # More flexible but slower engine
+                on_bad_lines='warn',  # Warn on bad lines instead of failing
+                quotechar='"',  # Handle quoted fields
+                skipinitialspace=True,  # Skip spaces after delimiter
+                low_memory=False,  # Better for large files
+                encoding='utf-8',  # Try UTF-8 encoding
+                encoding_errors='replace'  # Replace encoding errors
+            )
+            
+            # If file has thousands of dates, ensure efficient processing
+            if len(self.data) > 10000:
+                print(f"Large dataset detected: {len(self.data)} rows. Optimizing...")
+            
             return self.data
+            
         except Exception as e:
-            raise Exception(f"Error loading CSV file: {str(e)}")
+            # If first attempt fails, try alternative approaches
+            try:
+                print(f"Initial read failed: {str(e)}. Trying alternative approaches...")
+                
+                # Try to read with pandas' auto-detection
+                self.data = pd.read_csv(
+                    self.file_path,
+                    sep=None,  # Let pandas detect the separator
+                    engine='python',
+                    on_bad_lines='skip',  # Skip bad lines
+                    low_memory=False
+                )
+                print("Successfully loaded data with auto-detected separator.")
+                return self.data
+                
+            except Exception as e2:
+                # As a last resort, try reading with more flexibility
+                try:
+                    # Try to read file with very flexible settings
+                    self.data = pd.read_csv(
+                        self.file_path,
+                        sep=None,
+                        header=None,  # Assume no header if everything else fails
+                        engine='python',
+                        on_bad_lines='skip',
+                        low_memory=False
+                    )
+                    
+                    # If successful, generate default column names
+                    if len(self.data.columns) >= 6:
+                        # Rename columns to expected format
+                        default_names = ['date', 'open', 'high', 'low', 'close', 'volume']
+                        rename_dict = {i: name for i, name in enumerate(default_names) if i < len(self.data.columns)}
+                        self.data.rename(columns=rename_dict, inplace=True)
+                        
+                        print("Loaded data with default column names. Please verify column mapping.")
+                        return self.data
+                    else:
+                        raise ValueError("CSV format doesn't match expected structure")
+                        
+                except Exception as e3:
+                    raise Exception(f"All attempts to read the CSV file failed:\n"
+                                   f"1. {str(e)}\n"
+                                   f"2. {str(e2)}\n"
+                                   f"3. {str(e3)}")
     
     def clean_data(self):
         """
@@ -58,20 +126,70 @@ class DataLoader:
         missing_columns = [col for col in required_columns if col not in self.data.columns]
         
         if missing_columns:
-            raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
+            # Try to identify columns by position if names don't match
+            if len(self.data.columns) >= 6:
+                print(f"Missing columns: {', '.join(missing_columns)}. Attempting to map columns by position...")
+                
+                # Create a mapping from position to expected column names
+                column_mapping = {}
+                for i, req_col in enumerate(required_columns):
+                    if i < len(self.data.columns) and req_col not in self.data.columns:
+                        column_mapping[self.data.columns[i]] = req_col
+                
+                # Rename columns
+                if column_mapping:
+                    self.data.rename(columns=column_mapping, inplace=True)
+                    
+                    # Check again for missing columns
+                    missing_columns = [col for col in required_columns if col not in self.data.columns]
+                    
+                    if missing_columns:
+                        raise ValueError(f"Still missing required columns after mapping: {', '.join(missing_columns)}")
+                    else:
+                        print("Successfully mapped columns by position.")
+            else:
+                raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
         
-        # Convert date to datetime
-        self.data['date'] = pd.to_datetime(self.data['date'])
+        # Convert date to datetime with error handling
+        try:
+            self.data['date'] = pd.to_datetime(self.data['date'], errors='coerce')
+        except Exception as e:
+            print(f"Error converting date column: {str(e)}. Trying different formats...")
+            
+            # Try different date formats
+            date_formats = ['%Y-%m-%d', '%m/%d/%Y', '%d/%m/%Y', '%Y/%m/%d', '%d-%m-%Y', '%m-%d-%Y']
+            for date_format in date_formats:
+                try:
+                    self.data['date'] = pd.to_datetime(self.data['date'], format=date_format, errors='coerce')
+                    if not self.data['date'].isna().all():
+                        print(f"Successfully parsed dates with format: {date_format}")
+                        break
+                except:
+                    continue
         
-        # Ensure numeric types for OHLCV
+        # Ensure numeric types for OHLCV with error handling for different formats
         for col in ['open', 'high', 'low', 'close', 'volume']:
+            # Replace commas in numeric values
+            if self.data[col].dtype == 'object':
+                self.data[col] = self.data[col].astype(str).str.replace(',', '')
+                
+            # Convert to numeric
             self.data[col] = pd.to_numeric(self.data[col], errors='coerce')
             
         # Handle missing values
+        before_rows = len(self.data)
         self.data.dropna(inplace=True)
+        after_rows = len(self.data)
+        
+        if before_rows > after_rows:
+            print(f"Removed {before_rows - after_rows} rows with missing values.")
         
         # Sort by date
         self.data.sort_values('date', inplace=True)
+        
+        # Add a message for large datasets
+        if len(self.data) > 1000:
+            print(f"Successfully processed {len(self.data)} dates.")
         
         return self.data
     
