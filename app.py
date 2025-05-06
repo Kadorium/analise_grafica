@@ -99,14 +99,22 @@ async def upload_file(file: UploadFile = File(...)):
         data_loader = DataLoader(temp_file_path)
         UPLOADED_DATA = data_loader.load_csv()
         
-        # No need to check for required columns here as DataLoader will handle that
-        # during the clean_data step in the process-data endpoint
+        # Drop any unwanted unnamed columns that are empty
+        for col in UPLOADED_DATA.columns:
+            if 'unnamed' in col.lower() and UPLOADED_DATA[col].isna().all():
+                UPLOADED_DATA = UPLOADED_DATA.drop(columns=[col])
         
-        # Return information about the data
+        # Return information about the data - use smaller sample to avoid JSON serialization issues
+        sample_data = UPLOADED_DATA.head(5).copy()
+        
+        # Convert date column to string if it's datetime to ensure JSON serialization
+        if 'date' in sample_data.columns and pd.api.types.is_datetime64_any_dtype(sample_data['date']):
+            sample_data['date'] = sample_data['date'].dt.strftime('%Y-%m-%d')
+        
         return {
             "message": "File uploaded successfully",
             "data_shape": UPLOADED_DATA.shape,
-            "data_sample": UPLOADED_DATA.head().to_dict('records'),
+            "data_sample": sample_data.to_dict('records'),
             "columns": list(UPLOADED_DATA.columns)
         }
     except Exception as e:
@@ -133,20 +141,86 @@ async def process_data():
         # Clean the data with our enhanced robust method
         cleaned_data = data_loader.clean_data()
         
+        # Handle empty dataset after cleaning
+        if len(cleaned_data) == 0:
+            # Try European date format specifically for DD/MM/YY
+            print("Attempting recovery with European date format...")
+            data_copy = UPLOADED_DATA.copy()
+            
+            # Custom function to parse dates in European format
+            def parse_date(date_str):
+                if not isinstance(date_str, str):
+                    return None
+                    
+                date_str = date_str.strip()
+                
+                # Try European formats first
+                formats = ['%d/%m/%y', '%d/%m/%Y']
+                
+                for fmt in formats:
+                    try:
+                        return pd.to_datetime(date_str, format=fmt)
+                    except:
+                        continue
+                        
+                # If European formats fail, try other common formats
+                formats = ['%m/%d/%y', '%m/%d/%Y', '%Y-%m-%d']
+                for fmt in formats:
+                    try:
+                        return pd.to_datetime(date_str, format=fmt)
+                    except:
+                        continue
+                
+                # Last resort: let pandas try to figure it out
+                try:
+                    return pd.to_datetime(date_str, errors='coerce')
+                except:
+                    return None
+            
+            # Apply date parser
+            data_copy['date'] = data_copy['date'].apply(parse_date)
+            
+            # Convert numeric columns with European decimal format (comma instead of dot)
+            for col in ['open', 'high', 'low', 'close', 'volume']:
+                if col in data_copy.columns:
+                    if data_copy[col].dtype == object:
+                        data_copy[col] = data_copy[col].astype(str).str.replace(',', '.')
+                    data_copy[col] = pd.to_numeric(data_copy[col], errors='coerce')
+            
+            # Drop rows with missing values
+            data_copy = data_copy.dropna(subset=['date', 'open', 'high', 'low', 'close', 'volume'])
+            
+            # Use the manually fixed data if we have rows
+            if len(data_copy) > 0:
+                cleaned_data = data_copy
+                print(f"Recovery successful! Recovered {len(cleaned_data)} rows of data.")
+            else:
+                return JSONResponse(
+                    status_code=400,
+                    content={"message": "Could not process data. All rows were invalid after cleaning."}
+                )
+        
         # Store the processed data
         PROCESSED_DATA = cleaned_data
+        
+        # For return, format the dates as strings to ensure JSON serialization
+        sample_data = PROCESSED_DATA.head().copy()
+        if 'date' in sample_data.columns and pd.api.types.is_datetime64_any_dtype(sample_data['date']):
+            sample_data['date'] = sample_data['date'].dt.strftime('%Y-%m-%d')
         
         # Return a summary of the processed data
         return {
             "message": "Data processed successfully",
             "data_shape": PROCESSED_DATA.shape,
             "date_range": {
-                "start": PROCESSED_DATA['date'].min().strftime('%Y-%m-%d'),
-                "end": PROCESSED_DATA['date'].max().strftime('%Y-%m-%d')
+                "start": PROCESSED_DATA['date'].min().strftime('%Y-%m-%d') if not pd.isna(PROCESSED_DATA['date'].min()) else "N/A",
+                "end": PROCESSED_DATA['date'].max().strftime('%Y-%m-%d') if not pd.isna(PROCESSED_DATA['date'].max()) else "N/A"
             },
-            "data_sample": PROCESSED_DATA.head().to_dict('records')
+            "data_sample": sample_data.to_dict('records')
         }
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JSONResponse(
             status_code=500,
             content={"message": f"Error processing data: {str(e)}"}
