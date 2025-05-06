@@ -13,6 +13,45 @@ import io
 import base64
 from datetime import datetime
 import traceback
+import time
+import logging
+import sys
+import platform
+import psutil
+
+# Configuração de logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger("trading-app")
+
+# Função para gerar logs formatados de forma consistente
+def log_endpoint(endpoint_name, **kwargs):
+    """
+    Gera logs formatados de forma consistente para os endpoints.
+    
+    Args:
+        endpoint_name: Nome do endpoint para identificação
+        **kwargs: Dados adicionais a serem logados (parâmetros, resultados, etc.)
+    """
+    separator = "=" * 50
+    log_lines = [f"\n{separator}", f"ENDPOINT: {endpoint_name}", f"TIMESTAMP: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"]
+    
+    for key, value in kwargs.items():
+        # Formatação especial para DataFrames
+        if isinstance(value, pd.DataFrame):
+            log_lines.append(f"{key.upper()}: shape={value.shape}, columns={value.columns.tolist()}")
+        else:
+            log_lines.append(f"{key.upper()}: {value}")
+    
+    log_lines.append(separator)
+    log_message = "\n".join(log_lines)
+    logger.info(log_message)
+    return log_message
 
 # Import our modules
 from data.data_loader import DataLoader
@@ -39,7 +78,22 @@ app.add_middleware(
 async def global_exception_handler(request: Request, exc: Exception):
     error_detail = str(exc)
     stack_trace = traceback.format_exc()
-    print(f"Global exception: {error_detail}\n{stack_trace}")
+    
+    # Log the error with detailed information
+    separator = "#" * 80
+    error_log = f"""
+{separator}
+GLOBAL EXCEPTION HANDLER
+TIMESTAMP: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+REQUEST: {request.method} {request.url}
+CLIENT: {request.client.host if request.client else 'Unknown'}
+ERROR: {error_detail}
+STACK TRACE:
+{stack_trace}
+{separator}
+"""
+    logger.error(error_log)
+    
     return JSONResponse(
         status_code=500,
         content={"success": False, "message": f"Internal server error: {error_detail}"},
@@ -48,9 +102,25 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Add validation exception handler
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    error_detail = str(exc)
+    
+    # Log the validation error with detailed information
+    separator = "#" * 80
+    error_log = f"""
+{separator}
+VALIDATION EXCEPTION HANDLER
+TIMESTAMP: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+REQUEST: {request.method} {request.url}
+CLIENT: {request.client.host if request.client else 'Unknown'}
+ERROR: {error_detail}
+VALIDATION ERRORS: {exc.errors()}
+{separator}
+"""
+    logger.error(error_log)
+    
     return JSONResponse(
         status_code=422,
-        content={"success": False, "message": f"Validation error: {str(exc)}"},
+        content={"success": False, "message": f"Validation error: {error_detail}"},
     )
 
 # Mount the static files
@@ -105,6 +175,9 @@ async def read_root():
 async def upload_file(file: UploadFile = File(...)):
     global UPLOADED_DATA
     
+    start_time = time.time()
+    log_endpoint("POST /api/upload", file_name=file.filename, content_type=file.content_type)
+    
     # Read the uploaded file
     try:
         contents = await file.read()
@@ -116,9 +189,13 @@ async def upload_file(file: UploadFile = File(...)):
         with open(temp_file_path, 'wb') as f:
             f.write(contents)
         
+        logger.info(f"File saved temporarily to {temp_file_path}")
+        
         # Use our enhanced DataLoader instead of basic pd.read_csv
         data_loader = DataLoader(temp_file_path)
         UPLOADED_DATA = data_loader.load_csv()
+        
+        logger.info(f"Data loaded successfully: {UPLOADED_DATA.shape}")
         
         # Drop any unwanted unnamed columns that are empty
         for col in UPLOADED_DATA.columns:
@@ -132,13 +209,28 @@ async def upload_file(file: UploadFile = File(...)):
         if 'date' in sample_data.columns and pd.api.types.is_datetime64_any_dtype(sample_data['date']):
             sample_data['date'] = sample_data['date'].dt.strftime('%Y-%m-%d')
         
-        return {
+        elapsed_time = time.time() - start_time
+        response_data = {
             "message": "File uploaded successfully",
             "data_shape": UPLOADED_DATA.shape,
             "data_sample": sample_data.to_dict('records'),
             "columns": list(UPLOADED_DATA.columns)
         }
+        
+        log_endpoint("POST /api/upload - COMPLETE", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    data_shape=UPLOADED_DATA.shape,
+                    columns=list(UPLOADED_DATA.columns))
+        
+        return response_data
     except Exception as e:
+        elapsed_time = time.time() - start_time
+        error_trace = traceback.format_exc()
+        log_endpoint("POST /api/upload - ERROR", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    error=str(e),
+                    traceback=error_trace)
+        
         return JSONResponse(
             status_code=500,
             content={"message": f"Error processing file: {str(e)}"}
@@ -224,7 +316,16 @@ async def arrange_data(file: UploadFile = File(...)):
 async def process_data():
     global UPLOADED_DATA, PROCESSED_DATA
     
+    start_time = time.time()
+    log_endpoint("POST /api/process-data", 
+                uploaded_data_shape=UPLOADED_DATA.shape if UPLOADED_DATA is not None else None)
+    
     if UPLOADED_DATA is None:
+        elapsed_time = time.time() - start_time
+        log_endpoint("POST /api/process-data - ERROR", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    error="No data uploaded")
+        
         return JSONResponse(
             status_code=400,
             content={"message": "No data uploaded. Please upload a CSV file first."}
@@ -232,16 +333,19 @@ async def process_data():
     
     try:
         # Create a DataLoader instance and set the data
+        logger.info("Creating DataLoader instance")
         data_loader = DataLoader()
         data_loader.data = UPLOADED_DATA.copy()
         
+        logger.info(f"Cleaning data with shape: {data_loader.data.shape}")
         # Clean the data with our enhanced robust method
         cleaned_data = data_loader.clean_data()
+        logger.info(f"Data cleaned: {cleaned_data.shape}")
         
         # Handle empty dataset after cleaning
         if len(cleaned_data) == 0:
             # Try European date format specifically for DD/MM/YY
-            print("Attempting recovery with European date format...")
+            logger.warning("Empty dataset after cleaning. Attempting recovery with European date format...")
             data_copy = UPLOADED_DATA.copy()
             
             # Custom function to parse dates in European format
@@ -275,9 +379,11 @@ async def process_data():
                     return None
             
             # Apply date parser
+            logger.info("Applying custom date parser")
             data_copy['date'] = data_copy['date'].apply(parse_date)
             
             # Convert numeric columns with European decimal format (comma instead of dot)
+            logger.info("Converting numeric columns with European format")
             for col in ['open', 'high', 'low', 'close', 'volume']:
                 if col in data_copy.columns:
                     if data_copy[col].dtype == object:
@@ -285,13 +391,19 @@ async def process_data():
                     data_copy[col] = pd.to_numeric(data_copy[col], errors='coerce')
             
             # Drop rows with missing values
+            logger.info("Dropping rows with missing values")
             data_copy = data_copy.dropna(subset=['date', 'open', 'high', 'low', 'close', 'volume'])
             
             # Use the manually fixed data if we have rows
             if len(data_copy) > 0:
                 cleaned_data = data_copy
-                print(f"Recovery successful! Recovered {len(cleaned_data)} rows of data.")
+                logger.info(f"Recovery successful! Recovered {len(cleaned_data)} rows of data.")
             else:
+                elapsed_time = time.time() - start_time
+                log_endpoint("POST /api/process-data - ERROR", 
+                            elapsed_time=f"{elapsed_time:.2f}s",
+                            error="Could not process data. All rows were invalid after cleaning.")
+                
                 return JSONResponse(
                     status_code=400,
                     content={"message": "Could not process data. All rows were invalid after cleaning."}
@@ -299,25 +411,40 @@ async def process_data():
         
         # Store the processed data
         PROCESSED_DATA = cleaned_data
+        logger.info(f"Processed data stored with shape: {PROCESSED_DATA.shape}")
         
         # For return, format the dates as strings to ensure JSON serialization
         sample_data = PROCESSED_DATA.head().copy()
         if 'date' in sample_data.columns and pd.api.types.is_datetime64_any_dtype(sample_data['date']):
             sample_data['date'] = sample_data['date'].dt.strftime('%Y-%m-%d')
         
+        elapsed_time = time.time() - start_time
+        
+        date_range = {
+            "start": PROCESSED_DATA['date'].min().strftime('%Y-%m-%d') if not pd.isna(PROCESSED_DATA['date'].min()) else "N/A",
+            "end": PROCESSED_DATA['date'].max().strftime('%Y-%m-%d') if not pd.isna(PROCESSED_DATA['date'].max()) else "N/A"
+        }
+        
+        log_endpoint("POST /api/process-data - COMPLETE", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    data_shape=PROCESSED_DATA.shape,
+                    date_range=date_range)
+        
         # Return a summary of the processed data
         return {
             "message": "Data processed successfully",
             "data_shape": PROCESSED_DATA.shape,
-            "date_range": {
-                "start": PROCESSED_DATA['date'].min().strftime('%Y-%m-%d') if not pd.isna(PROCESSED_DATA['date'].min()) else "N/A",
-                "end": PROCESSED_DATA['date'].max().strftime('%Y-%m-%d') if not pd.isna(PROCESSED_DATA['date'].max()) else "N/A"
-            },
+            "date_range": date_range,
             "data_sample": sample_data.to_dict('records')
         }
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        elapsed_time = time.time() - start_time
+        error_trace = traceback.format_exc()
+        log_endpoint("POST /api/process-data - ERROR", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    error=str(e),
+                    traceback=error_trace)
+        
         return JSONResponse(
             status_code=500,
             content={"message": f"Error processing data: {str(e)}"}
@@ -327,7 +454,17 @@ async def process_data():
 async def add_indicators(indicator_config: IndicatorConfig):
     global PROCESSED_DATA
     
+    start_time = time.time()
+    log_endpoint("POST /api/add-indicators", 
+                config=indicator_config.dict(exclude_none=True), 
+                data_shape=PROCESSED_DATA.shape if PROCESSED_DATA is not None else None)
+    
     if PROCESSED_DATA is None:
+        elapsed_time = time.time() - start_time
+        log_endpoint("POST /api/add-indicators - ERROR", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    error="No processed data available")
+        
         return JSONResponse(
             status_code=400,
             content={"success": False, "message": "No processed data available. Please upload and process data first."}
@@ -337,12 +474,17 @@ async def add_indicators(indicator_config: IndicatorConfig):
         # Convert the indicator config to dict
         indicators_dict = indicator_config.dict(exclude_none=True)
         
-        print(f"Adding indicators with config: {indicators_dict}")
+        logger.info(f"Adding indicators with config: {indicators_dict}")
         
         # Check that required columns exist
         required_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
         missing_columns = [col for col in required_columns if col not in PROCESSED_DATA.columns]
         if missing_columns:
+            elapsed_time = time.time() - start_time
+            log_endpoint("POST /api/add-indicators - ERROR", 
+                        elapsed_time=f"{elapsed_time:.2f}s",
+                        error=f"Missing required columns: {missing_columns}")
+            
             return JSONResponse(
                 status_code=400,
                 content={"success": False, "message": f"Missing required columns in data: {', '.join(missing_columns)}"}
@@ -352,8 +494,12 @@ async def add_indicators(indicator_config: IndicatorConfig):
         base_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
         data_for_indicators = PROCESSED_DATA[base_columns].copy()
         
+        logger.info(f"Base data before adding indicators: {data_for_indicators.shape}")
+        
         # Add indicators fresh
         data_with_indicators = combine_indicators(data_for_indicators, indicators_dict)
+        
+        logger.info(f"Data after adding indicators: {data_with_indicators.shape}")
         
         # Update the processed data
         PROCESSED_DATA = data_with_indicators
@@ -363,6 +509,8 @@ async def add_indicators(indicator_config: IndicatorConfig):
         indicator_columns = [col for col in PROCESSED_DATA.columns 
                             if col not in excluded_columns]
         
+        logger.info(f"Indicators added: {indicator_columns}")
+        
         # Create a short summary
         summary = ""
         if indicator_columns:
@@ -371,19 +519,31 @@ async def add_indicators(indicator_config: IndicatorConfig):
                 indicator_summary = create_indicator_summary(PROCESSED_DATA, last_n_periods=1)
                 summary = f"<div class='alert alert-info'><strong>Indicators added:</strong> {', '.join(indicator_columns)}</div>"
             except Exception as e:
-                print(f"Error creating indicator summary: {str(e)}")
+                logger.error(f"Error creating indicator summary: {str(e)}")
                 summary = f"<div class='alert alert-warning'><strong>Indicators added</strong> but could not create summary: {str(e)}</div>"
         
-        return {
+        elapsed_time = time.time() - start_time
+        response_data = {
             "success": True,
             "message": "Indicators added successfully",
             "indicator_summary": summary,
             "available_indicators": indicator_columns
         }
+        
+        log_endpoint("POST /api/add-indicators - COMPLETE", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    indicators_added=len(indicator_columns),
+                    indicator_list=indicator_columns)
+        
+        return response_data
     except Exception as e:
-        import traceback
+        elapsed_time = time.time() - start_time
         error_trace = traceback.format_exc()
-        print(f"Error adding indicators: {str(e)}\n{error_trace}")
+        log_endpoint("POST /api/add-indicators - ERROR", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    error=str(e),
+                    traceback=error_trace)
+        
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": f"Error adding indicators: {str(e)}"}
@@ -393,7 +553,17 @@ async def add_indicators(indicator_config: IndicatorConfig):
 async def plot_indicators(plot_config: PlotConfig):
     global PROCESSED_DATA
     
+    start_time = time.time()
+    log_endpoint("POST /api/plot-indicators", 
+                config=plot_config.dict(exclude_none=True), 
+                data_shape=PROCESSED_DATA.shape if PROCESSED_DATA is not None else None)
+    
     if PROCESSED_DATA is None:
+        elapsed_time = time.time() - start_time
+        log_endpoint("POST /api/plot-indicators - ERROR", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    error="No processed data available")
+        
         return JSONResponse(
             status_code=400,
             content={"success": False, "message": "No processed data available. Please upload and process data first."}
@@ -403,8 +573,19 @@ async def plot_indicators(plot_config: PlotConfig):
         # Convert the plot config to dict
         plot_dict = plot_config.dict(exclude_none=True)
         
+        logger.info(f"Creating plot with config: {plot_dict}")
+        logger.info(f"Main indicators: {plot_config.main_indicators}")
+        logger.info(f"Subplot indicators: {plot_config.subplot_indicators}")
+        
         # Create the plot
         image_base64 = plot_price_with_indicators(PROCESSED_DATA, plot_dict)
+        
+        elapsed_time = time.time() - start_time
+        log_endpoint("POST /api/plot-indicators - COMPLETE", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    plot_generated=True,
+                    main_indicators=len(plot_config.main_indicators),
+                    subplot_indicators=len(plot_config.subplot_indicators))
         
         return {
             "success": True,
@@ -412,9 +593,13 @@ async def plot_indicators(plot_config: PlotConfig):
             "chart_image": image_base64
         }
     except Exception as e:
-        import traceback
+        elapsed_time = time.time() - start_time
         error_trace = traceback.format_exc()
-        print(f"Error creating plot: {str(e)}\n{error_trace}")
+        log_endpoint("POST /api/plot-indicators - ERROR", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    error=str(e),
+                    traceback=error_trace)
+        
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": f"Error creating plot: {str(e)}"}
@@ -445,20 +630,36 @@ async def get_strategy_parameters(strategy_type: str):
 async def run_backtest(strategy_config: StrategyConfig, backtest_config: BacktestConfig):
     global PROCESSED_DATA, BACKTESTER
     
+    start_time = time.time()
+    log_endpoint("POST /api/run-backtest", 
+                strategy=strategy_config.dict(), 
+                backtest_config=backtest_config.dict(),
+                data_shape=PROCESSED_DATA.shape if PROCESSED_DATA is not None else None)
+    
     if PROCESSED_DATA is None:
+        elapsed_time = time.time() - start_time
+        log_endpoint("POST /api/run-backtest - ERROR", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    error="No processed data available")
+        
         return JSONResponse(
             status_code=400,
             content={"success": False, "message": "No processed data available. Please upload and process data first."}
         )
     
     try:
-        print(f"Running backtest with strategy: {strategy_config.strategy_type}, params: {strategy_config.parameters}")
-        print(f"Backtest config: {backtest_config}")
+        logger.info(f"Running backtest with strategy: {strategy_config.strategy_type}, params: {strategy_config.parameters}")
+        logger.info(f"Backtest config: {backtest_config}")
         
         # Check that required columns exist
         required_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
         missing_columns = [col for col in required_columns if col not in PROCESSED_DATA.columns]
         if missing_columns:
+            elapsed_time = time.time() - start_time
+            log_endpoint("POST /api/run-backtest - ERROR", 
+                        elapsed_time=f"{elapsed_time:.2f}s",
+                        error=f"Missing required columns: {missing_columns}")
+            
             return JSONResponse(
                 status_code=400,
                 content={"success": False, "message": f"Missing required columns in data: {', '.join(missing_columns)}"}
@@ -466,11 +667,21 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
             
         # Make a copy of the data for backtesting
         backtest_data = PROCESSED_DATA.copy()
+        logger.info(f"Backtest data prepared: {backtest_data.shape}")
         
         # Create the strategy
         try:
+            logger.info(f"Creating strategy: {strategy_config.strategy_type}")
             strategy = create_strategy(strategy_config.strategy_type, **strategy_config.parameters)
+            logger.info(f"Strategy created: {strategy.name}")
         except Exception as e:
+            elapsed_time = time.time() - start_time
+            error_trace = traceback.format_exc()
+            log_endpoint("POST /api/run-backtest - ERROR", 
+                        elapsed_time=f"{elapsed_time:.2f}s",
+                        error=f"Error creating strategy: {str(e)}",
+                        traceback=error_trace)
+            
             return JSONResponse(
                 status_code=400,
                 content={"success": False, "message": f"Error creating strategy: {str(e)}"}
@@ -478,12 +689,21 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
         
         # Create a backtester
         try:
+            logger.info("Initializing backtester")
             BACKTESTER = Backtester(
                 data=backtest_data,
                 initial_capital=backtest_config.initial_capital,
                 commission=backtest_config.commission
             )
+            logger.info("Backtester initialized successfully")
         except Exception as e:
+            elapsed_time = time.time() - start_time
+            error_trace = traceback.format_exc()
+            log_endpoint("POST /api/run-backtest - ERROR", 
+                        elapsed_time=f"{elapsed_time:.2f}s",
+                        error=f"Error initializing backtester: {str(e)}",
+                        traceback=error_trace)
+            
             return JSONResponse(
                 status_code=500,
                 content={"success": False, "message": f"Error initializing backtester: {str(e)}"}
@@ -491,12 +711,21 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
         
         # Run the backtest
         try:
+            logger.info(f"Running backtest with date range: {backtest_config.start_date} to {backtest_config.end_date}")
             backtest_result = BACKTESTER.run_backtest(
                 strategy=strategy,
                 start_date=backtest_config.start_date,
                 end_date=backtest_config.end_date
             )
+            logger.info("Backtest execution completed successfully")
         except Exception as e:
+            elapsed_time = time.time() - start_time
+            error_trace = traceback.format_exc()
+            log_endpoint("POST /api/run-backtest - ERROR", 
+                        elapsed_time=f"{elapsed_time:.2f}s",
+                        error=f"Error during backtest execution: {str(e)}",
+                        traceback=error_trace)
+            
             return JSONResponse(
                 status_code=500,
                 content={"success": False, "message": f"Error during backtest execution: {str(e)}"}
@@ -504,20 +733,42 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
         
         # Generate plots and statistics (with proper error handling)
         try:
+            logger.info("Generating equity curve plots")
             # Get the equity curve plot
             equity_curve_image = BACKTESTER.plot_equity_curves([strategy.name])
             
+            logger.info("Generating drawdown plots")
             # Get the drawdown plot
             drawdown_image = BACKTESTER.plot_drawdowns([strategy.name])
             
+            logger.info("Calculating trade statistics")
             # Get trade statistics
             trade_stats = BACKTESTER.get_trade_statistics(strategy.name)
+            
+            logger.info("Plots and statistics generated successfully")
         except Exception as e:
             # If plotting fails, we can still return the backtest result
-            print(f"Error generating plots: {str(e)}")
+            logger.error(f"Error generating plots: {str(e)}")
+            logger.error(traceback.format_exc())
             equity_curve_image = None
             drawdown_image = None
             trade_stats = {}
+        
+        elapsed_time = time.time() - start_time
+        
+        # Log some performance metrics
+        performance_metrics = backtest_result.get("performance_metrics", {})
+        log_data = {
+            "elapsed_time": f"{elapsed_time:.2f}s",
+            "strategy_name": backtest_result.get("strategy_name", "unknown"),
+            "trades": trade_stats.get("total_trades", 0),
+            "win_rate": f"{trade_stats.get('win_rate', 0):.2f}%",
+            "profit_factor": trade_stats.get("profit_factor", 0),
+            "sharpe_ratio": performance_metrics.get("sharpe_ratio", 0),
+            "max_drawdown": f"{performance_metrics.get('max_drawdown', 0):.2f}%"
+        }
+        
+        log_endpoint("POST /api/run-backtest - COMPLETE", **log_data)
         
         return {
             "success": True,
@@ -529,9 +780,13 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
             "drawdown_curve": drawdown_image
         }
     except Exception as e:
-        import traceback
+        elapsed_time = time.time() - start_time
         error_trace = traceback.format_exc()
-        print(f"Error running backtest: {str(e)}\n{error_trace}")
+        log_endpoint("POST /api/run-backtest - ERROR", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    error=str(e),
+                    traceback=error_trace)
+        
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": f"Error running backtest: {str(e)}"}
@@ -606,7 +861,14 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
 async def compare_strategies(request: Request):
     global PROCESSED_DATA, BACKTESTER
     
+    start_time = time.time()
+    
     if PROCESSED_DATA is None:
+        elapsed_time = time.time() - start_time
+        log_endpoint("POST /api/compare-strategies - ERROR", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    error="No processed data available")
+        
         return JSONResponse(
             status_code=400,
             content={"success": False, "message": "No processed data available. Please upload and process data first."}
@@ -619,10 +881,19 @@ async def compare_strategies(request: Request):
         start_date = body.get("start_date")
         end_date = body.get("end_date")
         
-        print(f"Comparing strategies: {strategy_types} from {start_date} to {end_date}")
+        log_endpoint("POST /api/compare-strategies", 
+                    strategy_types=strategy_types, 
+                    start_date=start_date,
+                    end_date=end_date,
+                    data_shape=PROCESSED_DATA.shape)
         
         # Validate input
         if not strategy_types or len(strategy_types) == 0:
+            elapsed_time = time.time() - start_time
+            log_endpoint("POST /api/compare-strategies - ERROR", 
+                        elapsed_time=f"{elapsed_time:.2f}s",
+                        error="No strategy types provided")
+            
             return JSONResponse(
                 status_code=400,
                 content={"success": False, "message": "At least one strategy type must be provided"}
@@ -632,6 +903,12 @@ async def compare_strategies(request: Request):
         valid_strategy_types = [s['type'] for s in AVAILABLE_STRATEGIES]
         invalid_strategies = [s for s in strategy_types if s not in valid_strategy_types]
         if invalid_strategies:
+            elapsed_time = time.time() - start_time
+            log_endpoint("POST /api/compare-strategies - ERROR", 
+                        elapsed_time=f"{elapsed_time:.2f}s",
+                        error=f"Invalid strategy types: {invalid_strategies}",
+                        valid_types=valid_strategy_types)
+            
             return JSONResponse(
                 status_code=422,
                 content={"success": False, "message": f"Invalid strategy types: {', '.join(invalid_strategies)}. Valid types are: {', '.join(valid_strategy_types)}"}
@@ -641,16 +918,26 @@ async def compare_strategies(request: Request):
         strategies = []
         for strategy_type in strategy_types:
             try:
+                logger.info(f"Creating strategy: {strategy_type}")
                 params = CURRENT_CONFIG['strategies'].get(strategy_type, {})
                 strategy = create_strategy(strategy_type, **params)
                 strategies.append(strategy)
+                logger.info(f"Strategy created: {strategy.name}")
             except Exception as e:
+                elapsed_time = time.time() - start_time
+                error_trace = traceback.format_exc()
+                log_endpoint("POST /api/compare-strategies - ERROR", 
+                            elapsed_time=f"{elapsed_time:.2f}s",
+                            error=f"Error creating strategy '{strategy_type}': {str(e)}",
+                            traceback=error_trace)
+                
                 return JSONResponse(
                     status_code=400,
                     content={"success": False, "message": f"Error creating strategy '{strategy_type}': {str(e)}"}
                 )
         
         # Create a backtester
+        logger.info("Initializing backtester for strategy comparison")
         BACKTESTER = Backtester(
             data=PROCESSED_DATA.copy(),
             initial_capital=CURRENT_CONFIG['backtest']['initial_capital'],
@@ -658,6 +945,7 @@ async def compare_strategies(request: Request):
         )
         
         # Run the backtests
+        logger.info(f"Running comparison for strategies: {[s.name for s in strategies]}")
         results = BACKTESTER.compare_strategies(
             strategies=strategies,
             start_date=start_date,
@@ -666,18 +954,38 @@ async def compare_strategies(request: Request):
         
         # Get equity curve image
         try:
+            logger.info("Generating equity curve image")
             equity_curve_image = BACKTESTER.plot_equity_curves()
         except Exception as e:
-            print(f"Error generating equity curve: {str(e)}")
+            logger.error(f"Error generating equity curve: {str(e)}")
             equity_curve_image = None
             
         # Find best strategy
         best_strategy_name = "Unknown"
         if results:
             try:
+                logger.info("Finding best strategy based on Sharpe ratio")
                 best_strategy_name = max(results.items(), key=lambda x: x[1].get('sharpe_ratio', -float('inf')))[0]
+                logger.info(f"Best strategy identified: {best_strategy_name}")
             except Exception as e:
-                print(f"Error finding best strategy: {str(e)}")
+                logger.error(f"Error finding best strategy: {str(e)}")
+        
+        elapsed_time = time.time() - start_time
+        
+        # Log key performance metrics for each strategy
+        strategy_metrics = {}
+        for strategy, metrics in results.items():
+            strategy_metrics[strategy] = {
+                "sharpe_ratio": metrics.get("sharpe_ratio", 0),
+                "total_return": f"{metrics.get('total_return', 0):.2f}%",
+                "max_drawdown": f"{metrics.get('max_drawdown', 0):.2f}%"
+            }
+        
+        log_endpoint("POST /api/compare-strategies - COMPLETE", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    strategies_compared=len(strategies),
+                    best_strategy=best_strategy_name,
+                    strategy_metrics=strategy_metrics)
         
         return {
             "success": True,
@@ -687,9 +995,13 @@ async def compare_strategies(request: Request):
             "chart_image": equity_curve_image
         }
     except Exception as e:
-        import traceback
+        elapsed_time = time.time() - start_time
         error_trace = traceback.format_exc()
-        print(f"Error comparing strategies: {str(e)}\n{error_trace}")
+        log_endpoint("POST /api/compare-strategies - ERROR", 
+                    elapsed_time=f"{elapsed_time:.2f}s",
+                    error=str(e),
+                    traceback=error_trace)
+        
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": f"Error comparing strategies: {str(e)}"}
@@ -836,6 +1148,77 @@ async def data_status():
         "processed": PROCESSED_DATA is not None,
         "shape": PROCESSED_DATA.shape if PROCESSED_DATA is not None else None
     }
+
+@app.get("/api/debug-info")
+async def debug_info():
+    """
+    Endpoint para fornecer informações detalhadas sobre o ambiente de execução.
+    Útil para diagnóstico e debug.
+    """
+    try:
+        # Informações do sistema
+        system_info = {
+            "platform": platform.platform(),
+            "python_version": platform.python_version(),
+            "processor": platform.processor(),
+            "memory": f"{psutil.virtual_memory().total / (1024**3):.2f} GB",
+            "available_memory": f"{psutil.virtual_memory().available / (1024**3):.2f} GB",
+            "cpu_count": psutil.cpu_count(logical=True),
+            "hostname": platform.node()
+        }
+        
+        # Informações da aplicação
+        app_info = {
+            "current_directory": os.getcwd(),
+            "start_time": datetime.fromtimestamp(psutil.Process().create_time()).strftime('%Y-%m-%d %H:%M:%S'),
+            "uptime_seconds": time.time() - psutil.Process().create_time(),
+            "process_memory_usage": f"{psutil.Process().memory_info().rss / (1024**2):.2f} MB",
+            "environment_variables": {k: v for k, v in os.environ.items() if not k.startswith("_") and "SECRET" not in k.upper() and "PASSWORD" not in k.upper()},
+            "loaded_modules": list(sys.modules.keys())[:50]  # Limitado aos primeiros 50 para não sobrecarregar
+        }
+        
+        # Informações sobre os dados
+        data_info = {
+            "uploaded_data": None if UPLOADED_DATA is None else {
+                "shape": UPLOADED_DATA.shape,
+                "columns": list(UPLOADED_DATA.columns),
+                "memory_usage": f"{UPLOADED_DATA.memory_usage(deep=True).sum() / (1024**2):.2f} MB",
+                "sample_rows": len(UPLOADED_DATA.head(3)) if UPLOADED_DATA is not None else 0
+            },
+            "processed_data": None if PROCESSED_DATA is None else {
+                "shape": PROCESSED_DATA.shape,
+                "columns": list(PROCESSED_DATA.columns),
+                "memory_usage": f"{PROCESSED_DATA.memory_usage(deep=True).sum() / (1024**2):.2f} MB",
+                "date_range": {
+                    "start": PROCESSED_DATA['date'].min().strftime('%Y-%m-%d') if not pd.isna(PROCESSED_DATA['date'].min()) else "N/A",
+                    "end": PROCESSED_DATA['date'].max().strftime('%Y-%m-%d') if not pd.isna(PROCESSED_DATA['date'].max()) else "N/A"
+                } if PROCESSED_DATA is not None and 'date' in PROCESSED_DATA.columns else None,
+                "has_indicators": len([col for col in PROCESSED_DATA.columns if col not in ['date', 'open', 'high', 'low', 'close', 'volume']]) > 0 if PROCESSED_DATA is not None else False
+            }
+        }
+        
+        # Adicionar log para registrar quem acessou esta informação
+        log_endpoint("GET /api/debug-info", 
+                    system_info=system_info["platform"],
+                    python_version=system_info["python_version"],
+                    memory_usage=system_info["memory"])
+        
+        return {
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            "system_info": system_info,
+            "app_info": app_info,
+            "data_info": data_info
+        }
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        log_endpoint("GET /api/debug-info - ERROR", 
+                    error=str(e),
+                    traceback=error_trace)
+        
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Error getting debug info: {str(e)}"}
+        )
 
 # Run the app
 if __name__ == "__main__":

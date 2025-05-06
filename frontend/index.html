@@ -7,6 +7,199 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/css/styles.css">
+    
+    <!-- Sistema de logging aprimorado para debug -->
+    <script>
+        // Definição do sistema de logging aprimorado
+        window.AppLogger = {
+            // Níveis de log
+            LEVELS: {
+                DEBUG: { value: 0, color: '#6c757d', prefix: '🔍 DEBUG' },
+                INFO: { value: 1, color: '#0d6efd', prefix: 'ℹ️ INFO' },
+                WARNING: { value: 2, color: '#ffc107', prefix: '⚠️ WARNING' },
+                ERROR: { value: 3, color: '#dc3545', prefix: '❌ ERROR' },
+                API: { value: 4, color: '#0dcaf0', prefix: '🔄 API' },
+                PERF: { value: 5, color: '#6f42c1', prefix: '⏱️ PERF' }
+            },
+            
+            // Nível de log atual (0 = todos os logs)
+            currentLevel: 0,
+            
+            // Registra se o log está ativo
+            enabled: true,
+            
+            // Armazena logs recentes para debug
+            logs: [],
+            maxLogs: 500,
+            
+            // Formata a data/hora
+            formatTime: function() {
+                const now = new Date();
+                return now.toISOString().split('T')[1].split('.')[0];
+            },
+            
+            // Método de log principal
+            log: function(level, message, data = null) {
+                if (!this.enabled || level.value < this.currentLevel) return;
+                
+                // Formatar a mensagem com data/hora
+                const timestamp = this.formatTime();
+                const formattedMsg = `[${timestamp}] ${level.prefix}: ${message}`;
+                
+                // Estilizar o log no console
+                console.log(
+                    `%c${formattedMsg}`, 
+                    `color: ${level.color}; font-weight: bold;`, 
+                    data || ''
+                );
+                
+                // Armazenar para referência futura
+                this.logs.push({
+                    timestamp: new Date(),
+                    level: level.prefix,
+                    message: message,
+                    data: data
+                });
+                
+                // Limitar o número de logs armazenados
+                if (this.logs.length > this.maxLogs) {
+                    this.logs.shift();
+                }
+            },
+            
+            // Métodos para cada nível
+            debug: function(message, data = null) {
+                this.log(this.LEVELS.DEBUG, message, data);
+            },
+            
+            info: function(message, data = null) {
+                this.log(this.LEVELS.INFO, message, data);
+            },
+            
+            warning: function(message, data = null) {
+                this.log(this.LEVELS.WARNING, message, data);
+            },
+            
+            error: function(message, data = null) {
+                this.log(this.LEVELS.ERROR, message, data);
+            },
+            
+            api: function(method, endpoint, params = null, response = null) {
+                const message = `${method} ${endpoint}`;
+                const data = { params, response };
+                this.log(this.LEVELS.API, message, data);
+            },
+            
+            perf: function(operation, timeMs) {
+                const message = `${operation}: ${timeMs.toFixed(2)}ms`;
+                this.log(this.LEVELS.PERF, message);
+            },
+            
+            // Tempo de operação
+            time: function(label) {
+                return {
+                    start: performance.now(),
+                    label: label,
+                    end: function() {
+                        const duration = performance.now() - this.start;
+                        AppLogger.perf(this.label, duration);
+                        return duration;
+                    }
+                };
+            },
+            
+            // Exportar logs para análise
+            exportLogs: function() {
+                const logsJSON = JSON.stringify(this.logs, null, 2);
+                const blob = new Blob([logsJSON], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `app_logs_${new Date().toISOString().replace(/:/g, '-')}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            },
+            
+            // Limpar logs
+            clearLogs: function() {
+                this.logs = [];
+                console.clear();
+                this.info('Logs limpos');
+            }
+        };
+        
+        // Inicializar o logger quando o documento estiver pronto
+        document.addEventListener('DOMContentLoaded', function() {
+            AppLogger.info('Aplicação iniciada', { 
+                userAgent: navigator.userAgent,
+                screenSize: `${window.innerWidth}x${window.innerHeight}`
+            });
+            
+            // Monitorar eventos de erro não capturados
+            window.addEventListener('error', function(event) {
+                AppLogger.error('Erro não capturado', {
+                    message: event.message,
+                    source: event.filename,
+                    lineno: event.lineno,
+                    colno: event.colno,
+                    error: event.error
+                });
+            });
+            
+            // Monitorar rejeições de promessas não tratadas
+            window.addEventListener('unhandledrejection', function(event) {
+                AppLogger.error('Promessa rejeitada não tratada', {
+                    reason: event.reason
+                });
+            });
+            
+            // Configurar interceptor de requisições fetch para monitorar API
+            const originalFetch = window.fetch;
+            window.fetch = async function(url, options = {}) {
+                const method = (options.method || 'GET').toUpperCase();
+                const endpoint = url.toString();
+                
+                let requestBody = null;
+                if (options.body) {
+                    try {
+                        requestBody = JSON.parse(options.body);
+                    } catch (e) {
+                        requestBody = options.body;
+                    }
+                }
+                
+                AppLogger.api(`${method} - Início`, endpoint, requestBody);
+                const timer = AppLogger.time(`Fetch ${method} ${endpoint}`);
+                
+                try {
+                    const response = await originalFetch(url, options);
+                    const responseClone = response.clone();
+                    timer.end();
+                    
+                    try {
+                        const responseData = await responseClone.json();
+                        AppLogger.api(`${method} - Sucesso`, endpoint, requestBody, responseData);
+                    } catch (e) {
+                        AppLogger.api(`${method} - Resposta não-JSON`, endpoint, requestBody, {
+                            status: response.status,
+                            statusText: response.statusText
+                        });
+                    }
+                    
+                    return response;
+                } catch (error) {
+                    timer.end();
+                    AppLogger.api(`${method} - Erro`, endpoint, requestBody, {
+                        error: error.toString()
+                    });
+                    throw error;
+                }
+            };
+        });
+    </script>
 </head>
 <body>
     <div class="container-fluid">
