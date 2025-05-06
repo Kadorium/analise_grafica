@@ -123,6 +123,65 @@ async def upload_file(file: UploadFile = File(...)):
             content={"message": f"Error processing file: {str(e)}"}
         )
 
+@app.post("/api/arrange-data")
+async def arrange_data(file: UploadFile = File(...)):
+    """
+    Endpoint to arrange data files (CSV, XLS, XLSX) into a standardized format.
+    """
+    try:
+        # Save the uploaded file temporarily
+        temp_input_path = os.path.join('data', 'temp_' + file.filename)
+        os.makedirs(os.path.dirname(temp_input_path), exist_ok=True)
+        
+        with open(temp_input_path, 'wb') as f:
+            contents = await file.read()
+            f.write(contents)
+        
+        # Import the data arranger module
+        from data.data_arranger_script import arrange_data_file
+        
+        # Create a clean copy with original filename for processing
+        clean_input_path = os.path.join('data', file.filename)
+        if os.path.exists(clean_input_path):
+            # Add timestamp to avoid overwriting existing files
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            file_base, file_ext = os.path.splitext(file.filename)
+            clean_input_path = os.path.join('data', f"{file_base}_{timestamp}{file_ext}")
+        
+        # Copy the temp file to the clean path
+        os.replace(temp_input_path, clean_input_path)
+        
+        # Arrange the data using original filename
+        output_file = arrange_data_file(clean_input_path)
+        
+        # Clean up the temp file and original file
+        if os.path.exists(clean_input_path):
+            os.remove(clean_input_path)
+        
+        # Try to load the arranged data for preview
+        data_loader = DataLoader(output_file)
+        arranged_data = data_loader.load_csv()
+        
+        # Prepare sample data for JSON serialization
+        sample_data = arranged_data.head(5).copy()
+        if 'date' in sample_data.columns and pd.api.types.is_datetime64_any_dtype(sample_data['date']):
+            sample_data['date'] = sample_data['date'].dt.strftime('%Y-%m-%d')
+        
+        return {
+            "message": f"Data arranged successfully and saved to {output_file}",
+            "output_file": output_file,
+            "data_shape": arranged_data.shape,
+            "data_sample": sample_data.to_dict('records'),
+            "columns": list(arranged_data.columns)
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(
+            status_code=500,
+            content={"message": f"Error arranging data: {str(e)}"}
+        )
+
 @app.post("/api/process-data")
 async def process_data():
     global UPLOADED_DATA, PROCESSED_DATA

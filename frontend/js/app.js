@@ -57,7 +57,8 @@ const API_ENDPOINTS = {
     SAVE_CONFIG: '/api/save-config',
     LOAD_CONFIG: '/api/load-config',
     EXPORT_RESULTS: '/api/export-results',
-    CURRENT_CONFIG: '/api/current-config'
+    CURRENT_CONFIG: '/api/current-config',
+    ARRANGE_DATA: '/api/arrange-data'
 };
 
 // Utility functions
@@ -199,6 +200,52 @@ uploadForm.addEventListener('submit', async (e) => {
     } finally {
         uploadBtn.disabled = false;
         uploadBtn.textContent = 'Upload';
+    }
+});
+
+// Add handler for Arrange Data button
+const arrangeBtn = document.getElementById('arrange-btn');
+arrangeBtn.addEventListener('click', async () => {
+    const fileInput = document.getElementById('csv-file');
+    if (!fileInput.files.length) {
+        showError('Please select a file to arrange.');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        arrangeBtn.disabled = true;
+        arrangeBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Arranging...';
+        
+        const response = await fetch(API_ENDPOINTS.ARRANGE_DATA, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Error arranging data');
+        }
+        
+        // Update UI with arranged data preview
+        updateDataPreview(data);
+        
+        // Enable the process button and set dataUploaded flag
+        processBtn.disabled = false;
+        dataUploaded = true;
+        
+        // Show success message
+        dataInfo.innerHTML += `<div class="alert alert-success mt-2">Data arranged successfully! Saved to ${data.output_file}</div>`;
+        
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        arrangeBtn.disabled = false;
+        arrangeBtn.textContent = 'Arrange Data';
     }
 });
 
