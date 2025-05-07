@@ -2972,8 +2972,8 @@ function updateCheckboxesFromAvailableIndicators() {
         { checkbox: 'williams-r-checkbox', indicator: 'williams_r' },
         { checkbox: 'cmf-checkbox', indicator: 'cmf' },
         { checkbox: 'ad-line-checkbox', indicator: 'ad_line' },
-        { checkbox: 'donchian-checkbox', indicator: 'donchian_' },
-        { checkbox: 'keltner-checkbox', indicator: 'keltner_' }
+        { checkbox: 'donchian-checkbox', indicator: 'dc_' },
+        { checkbox: 'keltner-checkbox', indicator: 'kc_' }
     ];
     
     // Check/uncheck each checkbox based on indicator presence

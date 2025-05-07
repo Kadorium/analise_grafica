@@ -183,14 +183,14 @@ def combine_indicators(data, indicators_config=None):
         result = add_chaikin_money_flow_indicator(result, period=cmf_period)
     
     # Add Donchian Channels Indicator
-    if 'donchian_channels' in indicators_config and not all(col in existing_indicators for col in ['donchian_high', 'donchian_mid', 'donchian_low']):
+    if 'donchian_channels' in indicators_config and not all(col in existing_indicators for col in ['dc_upper', 'dc_middle', 'dc_lower']):
         donchian_config = indicators_config['donchian_channels']
         donchian_period = donchian_config.get('period', 20)
         print(f"Adding Donchian Channels indicator with period: {donchian_period}")
         result = add_donchian_channels_indicator(result, period=donchian_period)
     
     # Add Keltner Channels Indicator
-    if 'keltner_channels' in indicators_config and not all(col in existing_indicators for col in ['keltner_high', 'keltner_mid', 'keltner_low']):
+    if 'keltner_channels' in indicators_config and not all(col in existing_indicators for col in ['kc_upper', 'kc_middle', 'kc_lower']):
         keltner_config = indicators_config['keltner_channels']
         ema_period = keltner_config.get('ema_period', 20)
         atr_period = keltner_config.get('atr_period', 10)
@@ -298,7 +298,7 @@ def plot_price_with_indicators(data, plot_config=None):
         overlay_indicators = []
         for ind in main_indicators:
             # Classify channel-type indicators that need special handling
-            if any(ind.startswith(prefix) for prefix in ['bb_', 'donchian_', 'keltner_']):
+            if any(ind.startswith(prefix) for prefix in ['bb_', 'dc_', 'kc_']):
                 overlay_indicators.append(ind)
                 
             # SuperTrend requires special coloring based on direction
@@ -328,9 +328,9 @@ def plot_price_with_indicators(data, plot_config=None):
                              linestyle='--', alpha=0.7, label='BB Middle')
         
         # Donchian Channels
-        donchian_high = next((ind for ind in overlay_indicators if ind == 'donchian_high'), None)
-        donchian_low = next((ind for ind in overlay_indicators if ind == 'donchian_low'), None)
-        donchian_mid = next((ind for ind in overlay_indicators if ind == 'donchian_mid'), None)
+        donchian_high = next((ind for ind in overlay_indicators if ind == 'dc_upper'), None)
+        donchian_low = next((ind for ind in overlay_indicators if ind == 'dc_lower'), None)
+        donchian_mid = next((ind for ind in overlay_indicators if ind == 'dc_middle'), None)
         
         if donchian_high and donchian_low:
             ax_main.fill_between(temp_data['date'], temp_data[donchian_high], temp_data[donchian_low], 
@@ -340,9 +340,9 @@ def plot_price_with_indicators(data, plot_config=None):
                              linestyle='--', alpha=0.5, label='Donchian Middle')
         
         # Keltner Channels
-        keltner_high = next((ind for ind in overlay_indicators if ind == 'keltner_high'), None)
-        keltner_low = next((ind for ind in overlay_indicators if ind == 'keltner_low'), None)
-        keltner_mid = next((ind for ind in overlay_indicators if ind == 'keltner_mid'), None)
+        keltner_high = next((ind for ind in overlay_indicators if ind == 'kc_upper'), None)
+        keltner_low = next((ind for ind in overlay_indicators if ind == 'kc_lower'), None)
+        keltner_mid = next((ind for ind in overlay_indicators if ind == 'kc_middle'), None)
         
         if keltner_high and keltner_low:
             ax_main.fill_between(temp_data['date'], temp_data[keltner_high], temp_data[keltner_low], 
