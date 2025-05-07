@@ -19,8 +19,7 @@ const resultsSection = document.getElementById('results-section');
 
 const uploadForm = document.getElementById('upload-form');
 const csvFileInput = document.getElementById('csv-file');
-const uploadBtn = document.getElementById('upload-btn');
-const processBtn = document.getElementById('process-btn');
+const uploadProcessBtn = document.getElementById('upload-process-btn');
 
 const dataInfo = document.getElementById('data-info');
 const dataPreview = document.getElementById('data-preview');
@@ -185,45 +184,76 @@ uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const fileInput = document.getElementById('csv-file');
-    if (!fileInput.files.length) {
-        showError('Please select a CSV file to upload.');
-        return;
+    const formData = new FormData(); // Create FormData object here
+    let fileNameForLog = "default_teste_arranged.csv"; // For logging purposes
+
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        formData.append('file', file);
+        fileNameForLog = file.name;
+    } else {
+        // No file selected by user, backend will use default.
+        // Append an empty string for the 'file' part to ensure multipart structure.
+        formData.append('file', ''); 
+        AppLogger.info('No file selected by user, attempting to use default file on backend.');
     }
     
-    const file = fileInput.files[0];
-    const formData = new FormData();
-    formData.append('file', file);
-    
     try {
-        uploadBtn.disabled = true;
-        uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
+        // --- UPLOAD PHASE ---
+        uploadProcessBtn.disabled = true;
+        uploadProcessBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
+        AppLogger.info('Initiating upload/process', { file: fileNameForLog });
         
-        const response = await fetch(API_ENDPOINTS.UPLOAD, {
+        const uploadResponse = await fetch(API_ENDPOINTS.UPLOAD, {
             method: 'POST',
-            body: formData
+            body: formData // FormData will be empty if no file selected, backend handles this
         });
         
-        const data = await response.json();
+        const uploadData = await uploadResponse.json();
         
-        if (!response.ok) {
-            throw new Error(data.message || 'Error uploading file');
+        if (!uploadResponse.ok) {
+            throw new Error(uploadData.message || 'Error uploading file');
         }
         
-        // Update UI with data preview
-        updateDataPreview(data);
+        // Update UI with data preview from upload
+        updateDataPreview(uploadData);
         
-        // Enable the process button
-        processBtn.disabled = false;
+        // --- PROCESS PHASE (only if upload was successful) ---
+        uploadProcessBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+        
+        const processResponse = await fetch(API_ENDPOINTS.PROCESS_DATA, {
+            method: 'POST'
+        });
+        
+        const processData = await processResponse.json();
+        
+        if (!processResponse.ok) {
+            // If processing fails, dataUploaded should reflect the state from the upload step
+            dataUploaded = true; // Upload was successful
+            sessionStorage.setItem('dataUploaded', 'true');
+            dataProcessed = false; // Processing failed
+            sessionStorage.setItem('dataProcessed', 'false');
+            throw new Error(processData.message || 'Error processing data');
+        }
+        
+        // Update UI with processed data preview
+        updateDataPreview(processData);
+        
         dataUploaded = true;
-        
-        // Store flag in sessionStorage
+        dataProcessed = true;
         sessionStorage.setItem('dataUploaded', 'true');
+        sessionStorage.setItem('dataProcessed', 'true');
+        
+        dataInfo.innerHTML += `<div class="alert alert-success mt-2">Data uploaded and processed successfully!</div>`;
+        fetchCurrentConfig();
         
     } catch (error) {
         showError(error.message);
+        // dataUploaded and dataProcessed will be false or set according to failure point
+        // Button is re-enabled in finally
     } finally {
-        uploadBtn.disabled = false;
-        uploadBtn.textContent = 'Upload';
+        uploadProcessBtn.disabled = false;
+        uploadProcessBtn.textContent = 'Upload and Process';
     }
 });
 
@@ -270,7 +300,6 @@ arrangeBtn.addEventListener('click', async () => {
         }
         
         // Set global state flags
-        processBtn.disabled = false;
         dataUploaded = true;
         dataProcessed = true;
         
@@ -289,50 +318,6 @@ arrangeBtn.addEventListener('click', async () => {
     } finally {
         arrangeBtn.disabled = false;
         arrangeBtn.textContent = 'Arrange Data';
-    }
-});
-
-processBtn.addEventListener('click', async () => {
-    if (!dataUploaded) {
-        showError('Please upload a CSV file first.');
-        return;
-    }
-    
-    try {
-        // Disable process button during processing
-        processBtn.disabled = true;
-        processBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
-        
-        const response = await fetch(API_ENDPOINTS.PROCESS_DATA, {
-            method: 'POST'
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.message || 'Error processing data');
-        }
-        
-        // Update UI with processed data preview
-        updateDataPreview(data);
-        
-        // Set data as processed - IMPORTANT: This needs to be set BEFORE any UI updates
-        dataProcessed = true;
-        
-        // Store flag in sessionStorage
-        sessionStorage.setItem('dataProcessed', 'true');
-        
-        // Show success message
-        dataInfo.innerHTML += `<div class="alert alert-success mt-2">Data processed successfully!</div>`;
-        
-        // Fetch current config
-        fetchCurrentConfig();
-        
-    } catch (error) {
-        showError(error.message);
-    } finally {
-        processBtn.disabled = false;
-        processBtn.textContent = 'Process Data';
     }
 });
 

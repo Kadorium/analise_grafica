@@ -180,26 +180,46 @@ async def read_root():
     return FileResponse("frontend/index.html")
 
 @app.post("/api/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: Optional[UploadFile] = None):
     global UPLOADED_DATA
     
     start_time = time.time()
-    log_endpoint("POST /api/upload", file_name=file.filename, content_type=file.content_type)
+    default_file_used = False
     
-    # Read the uploaded file
     try:
-        contents = await file.read()
-        
-        # Save the file temporarily to use with our enhanced DataLoader
-        temp_file_path = os.path.join('data', 'temp_upload.csv')
-        os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
-        
-        with open(temp_file_path, 'wb') as f:
-            f.write(contents)
-        
-        logger.info(f"File saved temporarily to {temp_file_path}")
-        
-        # Use our enhanced DataLoader instead of basic pd.read_csv
+        temp_file_path = None
+
+        if file:
+            log_endpoint("POST /api/upload", file_name=file.filename, content_type=file.content_type)
+            contents = await file.read()
+            
+            # Save the uploaded file temporarily
+            temp_file_path = os.path.join('data', 'temp_upload.csv')
+            os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
+            
+            with open(temp_file_path, 'wb') as f:
+                f.write(contents)
+            logger.info(f"File uploaded by user and saved temporarily to {temp_file_path}")
+        else:
+            # No file uploaded, use the default file
+            default_file_path = os.path.join('data', 'teste_arranged.csv')
+            if not os.path.exists(default_file_path):
+                log_endpoint("POST /api/upload - ERROR", error=f"Default file not found: {default_file_path}")
+                return JSONResponse(
+                    status_code=404,
+                    content={"message": f"Default file {default_file_path} not found. Please upload a file."}
+                )
+            temp_file_path = default_file_path # Use the default file path directly
+            default_file_used = True
+            log_endpoint("POST /api/upload", using_default_file=temp_file_path)
+            logger.info(f"No file uploaded by user. Using default file: {temp_file_path}")
+
+        # Use our enhanced DataLoader
+        # Ensure temp_file_path is set before this line
+        if temp_file_path is None:
+             # This case should ideally not be reached if logic is correct
+             raise ValueError("temp_file_path is not set. This indicates a logic error.")
+
         data_loader = DataLoader(temp_file_path)
         UPLOADED_DATA = data_loader.load_csv()
         
@@ -219,7 +239,7 @@ async def upload_file(file: UploadFile = File(...)):
         
         elapsed_time = time.time() - start_time
         response_data = {
-            "message": "File uploaded successfully",
+            "message": "File processed successfully" if default_file_used else "File uploaded successfully",
             "data_shape": UPLOADED_DATA.shape,
             "data_sample": sample_data.to_dict('records'),
             "columns": list(UPLOADED_DATA.columns)
