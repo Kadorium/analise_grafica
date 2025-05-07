@@ -741,15 +741,22 @@ function setupOptimizationParameters() {
             `;
         }
         
-        // Add the run optimization button
-        html += `
-            <button type="button" class="btn btn-primary" id="run-optimization-btn">Run Optimization</button>
-        `;
+        // Remove the "Add the run optimization button" code
+        // Previously had:
+        // html += `
+        //    <button type="button" class="btn btn-primary" id="run-optimization-btn">Run Optimization</button>
+        // `;
         
         optimizationParametersDiv.innerHTML = html;
         
-        // Add event listener for run optimization button
-        document.getElementById('run-optimization-btn').addEventListener('click', runOptimization);
+        // Add event listener for the form's submit button that already exists in HTML
+        const optimizationForm = document.getElementById('optimization-form');
+        if (optimizationForm) {
+            optimizationForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                runOptimization();
+            });
+        }
         
     } catch (error) {
         console.error('Error setting up optimization parameters:', error);
@@ -983,7 +990,8 @@ function displayBacktestResults(results) {
 async function runOptimization() {
     try {
         const strategyType = document.getElementById('optimization-strategy').value;
-        const optimizationBtn = document.getElementById('run-optimization-btn');
+        // Reference the form submit button instead of the dynamically created one
+        const optimizationBtn = document.querySelector('#optimization-form button[type="submit"]');
         
         // Get optimization parameters
         const metric = document.getElementById('optimization-metric').value;
@@ -1123,8 +1131,10 @@ async function runOptimization() {
         };
         
         // Disable the button
-        optimizationBtn.disabled = true;
-        optimizationBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running...';
+        if (optimizationBtn) {
+            optimizationBtn.disabled = true;
+            optimizationBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running...';
+        }
         
         // Clear previous optimization status check interval
         if (optimizationStatusInterval) {
@@ -1170,7 +1180,8 @@ async function runOptimization() {
         console.error('Error running optimization:', error);
         showError('Error running optimization: ' + error.message);
     } finally {
-        const optimizationBtn = document.getElementById('run-optimization-btn');
+        // Use the form submit button for re-enabling
+        const optimizationBtn = document.querySelector('#optimization-form button[type="submit"]');
         if (optimizationBtn) {
             optimizationBtn.disabled = false;
             optimizationBtn.textContent = 'Run Optimization';
@@ -1638,13 +1649,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Set up optimization parameters based on the form values
             setupOptimizationParameters();
             
-            // Trigger the run optimization function
-            const runOptimizationBtn = document.getElementById('run-optimization-btn');
-            if (runOptimizationBtn) {
-                // Create a click event and dispatch it to trigger the runOptimization function
-                const clickEvent = new Event('click');
-                runOptimizationBtn.dispatchEvent(clickEvent);
-            }
+            // Directly call runOptimization instead of looking for the button
+            runOptimization();
         });
     }
     
