@@ -1778,6 +1778,111 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.log("Adding ATR with period:", indicatorConfig.atr.period);
             }
             
+            // ADX
+            const adxCheckbox = document.getElementById('adx-checkbox');
+            if (adxCheckbox && adxCheckbox.checked) {
+                const adxPeriod = document.getElementById('adx-period');
+                indicatorConfig.adx = {
+                    period: adxPeriod ? parseInt(adxPeriod.value) : 14
+                };
+                console.log("Adding ADX with period:", indicatorConfig.adx.period);
+            }
+            
+            // SuperTrend
+            const supertrendCheckbox = document.getElementById('supertrend-checkbox');
+            if (supertrendCheckbox && supertrendCheckbox.checked) {
+                const atrPeriod = document.getElementById('supertrend-atr-period');
+                const multiplier = document.getElementById('supertrend-multiplier');
+                indicatorConfig.supertrend = {
+                    atr_period: atrPeriod ? parseInt(atrPeriod.value) : 10,
+                    multiplier: multiplier ? parseFloat(multiplier.value) : 3.0
+                };
+                console.log("Adding SuperTrend with parameters:", indicatorConfig.supertrend);
+            }
+            
+            // CCI (Commodity Channel Index)
+            const cciCheckbox = document.getElementById('cci-checkbox');
+            if (cciCheckbox && cciCheckbox.checked) {
+                const cciPeriod = document.getElementById('cci-period');
+                indicatorConfig.cci = {
+                    period: cciPeriod ? parseInt(cciPeriod.value) : 20
+                };
+                console.log("Adding CCI with period:", indicatorConfig.cci.period);
+            }
+            
+            // Williams %R
+            const williamsRCheckbox = document.getElementById('williams-r-checkbox');
+            if (williamsRCheckbox && williamsRCheckbox.checked) {
+                const williamsRPeriod = document.getElementById('williams-r-period');
+                indicatorConfig.williams_r = {
+                    period: williamsRPeriod ? parseInt(williamsRPeriod.value) : 14
+                };
+                console.log("Adding Williams %R with period:", indicatorConfig.williams_r.period);
+            }
+            
+            // Chaikin Money Flow
+            const cmfCheckbox = document.getElementById('cmf-checkbox');
+            if (cmfCheckbox && cmfCheckbox.checked) {
+                const cmfPeriod = document.getElementById('cmf-period');
+                indicatorConfig.cmf = {
+                    period: cmfPeriod ? parseInt(cmfPeriod.value) : 20
+                };
+                console.log("Adding Chaikin Money Flow with period:", indicatorConfig.cmf.period);
+            }
+            
+            // Accumulation Distribution Line
+            const adLineCheckbox = document.getElementById('ad-line-checkbox');
+            if (adLineCheckbox && adLineCheckbox.checked) {
+                indicatorConfig.ad_line = true;
+                console.log("Adding Accumulation Distribution Line");
+            }
+            
+            // Donchian Channels
+            const donchianCheckbox = document.getElementById('donchian-checkbox');
+            if (donchianCheckbox && donchianCheckbox.checked) {
+                const donchianPeriod = document.getElementById('donchian-period');
+                indicatorConfig.donchian_channels = {
+                    period: donchianPeriod ? parseInt(donchianPeriod.value) : 20
+                };
+                console.log("Adding Donchian Channels with period:", indicatorConfig.donchian_channels.period);
+            }
+            
+            // Keltner Channels
+            const keltnerCheckbox = document.getElementById('keltner-checkbox');
+            if (keltnerCheckbox && keltnerCheckbox.checked) {
+                const emaPeriod = document.getElementById('keltner-ema-period');
+                const atrPeriod = document.getElementById('keltner-atr-period');
+                const multiplier = document.getElementById('keltner-multiplier');
+                indicatorConfig.keltner_channels = {
+                    ema_period: emaPeriod ? parseInt(emaPeriod.value) : 20,
+                    atr_period: atrPeriod ? parseInt(atrPeriod.value) : 10,
+                    multiplier: multiplier ? parseFloat(multiplier.value) : 1.5
+                };
+                console.log("Adding Keltner Channels with parameters:", indicatorConfig.keltner_channels);
+            }
+            
+            // Candlestick Patterns
+            const candlestickPatternsCheckbox = document.getElementById('candlestick-patterns-checkbox');
+            if (candlestickPatternsCheckbox && candlestickPatternsCheckbox.checked) {
+                indicatorConfig.candlestick_patterns = true;
+                console.log("Adding Candlestick Patterns");
+            } else {
+                // Check for individual patterns
+                const dojiCheckbox = document.getElementById('doji-checkbox');
+                const engulfingCheckbox = document.getElementById('engulfing-checkbox');
+                const hammerCheckbox = document.getElementById('hammer-checkbox');
+                const morningStarCheckbox = document.getElementById('morning-star-checkbox');
+                
+                if ((dojiCheckbox && dojiCheckbox.checked) ||
+                    (engulfingCheckbox && engulfingCheckbox.checked) ||
+                    (hammerCheckbox && hammerCheckbox.checked) ||
+                    (morningStarCheckbox && morningStarCheckbox.checked)) {
+                    
+                    indicatorConfig.candlestick_patterns = true;
+                    console.log("Adding Selected Candlestick Patterns");
+                }
+            }
+            
             // Check if any indicator is selected
             if (Object.keys(indicatorConfig).length === 0) {
                 showError('Please select at least one indicator to add.');
@@ -1814,6 +1919,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 // Update the indicator selection dropdowns
                 updateIndicatorDropdowns();
+                
+                // Auto-select all available indicators in main and subplot lists
+                const mainIndicatorsSelect = document.getElementById('main-indicators');
+                const subplotIndicatorsSelect = document.getElementById('subplot-indicators');
+                
+                if (mainIndicatorsSelect) {
+                    for (let i = 0; i < mainIndicatorsSelect.options.length; i++) {
+                        mainIndicatorsSelect.options[i].selected = true;
+                    }
+                }
+                
+                if (subplotIndicatorsSelect) {
+                    for (let i = 0; i < subplotIndicatorsSelect.options.length; i++) {
+                        subplotIndicatorsSelect.options[i].selected = true;
+                    }
+                }
+                
+                // Update checkboxes to reflect available indicators
+                updateCheckboxesFromAvailableIndicators();
                 
                 // Show success message
                 showSuccessMessage('Indicators added successfully!');
@@ -1853,9 +1977,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             const mainIndicatorsSelect = document.getElementById('main-indicators');
             const subplotIndicatorsSelect = document.getElementById('subplot-indicators');
             
-            // Get all options (not just selected ones) from each list
-            const mainIndicators = Array.from(mainIndicatorsSelect.options).map(opt => opt.value);
-            const subplotIndicators = Array.from(subplotIndicatorsSelect.options).map(opt => opt.value);
+            // Check if any indicators are explicitly selected
+            const selectedMainIndicators = Array.from(mainIndicatorsSelect.selectedOptions).map(opt => opt.value);
+            const selectedSubplotIndicators = Array.from(subplotIndicatorsSelect.selectedOptions).map(opt => opt.value);
+            
+            // If nothing is selected, use all options
+            let mainIndicators = selectedMainIndicators.length > 0 ? 
+                                selectedMainIndicators : 
+                                Array.from(mainIndicatorsSelect.options).map(opt => opt.value);
+                                
+            let subplotIndicators = selectedSubplotIndicators.length > 0 ? 
+                                   selectedSubplotIndicators : 
+                                   Array.from(subplotIndicatorsSelect.options).map(opt => opt.value);
+            
+            console.log("Using main indicators:", mainIndicators);
+            console.log("Using subplot indicators:", subplotIndicators);
             
             // Get date range
             const startDate = document.getElementById('chart-start-date').value;
@@ -2063,6 +2199,13 @@ function updateIndicatorDropdowns() {
     const mainIndicatorsSelect = document.getElementById('main-indicators');
     const subplotIndicatorsSelect = document.getElementById('subplot-indicators');
     
+    // Save current selections before clearing
+    const currentMainSelections = Array.from(mainIndicatorsSelect.options).map(opt => opt.value);
+    const currentSubplotSelections = Array.from(subplotIndicatorsSelect.options).map(opt => opt.value);
+    
+    console.log("Current main indicators:", currentMainSelections);
+    console.log("Current subplot indicators:", currentSubplotSelections);
+    
     // Clear existing options
     mainIndicatorsSelect.innerHTML = '';
     subplotIndicatorsSelect.innerHTML = '';
@@ -2070,8 +2213,17 @@ function updateIndicatorDropdowns() {
     console.log("Updating indicator dropdowns with available indicators:", availableIndicators);
     
     // Categorize indicators based on type
-    const mainIndicatorTypes = ['sma_', 'ema_', 'bb_', 'typical_price'];
-    const subplotIndicatorTypes = ['rsi', 'macd', 'stoch', 'obv', 'vpt', 'volume_', 'atr'];
+    const mainIndicatorTypes = [
+        'sma_', 'ema_', 'bb_', 'typical_price', 
+        'supertrend', 'donchian_', 'keltner_',
+        'bullish_engulfing', 'bearish_engulfing', 'doji', 'hammer', 'inverted_hammer',
+        'morning_star', 'evening_star'
+    ];
+    
+    const subplotIndicatorTypes = [
+        'rsi', 'macd', 'stoch', 'obv', 'vpt', 'volume_', 'atr',
+        'adx', 'plus_di', 'minus_di', 'cci', 'williams_r', 'cmf', 'ad_line'
+    ];
     
     // Exclude columns that are not indicators
     const excludedItems = ['ticker', 'index'];
@@ -2087,18 +2239,27 @@ function updateIndicatorDropdowns() {
     
     console.log("Filtered indicators (excluding non-indicators):", filteredIndicators);
     
-    const categorizedMain = [];
-    const categorizedSubplot = [];
+    // Find new indicators that weren't in any select before
+    const allPreviousSelections = [...currentMainSelections, ...currentSubplotSelections];
+    const newIndicators = filteredIndicators.filter(ind => !allPreviousSelections.includes(ind));
     
-    // Initialize typical_price for price display
-    const hasTypicalPrice = filteredIndicators.some(ind => ind === 'typical_price');
+    console.log("New indicators to categorize:", newIndicators);
+    
+    // Initialize separate arrays for main and subplot indicators
+    let categorizedMain = [...currentMainSelections];
+    let categorizedSubplot = [...currentSubplotSelections];
+    
+    // Initialize typical_price for price display if not already present
+    const hasTypicalPrice = categorizedMain.includes('typical_price') || 
+                           filteredIndicators.some(ind => ind === 'typical_price');
     if (!hasTypicalPrice) {
         categorizedMain.push('typical_price');
     }
     
-    filteredIndicators.forEach(indicator => {
+    // Categorize only new indicators
+    newIndicators.forEach(indicator => {
         // Decide which dropdown this indicator belongs to
-        let isMainIndicator = mainIndicatorTypes.some(prefix => indicator.startsWith(prefix));
+        let isMainIndicator = mainIndicatorTypes.some(prefix => indicator.startsWith(prefix) || indicator === prefix);
         let isSubplotIndicator = subplotIndicatorTypes.some(prefix => indicator.startsWith(prefix) || indicator === prefix);
         
         if (isMainIndicator) {
@@ -2111,22 +2272,32 @@ function updateIndicatorDropdowns() {
         }
     });
     
+    // Remove duplicates
+    categorizedMain = [...new Set(categorizedMain)];
+    categorizedSubplot = [...new Set(categorizedSubplot)];
+    
     console.log("Categorized main indicators:", categorizedMain);
     console.log("Categorized subplot indicators:", categorizedSubplot);
     
     // Add categorized indicators to their respective dropdowns
     categorizedMain.forEach(indicator => {
-        const option = document.createElement('option');
-        option.value = indicator;
-        option.textContent = indicator.replace(/_/g, ' ');
-        mainIndicatorsSelect.appendChild(option);
+        // Only add if the indicator exists in filtered indicators or was already selected
+        if (filteredIndicators.includes(indicator) || currentMainSelections.includes(indicator)) {
+            const option = document.createElement('option');
+            option.value = indicator;
+            option.textContent = indicator.replace(/_/g, ' ');
+            mainIndicatorsSelect.appendChild(option);
+        }
     });
     
     categorizedSubplot.forEach(indicator => {
-        const option = document.createElement('option');
-        option.value = indicator;
-        option.textContent = indicator.replace(/_/g, ' ');
-        subplotIndicatorsSelect.appendChild(option);
+        // Only add if the indicator exists in filtered indicators or was already selected
+        if (filteredIndicators.includes(indicator) || currentSubplotSelections.includes(indicator)) {
+            const option = document.createElement('option');
+            option.value = indicator;
+            option.textContent = indicator.replace(/_/g, ' ');
+            subplotIndicatorsSelect.appendChild(option);
+        }
     });
 }
 
@@ -2642,3 +2813,210 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ... existing code ...
+
+// On DOM content loaded - initialize event listeners and check data status
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        console.log("Document loaded, initializing app...");
+        
+        // Check if data is already processed
+        const dataStatus = await checkDataStatus();
+        console.log("Data status:", dataStatus);
+        
+        // If data is already processed, update the UI to reflect this
+        if (dataStatus.processed) {
+            // Update UI to show data is processed
+            console.log("Data already processed, updating UI");
+            
+            // Get current config
+            await fetchCurrentConfig();
+            
+            // Ensure the indicators dropdowns are initialized
+            updateIndicatorDropdowns();
+            
+            // Auto-populate all available indicators in the chart selects
+            const mainIndicatorsSelect = document.getElementById('main-indicators');
+            const subplotIndicatorsSelect = document.getElementById('subplot-indicators');
+            
+            if (mainIndicatorsSelect) {
+                for (let i = 0; i < mainIndicatorsSelect.options.length; i++) {
+                    mainIndicatorsSelect.options[i].selected = true;
+                }
+            }
+            
+            if (subplotIndicatorsSelect) {
+                for (let i = 0; i < subplotIndicatorsSelect.options.length; i++) {
+                    subplotIndicatorsSelect.options[i].selected = true;
+                }
+            }
+            
+            // Update checkboxes to reflect what indicators are available
+            updateCheckboxesFromAvailableIndicators();
+        }
+        
+        // Initialize seasonality analysis controls
+        initializeSeasonalityControls();
+        
+        // Restore active tab from session storage if available
+        const activeTab = sessionStorage.getItem('activeTab');
+        if (activeTab) {
+            const tab = document.getElementById(activeTab);
+            if (tab) {
+                console.log("Restoring tab:", activeTab);
+                
+                // Get corresponding section
+                const sectionId = activeTab.replace('tab', 'section');
+                const section = document.getElementById(sectionId);
+                
+                // Get title
+                const title = tab.textContent.trim();
+                
+                // Activate the tab
+                activateTab(tab, section, title);
+            }
+        }
+        
+        // Initialize indicator controls
+        initializeIndicatorControls();
+        
+        // Initialize candlestick pattern master checkbox control
+        const candlestickPatternsCheckbox = document.getElementById('candlestick-patterns-checkbox');
+        if (candlestickPatternsCheckbox) {
+            // Add function to toggle visibility of individual pattern options
+            function togglePatternOptions() {
+                const patternsContainer = document.querySelector('.patterns-container');
+                if (patternsContainer) {
+                    if (candlestickPatternsCheckbox.checked) {
+                        patternsContainer.style.display = 'block';
+                    } else {
+                        patternsContainer.style.display = 'none';
+                        
+                        // Uncheck all individual patterns when master is unchecked
+                        const patternCheckboxes = document.querySelectorAll('.pattern-checkbox');
+                        patternCheckboxes.forEach(checkbox => {
+                            checkbox.checked = false;
+                        });
+                    }
+                }
+            }
+            
+            // Initialize visibility state
+            togglePatternOptions();
+            
+            // Update when checkbox changes
+            candlestickPatternsCheckbox.addEventListener('change', function() {
+                // Toggle visibility of pattern options
+                togglePatternOptions();
+                
+                // If checked, check all pattern checkboxes
+                if (candlestickPatternsCheckbox.checked) {
+                    const patternCheckboxes = document.querySelectorAll('.pattern-checkbox');
+                    patternCheckboxes.forEach(checkbox => {
+                        checkbox.checked = true;
+                    });
+                }
+            });
+            
+            // Also update master checkbox if all individual checkboxes are checked/unchecked
+            const patternCheckboxes = document.querySelectorAll('.pattern-checkbox');
+            patternCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    // Check if all pattern checkboxes are checked
+                    const allChecked = Array.from(patternCheckboxes).every(cb => cb.checked);
+                    const allUnchecked = Array.from(patternCheckboxes).every(cb => !cb.checked);
+                    
+                    // Update master checkbox accordingly
+                    if (allChecked) {
+                        candlestickPatternsCheckbox.checked = true;
+                        candlestickPatternsCheckbox.indeterminate = false;
+                    } else if (allUnchecked) {
+                        candlestickPatternsCheckbox.checked = false;
+                        candlestickPatternsCheckbox.indeterminate = false;
+                    } else {
+                        // Some checked, some unchecked - show indeterminate state
+                        candlestickPatternsCheckbox.indeterminate = true;
+                    }
+                });
+            });
+        }
+    } catch (error) {
+        console.error("Error initializing app:", error);
+    }
+});
+
+// Add this new function
+function updateCheckboxesFromAvailableIndicators() {
+    console.log("Updating checkboxes to match available indicators:", availableIndicators);
+    
+    // Update moving averages checkboxes
+    const hasSma = availableIndicators.some(ind => ind.startsWith('sma_'));
+    const hasEma = availableIndicators.some(ind => ind.startsWith('ema_'));
+    
+    const smaCheckbox = document.getElementById('sma-checkbox');
+    const emaCheckbox = document.getElementById('ema-checkbox');
+    
+    if (smaCheckbox) smaCheckbox.checked = hasSma;
+    if (emaCheckbox) emaCheckbox.checked = hasEma;
+    
+    // Update other indicator checkboxes
+    const indicatorMappings = [
+        { checkbox: 'rsi-checkbox', indicator: 'rsi' },
+        { checkbox: 'macd-checkbox', indicator: 'macd' },
+        { checkbox: 'bbands-checkbox', indicator: 'bb_' },
+        { checkbox: 'stoch-checkbox', indicator: 'stoch_' },
+        { checkbox: 'volume-checkbox', indicator: 'volume_' },
+        { checkbox: 'atr-checkbox', indicator: 'atr' },
+        { checkbox: 'adx-checkbox', indicator: 'adx' },
+        { checkbox: 'supertrend-checkbox', indicator: 'supertrend' },
+        { checkbox: 'cci-checkbox', indicator: 'cci' },
+        { checkbox: 'williams-r-checkbox', indicator: 'williams_r' },
+        { checkbox: 'cmf-checkbox', indicator: 'cmf' },
+        { checkbox: 'ad-line-checkbox', indicator: 'ad_line' },
+        { checkbox: 'donchian-checkbox', indicator: 'donchian_' },
+        { checkbox: 'keltner-checkbox', indicator: 'keltner_' }
+    ];
+    
+    // Check/uncheck each checkbox based on indicator presence
+    indicatorMappings.forEach(mapping => {
+        const checkbox = document.getElementById(mapping.checkbox);
+        if (checkbox) {
+            const hasIndicator = availableIndicators.some(ind => 
+                ind === mapping.indicator || ind.startsWith(mapping.indicator));
+            checkbox.checked = hasIndicator;
+        }
+    });
+    
+    // Handle candlestick patterns separately
+    const patternCheckbox = document.getElementById('candlestick-patterns-checkbox');
+    const dojiCheckbox = document.getElementById('doji-checkbox');
+    const engulfingCheckbox = document.getElementById('engulfing-checkbox');
+    const hammerCheckbox = document.getElementById('hammer-checkbox');
+    const morningStarCheckbox = document.getElementById('morning-star-checkbox');
+    
+    const hasPatterns = availableIndicators.some(ind => 
+        ind === 'doji' || 
+        ind === 'bullish_engulfing' || 
+        ind === 'bearish_engulfing' || 
+        ind === 'hammer' || 
+        ind === 'inverted_hammer' ||
+        ind === 'morning_star' ||
+        ind === 'evening_star');
+    
+    if (patternCheckbox) {
+        patternCheckbox.checked = hasPatterns;
+    }
+    
+    // Set individual pattern checkboxes
+    if (dojiCheckbox) dojiCheckbox.checked = availableIndicators.includes('doji');
+    if (engulfingCheckbox) engulfingCheckbox.checked = availableIndicators.includes('bullish_engulfing') || availableIndicators.includes('bearish_engulfing');
+    if (hammerCheckbox) hammerCheckbox.checked = availableIndicators.includes('hammer') || availableIndicators.includes('inverted_hammer');
+    if (morningStarCheckbox) morningStarCheckbox.checked = availableIndicators.includes('morning_star') || availableIndicators.includes('evening_star');
+    
+    // Update the candlestick patterns container visibility
+    if (patternCheckbox && hasPatterns) {
+        const patternsContainer = document.querySelector('.patterns-container');
+        if (patternsContainer) {
+            patternsContainer.style.display = 'block';
+        }
+    }
+}

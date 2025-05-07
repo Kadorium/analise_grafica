@@ -150,6 +150,15 @@ class IndicatorConfig(BaseModel):
     stochastic: Optional[Dict[str, Any]] = None
     volume: Optional[bool] = None
     atr: Optional[Dict[str, Any]] = None
+    adx: Optional[Dict[str, Any]] = None
+    supertrend: Optional[Dict[str, Any]] = None
+    cci: Optional[Dict[str, Any]] = None
+    williams_r: Optional[Dict[str, Any]] = None
+    cmf: Optional[Dict[str, Any]] = None
+    donchian_channels: Optional[Dict[str, Any]] = None
+    keltner_channels: Optional[Dict[str, Any]] = None
+    ad_line: Optional[bool] = None
+    candlestick_patterns: Optional[bool] = None
 
 class StrategyConfig(BaseModel):
     strategy_type: str
