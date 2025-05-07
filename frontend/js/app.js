@@ -1357,24 +1357,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             const startDate = document.getElementById('backtest-start-date').value;
             const endDate = document.getElementById('backtest-end-date').value;
             
+            // Disable the button
+            const backTestBtn = document.getElementById('run-backtest-btn');
+            backTestBtn.disabled = true;
+            backTestBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running...';
+            
             // Get default parameters for the selected strategy
             fetch(`${API_ENDPOINTS.STRATEGY_PARAMETERS}/${strategyType}`)
                 .then(response => response.json())
                 .then(data => {
-                    // Prepare request data using default parameters
+                    // Prepare request data using default parameters with the correct structure
                     const requestData = {
-                        strategy_type: strategyType,
-                        parameters: data.parameters,
-                        initial_capital: initialCapital,
-                        commission: commission,
-                        start_date: startDate,
-                        end_date: endDate
+                        strategy_config: {
+                            strategy_type: strategyType,
+                            parameters: data.parameters
+                        },
+                        backtest_config: {
+                            initial_capital: initialCapital,
+                            commission: commission,
+                            start_date: startDate,
+                            end_date: endDate
+                        }
                     };
                     
-                    // Disable the button
-                    const backTestBtn = document.getElementById('run-backtest-btn');
-                    backTestBtn.disabled = true;
-                    backTestBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running...';
+                    console.log('Sending backtest request with data:', requestData);
                     
                     // Call the API
                     return fetch(API_ENDPOINTS.RUN_BACKTEST, {
@@ -1387,12 +1393,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (!data.status || data.status === 'error') {
+                    if (!data.success) {
                         throw new Error(data.message || 'Error running backtest');
                     }
                     
+                    console.log('Backtest results:', data);
+                    
+                    // Ensure we save session state
+                    sessionStorage.setItem('dataUploaded', 'true');
+                    sessionStorage.setItem('dataProcessed', 'true');
+                    sessionStorage.setItem('activeTab', 'backtest-tab');
+                    dataUploaded = true;
+                    dataProcessed = true;
+                    
                     // Update backtest results
                     displayBacktestResults(data);
+                    
+                    // Ensure we stay on the backtest tab
+                    activateTab(backtestTab, backtestSection, 'Backtest');
                 })
                 .catch(error => {
                     console.error('Error running backtest:', error);
