@@ -42,6 +42,10 @@ let availableIndicators = [];
 let selectedStrategy = 'trend_following';
 let currentConfig = {};
 
+// Global variables for optimization
+let optimizationStatusInterval = null;
+let currentOptimizationStrategy = null;
+
 // API endpoints
 const API_BASE_URL = '';
 const API_ENDPOINTS = {
@@ -53,6 +57,8 @@ const API_ENDPOINTS = {
     STRATEGY_PARAMETERS: '/api/strategy-parameters',
     RUN_BACKTEST: '/api/run-backtest',
     OPTIMIZE_STRATEGY: '/api/optimize-strategy',
+    OPTIMIZATION_STATUS: '/api/optimization-status',
+    OPTIMIZATION_RESULTS: '/api/optimization-results',
     COMPARE_STRATEGIES: '/api/compare-strategies',
     SAVE_CONFIG: '/api/save-config',
     LOAD_CONFIG: '/api/load-config',
@@ -155,6 +161,13 @@ optimizationTab.addEventListener('click', (e) => {
     }
     activateTab(optimizationTab, optimizationSection, 'Strategy Optimization');
     setupOptimizationParameters();
+    
+    // Check if there are any previous optimization results for the currently selected strategy
+    const strategyType = document.getElementById('optimization-strategy').value;
+    if (strategyType) {
+        // Check for existing results
+        fetchAndDisplayOptimizationResults(strategyType);
+    }
 });
 
 resultsTab.addEventListener('click', (e) => {
@@ -1113,6 +1126,12 @@ async function runOptimization() {
         optimizationBtn.disabled = true;
         optimizationBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running...';
         
+        // Clear previous optimization status check interval
+        if (optimizationStatusInterval) {
+            clearInterval(optimizationStatusInterval);
+            optimizationStatusInterval = null;
+        }
+        
         // Call the API
         const response = await fetch(API_ENDPOINTS.OPTIMIZE_STRATEGY, {
             method: 'POST',
@@ -1141,6 +1160,12 @@ async function runOptimization() {
             </div>
         `;
         
+        // Store the current optimization strategy
+        currentOptimizationStrategy = strategyType;
+        
+        // Set up periodic check for optimization status
+        optimizationStatusInterval = setInterval(checkOptimizationStatus, 5000); // Check every 5 seconds
+        
     } catch (error) {
         console.error('Error running optimization:', error);
         showError('Error running optimization: ' + error.message);
@@ -1150,6 +1175,184 @@ async function runOptimization() {
             optimizationBtn.disabled = false;
             optimizationBtn.textContent = 'Run Optimization';
         }
+    }
+}
+
+// Function to check optimization status
+async function checkOptimizationStatus() {
+    try {
+        const response = await fetch(API_ENDPOINTS.OPTIMIZATION_STATUS);
+        const statusData = await response.json();
+        
+        // If optimization is no longer in progress, fetch and display results
+        if (!statusData.in_progress && statusData.strategy_type === currentOptimizationStrategy) {
+            // Clear the interval
+            clearInterval(optimizationStatusInterval);
+            optimizationStatusInterval = null;
+            
+            // Fetch the results
+            await fetchAndDisplayOptimizationResults(currentOptimizationStrategy);
+        }
+    } catch (error) {
+        console.error('Error checking optimization status:', error);
+    }
+}
+
+// Function to fetch and display optimization results
+async function fetchAndDisplayOptimizationResults(strategyType) {
+    try {
+        const response = await fetch(`${API_ENDPOINTS.OPTIMIZATION_RESULTS}/${strategyType}`);
+        const data = await response.json();
+        
+        const optimizationResults = document.getElementById('optimization-results');
+        
+        if (data.status === 'success') {
+            const results = data.results;
+            
+            // Format best parameters
+            let bestParamsHtml = '';
+            for (const [param, value] of Object.entries(results.best_params)) {
+                bestParamsHtml += `<tr>
+                    <td>${formatMetricName(param)}</td>
+                    <td>${value}</td>
+                </tr>`;
+            }
+            
+            // Format performance metrics
+            let performanceHtml = '';
+            for (const [metric, value] of Object.entries(results.best_performance)) {
+                performanceHtml += `<tr>
+                    <td>${formatMetricName(metric)}</td>
+                    <td>${formatMetricValue(metric, value)}</td>
+                </tr>`;
+            }
+            
+            // Display results
+            optimizationResults.innerHTML = `
+                <div class="alert alert-success mt-3">
+                    <h5>Optimization Complete</h5>
+                    <p>Optimization for ${formatMetricName(results.strategy_type)} strategy completed on ${data.timestamp}</p>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Best Parameters</h5>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Parameter</th>
+                                            <th>Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${bestParamsHtml}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Performance Metrics</h5>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-sm table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Metric</th>
+                                            <th>Value</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${performanceHtml}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button type="button" class="btn btn-primary" onclick="useOptimizedParameters('${results.strategy_type}')">
+                        Use These Parameters
+                    </button>
+                </div>
+            `;
+        } else if (data.status === 'in_progress') {
+            // Still running - leave the progress indicator in place
+        } else {
+            // Error or not found
+            optimizationResults.innerHTML = `
+                <div class="alert alert-warning mt-3">
+                    <h5>Optimization Results Not Available</h5>
+                    <p>${data.message}</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error fetching optimization results:', error);
+        
+        const optimizationResults = document.getElementById('optimization-results');
+        optimizationResults.innerHTML = `
+            <div class="alert alert-danger mt-3">
+                <h5>Error Fetching Results</h5>
+                <p>There was an error fetching the optimization results: ${error.message}</p>
+            </div>
+        `;
+    } finally {
+        // Re-enable the optimization button
+        const optimizationBtn = document.getElementById('run-optimization-btn');
+        if (optimizationBtn) {
+            optimizationBtn.disabled = false;
+            optimizationBtn.textContent = 'Run Optimization';
+        }
+    }
+}
+
+// Function to use optimized parameters
+async function useOptimizedParameters(strategyType) {
+    try {
+        // Fetch the latest optimization results
+        const response = await fetch(`${API_ENDPOINTS.OPTIMIZATION_RESULTS}/${strategyType}`);
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            const bestParams = data.results.best_params;
+            
+            // Switch to the Strategies tab
+            const strategiesTabEl = document.getElementById('strategies-tab');
+            strategiesTabEl.click();
+            
+            // Select the optimized strategy
+            const strategySelect = document.getElementById('strategy-type');
+            strategySelect.value = strategyType;
+            
+            // Trigger the change event to load the parameters
+            strategySelect.dispatchEvent(new Event('change'));
+            
+            // Wait for the parameters to load
+            setTimeout(() => {
+                // Set the optimized parameters
+                for (const [param, value] of Object.entries(bestParams)) {
+                    const paramInput = document.getElementById(`strategy-param-${param}`);
+                    if (paramInput) {
+                        paramInput.value = value;
+                    }
+                }
+                
+                showNotification(`Optimized parameters for ${formatMetricName(strategyType)} strategy have been applied.`, 'success');
+            }, 500);
+        } else {
+            showError('Could not load optimization results: ' + data.message);
+        }
+    } catch (error) {
+        console.error('Error using optimized parameters:', error);
+        showError('Error using optimized parameters: ' + error.message);
     }
 }
 

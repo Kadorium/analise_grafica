@@ -61,6 +61,14 @@ from backtesting.backtester import Backtester
 from optimization.optimizer import optimize_strategy, compare_optimized_strategies
 import config as cfg
 
+# Global variables for optimization tracking
+OPTIMIZATION_STATUS = {
+    "in_progress": False,
+    "strategy_type": None,
+    "start_time": None,
+    "latest_result_file": None
+}
+
 # Create the FastAPI app
 app = FastAPI(title="Trading Analysis API", version="1.0.0")
 
@@ -794,7 +802,7 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
 
 @app.post("/api/optimize-strategy")
 async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, background_tasks: BackgroundTasks):
-    global PROCESSED_DATA
+    global PROCESSED_DATA, OPTIMIZATION_STATUS
     
     if PROCESSED_DATA is None:
         return JSONResponse(
@@ -802,9 +810,15 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
             content={"message": "No processed data available. Please upload and process data first."}
         )
     
+    # Set optimization status
+    OPTIMIZATION_STATUS["in_progress"] = True
+    OPTIMIZATION_STATUS["strategy_type"] = optimization_config.strategy_type
+    OPTIMIZATION_STATUS["start_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    OPTIMIZATION_STATUS["latest_result_file"] = None
+    
     # Define a background task for optimization (as it can take a long time)
     def run_optimization():
-        global CURRENT_CONFIG
+        global CURRENT_CONFIG, OPTIMIZATION_STATUS
         
         try:
             # Run the optimization
@@ -845,7 +859,13 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
                     'all_results': serializable_results
                 }, f, indent=4)
             
+            # Update optimization status
+            OPTIMIZATION_STATUS["in_progress"] = False
+            OPTIMIZATION_STATUS["latest_result_file"] = results_file
+            
         except Exception as e:
+            # Update optimization status on error
+            OPTIMIZATION_STATUS["in_progress"] = False
             print(f"Error in optimization background task: {str(e)}")
     
     # Add the optimization task to background tasks
@@ -856,6 +876,63 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
         "strategy_type": optimization_config.strategy_type,
         "metric": optimization_config.metric
     }
+
+@app.get("/api/optimization-status")
+async def get_optimization_status():
+    """
+    Endpoint to check the status of the optimization process.
+    """
+    global OPTIMIZATION_STATUS
+    
+    return OPTIMIZATION_STATUS
+
+@app.get("/api/optimization-results/{strategy_type}")
+async def get_optimization_results(strategy_type: str):
+    """
+    Endpoint to get the latest optimization results for a specific strategy.
+    """
+    global OPTIMIZATION_STATUS
+    
+    # Check if optimization is still in progress
+    if OPTIMIZATION_STATUS["in_progress"] and OPTIMIZATION_STATUS["strategy_type"] == strategy_type:
+        return {
+            "status": "in_progress",
+            "message": f"Optimization for {strategy_type} is still in progress"
+        }
+    
+    # Find the latest optimization result file for the specified strategy
+    results_dir = os.path.join("results", "optimization")
+    if not os.path.exists(results_dir):
+        return {
+            "status": "not_found",
+            "message": "No optimization results directory found"
+        }
+    
+    files = [f for f in os.listdir(results_dir) if f.startswith(f"optimization_{strategy_type}_")]
+    if not files:
+        return {
+            "status": "not_found",
+            "message": f"No optimization results found for strategy type '{strategy_type}'"
+        }
+    
+    # Get the most recent file
+    latest_file = max(files, key=lambda f: os.path.getmtime(os.path.join(results_dir, f)))
+    file_path = os.path.join(results_dir, latest_file)
+    
+    try:
+        with open(file_path, 'r') as f:
+            results = json.load(f)
+        
+        return {
+            "status": "success",
+            "results": results,
+            "timestamp": datetime.fromtimestamp(os.path.getmtime(file_path)).strftime("%Y-%m-%d %H:%M:%S")
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error loading optimization results: {str(e)}"
+        }
 
 @app.post("/api/compare-strategies")
 async def compare_strategies(request: Request):
