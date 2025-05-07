@@ -237,6 +237,11 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link" href="#" id="seasonality-tab">
+                                <i class="bi bi-calendar3"></i> Seasonality
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="#" id="results-tab">
                                 <i class="bi bi-bar-chart"></i> Results
                             </a>
@@ -675,6 +680,48 @@
                                             <div class="alert alert-info">
                                                 <i class="bi bi-info-circle"></i> Select a strategy and run optimization to see results here.
                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Seasonality Section -->
+                    <div id="seasonality-section" class="content-section">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5>Seasonality Configuration</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form id="seasonality-form">
+                                            <div class="mb-3">
+                                                <label for="seasonality-type" class="form-label">Seasonality Type</label>
+                                                <select class="form-select" id="seasonality-type">
+                                                    <option value="day_of_week">Day of Week</option>
+                                                    <option value="monthly">Monthly</option>
+                                                    <option value="volatility">Volatility</option>
+                                                    <option value="heatmap">Heatmap</option>
+                                                </select>
+                                            </div>
+                                            <div id="seasonality-parameters">
+                                                <!-- Seasonality-specific parameters will be added dynamically -->
+                                            </div>
+                                            <button type="submit" class="btn btn-primary" id="run-seasonality-btn">Run Seasonality Analysis</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-8">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5>Seasonality Results</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="seasonality-results">
+                                            <!-- Seasonality results will be displayed here -->
                                         </div>
                                     </div>
                                 </div>

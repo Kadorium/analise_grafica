@@ -6,6 +6,7 @@ const indicatorsTab = document.getElementById('indicators-tab');
 const strategiesTab = document.getElementById('strategies-tab');
 const backtestTab = document.getElementById('backtest-tab');
 const optimizationTab = document.getElementById('optimization-tab');
+const seasonalityTab = document.getElementById('seasonality-tab');
 const resultsTab = document.getElementById('results-tab');
 
 const pageTitle = document.getElementById('page-title');
@@ -15,6 +16,7 @@ const indicatorsSection = document.getElementById('indicators-section');
 const strategiesSection = document.getElementById('strategies-section');
 const backtestSection = document.getElementById('backtest-section');
 const optimizationSection = document.getElementById('optimization-section');
+const seasonalitySection = document.getElementById('seasonality-section');
 const resultsSection = document.getElementById('results-section');
 
 const uploadForm = document.getElementById('upload-form');
@@ -64,7 +66,12 @@ const API_ENDPOINTS = {
     EXPORT_RESULTS: '/api/export-results',
     CURRENT_CONFIG: '/api/current-config',
     ARRANGE_DATA: '/api/arrange-data',
-    DATA_STATUS: '/api/data-status'
+    DATA_STATUS: '/api/data-status',
+    SEASONALITY_DAY_OF_WEEK: '/api/seasonality/day-of-week',
+    SEASONALITY_MONTHLY: '/api/seasonality/monthly',
+    SEASONALITY_VOLATILITY: '/api/seasonality/volatility',
+    SEASONALITY_HEATMAP: '/api/seasonality/heatmap',
+    SEASONALITY_SUMMARY: '/api/seasonality/summary'
 };
 
 // Utility functions
@@ -97,11 +104,11 @@ function formatNumber(num, decimals = 2) {
 // Tab navigation
 function activateTab(tab, section, title) {
     // Deactivate all tabs and hide all sections
-    [dataTab, indicatorsTab, strategiesTab, backtestTab, optimizationTab, resultsTab].forEach(t => {
+    [dataTab, indicatorsTab, strategiesTab, backtestTab, optimizationTab, seasonalityTab, resultsTab].forEach(t => {
         t.classList.remove('active');
     });
     
-    [dataSection, indicatorsSection, strategiesSection, backtestSection, optimizationSection, resultsSection].forEach(s => {
+    [dataSection, indicatorsSection, strategiesSection, backtestSection, optimizationSection, seasonalitySection, resultsSection].forEach(s => {
         s.classList.remove('active');
     });
     
@@ -167,6 +174,16 @@ optimizationTab.addEventListener('click', (e) => {
         // Check for existing results
         fetchAndDisplayOptimizationResults(strategyType);
     }
+});
+
+seasonalityTab.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (!dataProcessed) {
+        showError('Please upload and process data first.');
+        activateTab(dataTab, dataSection, 'Data Upload');
+        return;
+    }
+    activateTab(seasonalityTab, seasonalitySection, 'Seasonality Analysis');
 });
 
 resultsTab.addEventListener('click', (e) => {
@@ -1519,6 +1536,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             'strategies-tab': { tab: strategiesTab, section: strategiesSection, title: 'Trading Strategies' },
             'backtest-tab': { tab: backtestTab, section: backtestSection, title: 'Backtest' },
             'optimization-tab': { tab: optimizationTab, section: optimizationSection, title: 'Strategy Optimization' },
+            'seasonality-tab': { tab: seasonalityTab, section: seasonalitySection, title: 'Seasonality Analysis' },
             'results-tab': { tab: resultsTab, section: resultsSection, title: 'Analysis Results' }
         };
         
@@ -2014,6 +2032,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Initialize indicator controls
     initializeIndicatorControls();
+    
+    // Initialize seasonality controls
+    initializeSeasonalityControls();
 });
 
 // Helper function to show success message
@@ -2274,4 +2295,350 @@ function showNotification(message, type = 'info') {
             alertDiv.remove();
         }, 5000);
     }
-} 
+}
+
+// Seasonality Analysis
+function initializeSeasonalityControls() {
+    // Instead of looking for buttons that don't exist, we'll use the form submission
+    const seasonalityForm = document.getElementById('seasonality-form');
+    if (seasonalityForm) {
+        seasonalityForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const seasonalityType = document.getElementById('seasonality-type').value;
+            
+            // Convert seasonality_type value to the format expected by the API
+            let analysisType;
+            switch (seasonalityType) {
+                case 'day_of_week':
+                    analysisType = 'day-of-week';
+                    break;
+                case 'monthly':
+                    analysisType = 'monthly';
+                    break;
+                case 'volatility':
+                    analysisType = 'volatility';
+                    break;
+                case 'heatmap':
+                    analysisType = 'heatmap';
+                    break;
+                default:
+                    analysisType = 'summary';
+            }
+            
+            runSeasonalityAnalysis(analysisType);
+        });
+    } else {
+        console.warn('Seasonality form not found in the DOM');
+    }
+}
+
+async function runSeasonalityAnalysis(analysisType) {
+    // Show loading state
+    showLoader(`Generating ${analysisType.replace('-', ' ')} analysis...`);
+    
+    // Map analysis type to API endpoint
+    const endpointMap = {
+        'day-of-week': API_ENDPOINTS.SEASONALITY_DAY_OF_WEEK,
+        'monthly': API_ENDPOINTS.SEASONALITY_MONTHLY,
+        'volatility': API_ENDPOINTS.SEASONALITY_VOLATILITY,
+        'heatmap': API_ENDPOINTS.SEASONALITY_HEATMAP,
+        'summary': API_ENDPOINTS.SEASONALITY_SUMMARY
+    };
+    
+    const endpoint = endpointMap[analysisType];
+    
+    try {
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.message || 'Failed to perform seasonality analysis');
+        }
+        
+        // Display the results
+        displaySeasonalityResults(data, analysisType);
+        
+    } catch (error) {
+        showError(`Seasonality analysis error: ${error.message}`);
+        console.error('Seasonality analysis error:', error);
+    } finally {
+        hideLoader();
+    }
+}
+
+function displaySeasonalityResults(data, analysisType) {
+    const resultsDiv = document.getElementById('seasonality-results');
+    if (!resultsDiv) {
+        console.error('Seasonality results div not found');
+        return;
+    }
+    
+    // Create HTML for the results
+    let resultsHTML = '';
+    
+    // Add the plot image
+    resultsHTML += `
+        <div class="text-center mb-3">
+            <h5>${getSeasonalityTitle(analysisType)}</h5>
+            <img src="data:image/png;base64,${data.plot}" class="img-fluid" alt="Seasonality Analysis">
+        </div>
+    `;
+    
+    // Add data tables based on analysis type
+    if (analysisType === 'heatmap') {
+        // No table data for heatmap
+        resultsHTML += `<p class="text-muted mt-3">The heatmap visualizes average returns by calendar day. Green indicates positive returns, red indicates negative returns.</p>`;
+    } else if (analysisType === 'summary') {
+        // Create accordion with all data
+        resultsHTML += createSeasonalitySummaryAccordionHTML(data.data);
+    } else {
+        // Create appropriate table based on analysis type
+        resultsHTML += createSeasonalityTableHTML(data.data, analysisType);
+    }
+    
+    // Set the HTML content
+    resultsDiv.innerHTML = resultsHTML;
+}
+
+// Helper function to get the title for a seasonality analysis type
+function getSeasonalityTitle(analysisType) {
+    const titles = {
+        'day-of-week': 'Day of Week Returns Analysis',
+        'monthly': 'Monthly Returns Analysis',
+        'volatility': 'Volatility by Day of Week Analysis',
+        'heatmap': 'Calendar Returns Heatmap',
+        'summary': 'Complete Seasonality Analysis'
+    };
+    
+    return titles[analysisType] || 'Seasonality Analysis';
+}
+
+// Create HTML for seasonality table
+function createSeasonalityTableHTML(data, analysisType) {
+    let tableHtml = '<table class="table table-striped table-sm mt-3">';
+    
+    // Create table header based on analysis type
+    if (analysisType === 'day-of-week') {
+        tableHtml += `
+            <thead>
+                <tr>
+                    <th scope="col">Day</th>
+                    <th scope="col">Mean Return (%)</th>
+                    <th scope="col">Std Dev</th>
+                    <th scope="col">Count</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        // Add table rows
+        data.forEach(row => {
+            tableHtml += `
+                <tr>
+                    <td>${row.day_of_week}</td>
+                    <td class="${row.mean >= 0 ? 'text-success' : 'text-danger'}">${row.mean.toFixed(2)}</td>
+                    <td>${row.std.toFixed(2)}</td>
+                    <td>${row.count}</td>
+                </tr>
+            `;
+        });
+    } else if (analysisType === 'monthly') {
+        tableHtml += `
+            <thead>
+                <tr>
+                    <th scope="col">Month</th>
+                    <th scope="col">Mean Return (%)</th>
+                    <th scope="col">Std Dev</th>
+                    <th scope="col">Count</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        // Add table rows
+        data.forEach(row => {
+            tableHtml += `
+                <tr>
+                    <td>${row.month_name}</td>
+                    <td class="${row.mean >= 0 ? 'text-success' : 'text-danger'}">${row.mean.toFixed(2)}</td>
+                    <td>${row.std.toFixed(2)}</td>
+                    <td>${row.count}</td>
+                </tr>
+            `;
+        });
+    } else if (analysisType === 'volatility') {
+        tableHtml += `
+            <thead>
+                <tr>
+                    <th scope="col">Day</th>
+                    <th scope="col">Mean Volatility (%)</th>
+                    <th scope="col">Std Dev</th>
+                    <th scope="col">Count</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        // Add table rows
+        data.forEach(row => {
+            tableHtml += `
+                <tr>
+                    <td>${row.day_of_week}</td>
+                    <td>${row.mean.toFixed(2)}</td>
+                    <td>${row.std.toFixed(2)}</td>
+                    <td>${row.count}</td>
+                </tr>
+            `;
+        });
+    }
+    
+    tableHtml += '</tbody></table>';
+    
+    return tableHtml;
+}
+
+// Create HTML for summary accordion
+function createSeasonalitySummaryAccordionHTML(data) {
+    let accordionHtml = `
+        <div class="accordion mt-3" id="seasonalityAccordion">
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="dowReturnsHeading">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#dowReturnsCollapse" aria-expanded="true" aria-controls="dowReturnsCollapse">
+                        Day of Week Returns
+                    </button>
+                </h2>
+                <div id="dowReturnsCollapse" class="accordion-collapse collapse show" aria-labelledby="dowReturnsHeading" data-bs-parent="#seasonalityAccordion">
+                    <div class="accordion-body">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Day</th>
+                                    <th scope="col">Mean Return (%)</th>
+                                    <th scope="col">Std Dev</th>
+                                    <th scope="col">Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+    `;
+    
+    // Add day of week returns rows
+    data.day_of_week_returns.forEach(row => {
+        accordionHtml += `
+                                <tr>
+                                    <td>${row.day_of_week}</td>
+                                    <td class="${row.mean >= 0 ? 'text-success' : 'text-danger'}">${row.mean.toFixed(2)}</td>
+                                    <td>${row.std.toFixed(2)}</td>
+                                    <td>${row.count}</td>
+                                </tr>
+        `;
+    });
+    
+    accordionHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="monthlyReturnsHeading">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#monthlyReturnsCollapse" aria-expanded="false" aria-controls="monthlyReturnsCollapse">
+                        Monthly Returns
+                    </button>
+                </h2>
+                <div id="monthlyReturnsCollapse" class="accordion-collapse collapse" aria-labelledby="monthlyReturnsHeading" data-bs-parent="#seasonalityAccordion">
+                    <div class="accordion-body">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Month</th>
+                                    <th scope="col">Mean Return (%)</th>
+                                    <th scope="col">Std Dev</th>
+                                    <th scope="col">Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+    `;
+    
+    // Add monthly returns rows
+    data.monthly_returns.forEach(row => {
+        accordionHtml += `
+                                <tr>
+                                    <td>${row.month_name}</td>
+                                    <td class="${row.mean >= 0 ? 'text-success' : 'text-danger'}">${row.mean.toFixed(2)}</td>
+                                    <td>${row.std.toFixed(2)}</td>
+                                    <td>${row.count}</td>
+                                </tr>
+        `;
+    });
+    
+    accordionHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="volatilityHeading">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#volatilityCollapse" aria-expanded="false" aria-controls="volatilityCollapse">
+                        Day of Week Volatility
+                    </button>
+                </h2>
+                <div id="volatilityCollapse" class="accordion-collapse collapse" aria-labelledby="volatilityHeading" data-bs-parent="#seasonalityAccordion">
+                    <div class="accordion-body">
+                        <table class="table table-striped table-sm">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Day</th>
+                                    <th scope="col">Mean Volatility (%)</th>
+                                    <th scope="col">Std Dev</th>
+                                    <th scope="col">Count</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+    `;
+    
+    // Add volatility rows
+    data.day_of_week_volatility.forEach(row => {
+        accordionHtml += `
+                                <tr>
+                                    <td>${row.day_of_week}</td>
+                                    <td>${row.mean.toFixed(2)}</td>
+                                    <td>${row.std.toFixed(2)}</td>
+                                    <td>${row.count}</td>
+                                </tr>
+        `;
+    });
+    
+    accordionHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    return accordionHtml;
+}
+
+// ... existing code ...
+
+// Document Ready
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing code ...
+    
+    // Initialize seasonality controls
+    initializeSeasonalityControls();
+    
+    // ... existing code ...
+});
+
+// ... existing code ...

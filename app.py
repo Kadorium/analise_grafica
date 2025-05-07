@@ -59,6 +59,7 @@ from indicators.indicator_utils import combine_indicators, plot_price_with_indic
 from strategies import create_strategy, get_default_parameters, AVAILABLE_STRATEGIES
 from backtesting.backtester import Backtester
 from optimization.optimizer import optimize_strategy, compare_optimized_strategies
+from indicators.seasonality import day_of_week_returns, monthly_returns, day_of_week_volatility, calendar_heatmap, seasonality_summary
 import config as cfg
 
 # Global variables for optimization tracking
@@ -1315,6 +1316,199 @@ async def debug_info():
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": f"Error getting debug info: {str(e)}"}
+        )
+
+@app.post("/api/seasonality/day-of-week")
+async def analyze_day_of_week(request: Request):
+    """Analyze returns by day of week."""
+    global PROCESSED_DATA
+    
+    if PROCESSED_DATA is None:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "No data available. Please upload and process data first."}
+        )
+    
+    log_endpoint("POST /api/seasonality/day-of-week")
+    
+    try:
+        # Get day of week returns
+        dow_returns, fig = day_of_week_returns(PROCESSED_DATA, plot=True)
+        
+        # Convert plot to base64
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format='png')
+        buffer.seek(0)
+        img_str = base64.b64encode(buffer.read()).decode('utf-8')
+        
+        # Convert DataFrame to records for JSON serialization
+        results = dow_returns.to_dict('records')
+        
+        return JSONResponse(
+            content={
+                "success": True,
+                "plot": img_str,
+                "data": results
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error analyzing day of week returns: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Error: {str(e)}"}
+        )
+
+@app.post("/api/seasonality/monthly")
+async def analyze_monthly(request: Request):
+    """Analyze returns by month."""
+    global PROCESSED_DATA
+    
+    if PROCESSED_DATA is None:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "No data available. Please upload and process data first."}
+        )
+    
+    log_endpoint("POST /api/seasonality/monthly")
+    
+    try:
+        # Get monthly returns
+        monthly_rets, fig = monthly_returns(PROCESSED_DATA, plot=True)
+        
+        # Convert plot to base64
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format='png')
+        buffer.seek(0)
+        img_str = base64.b64encode(buffer.read()).decode('utf-8')
+        
+        # Convert DataFrame to records for JSON serialization
+        results = monthly_rets.to_dict('records')
+        
+        return JSONResponse(
+            content={
+                "success": True,
+                "plot": img_str,
+                "data": results
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error analyzing monthly returns: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Error: {str(e)}"}
+        )
+
+@app.post("/api/seasonality/volatility")
+async def analyze_volatility(request: Request):
+    """Analyze volatility by day of week."""
+    global PROCESSED_DATA
+    
+    if PROCESSED_DATA is None:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "No data available. Please upload and process data first."}
+        )
+    
+    log_endpoint("POST /api/seasonality/volatility")
+    
+    try:
+        # Get day of week volatility
+        dow_vol, fig = day_of_week_volatility(PROCESSED_DATA, plot=True)
+        
+        # Convert plot to base64
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format='png')
+        buffer.seek(0)
+        img_str = base64.b64encode(buffer.read()).decode('utf-8')
+        
+        # Convert DataFrame to records for JSON serialization
+        results = dow_vol.to_dict('records')
+        
+        return JSONResponse(
+            content={
+                "success": True,
+                "plot": img_str,
+                "data": results
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error analyzing day of week volatility: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Error: {str(e)}"}
+        )
+
+@app.post("/api/seasonality/heatmap")
+async def create_heatmap(request: Request):
+    """Generate a heatmap of returns by calendar day."""
+    global PROCESSED_DATA
+    
+    if PROCESSED_DATA is None:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "No data available. Please upload and process data first."}
+        )
+    
+    log_endpoint("POST /api/seasonality/heatmap")
+    
+    try:
+        # Get calendar heatmap
+        fig = calendar_heatmap(PROCESSED_DATA)
+        
+        # Convert plot to base64
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format='png')
+        buffer.seek(0)
+        img_str = base64.b64encode(buffer.read()).decode('utf-8')
+        
+        return JSONResponse(
+            content={
+                "success": True,
+                "plot": img_str
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error creating calendar heatmap: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Error: {str(e)}"}
+        )
+
+@app.post("/api/seasonality/summary")
+async def get_seasonality_summary(request: Request):
+    """Generate a comprehensive seasonality analysis."""
+    global PROCESSED_DATA
+    
+    if PROCESSED_DATA is None:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "No data available. Please upload and process data first."}
+        )
+    
+    log_endpoint("POST /api/seasonality/summary")
+    
+    try:
+        # Get seasonality summary
+        fig, results = seasonality_summary(PROCESSED_DATA)
+        
+        # Convert plot to base64
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format='png')
+        buffer.seek(0)
+        img_str = base64.b64encode(buffer.read()).decode('utf-8')
+        
+        return JSONResponse(
+            content={
+                "success": True,
+                "plot": img_str,
+                "data": results
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error creating seasonality summary: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Error: {str(e)}"}
         )
 
 # Run the app
