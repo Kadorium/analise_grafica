@@ -71,7 +71,8 @@ const API_ENDPOINTS = {
     SEASONALITY_MONTHLY: '/api/seasonality/monthly',
     SEASONALITY_VOLATILITY: '/api/seasonality/volatility',
     SEASONALITY_HEATMAP: '/api/seasonality/heatmap',
-    SEASONALITY_SUMMARY: '/api/seasonality/summary'
+    SEASONALITY_SUMMARY: '/api/seasonality/summary',
+    UPDATE_STRATEGY: '/api/update-strategy'
 };
 
 // Utility functions
@@ -566,6 +567,45 @@ async function loadStrategyParameters() {
             document.getElementById('strategy-description').innerHTML = `
                 <p>Buys when price breaks out above recent highs with increased volume. Uses volatility-based exit strategies.</p>
             `;
+        } else if (strategyType === 'ml_based') {
+            html = `
+                <div class="mb-3">
+                    <label for="model-type" class="form-label">Model Type</label>
+                    <select class="form-select" id="model-type">
+                        <option value="random_forest" ${data.parameters.model_type === 'random_forest' ? 'selected' : ''}>Random Forest</option>
+                        <option value="logistic_regression" ${data.parameters.model_type === 'logistic_regression' ? 'selected' : ''}>Logistic Regression</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="training-size" class="form-label">Training Size (0-1)</label>
+                    <input type="number" class="form-control" id="training-size" value="${data.parameters.training_size}" min="0.1" max="0.9" step="0.1">
+                </div>
+                <div class="mb-3">
+                    <label for="predict-n-days" class="form-label">Prediction Horizon (days)</label>
+                    <input type="number" class="form-control" id="predict-n-days" value="${data.parameters.predict_n_days}" min="1" max="10" step="1">
+                </div>
+                <div class="mb-3">
+                    <label for="threshold" class="form-label">Prediction Threshold</label>
+                    <input type="number" class="form-control" id="threshold" value="${data.parameters.threshold}" min="0.5" max="0.95" step="0.05">
+                </div>
+                <div class="mb-3">
+                    <label for="rsi-period" class="form-label">RSI Period</label>
+                    <input type="number" class="form-control" id="rsi-period" value="${data.parameters.rsi_period}" min="1" max="50">
+                </div>
+                <div class="mb-3">
+                    <label for="sma-period" class="form-label">SMA Period</label>
+                    <input type="number" class="form-control" id="sma-period" value="${data.parameters.sma_period}" min="1" max="100">
+                </div>
+                <div class="mb-3">
+                    <label for="bbands-period" class="form-label">Bollinger Bands Period</label>
+                    <input type="number" class="form-control" id="bbands-period" value="${data.parameters.bbands_period}" min="1" max="50">
+                </div>
+            `;
+            
+            // Update strategy description
+            document.getElementById('strategy-description').innerHTML = `
+                <p>Uses machine learning to predict price direction based on technical indicators. Generates buy/sell signals based on prediction probability.</p>
+            `;
         }
         
         // Add run backtest button
@@ -656,13 +696,13 @@ function setupOptimizationParameters() {
                     <label class="form-label">RSI Period</label>
                     <div class="row">
                         <div class="col">
-                            <input type="number" class="form-control" id="rsi-period-min" placeholder="Min" value="7">
+                            <input type="number" class="form-control" id="rsi-period-min" placeholder="Min" value="5">
                         </div>
                         <div class="col">
-                            <input type="number" class="form-control" id="rsi-period-max" placeholder="Max" value="21">
+                            <input type="number" class="form-control" id="rsi-period-max" placeholder="Max" value="30">
                         </div>
                         <div class="col">
-                            <input type="number" class="form-control" id="rsi-period-step" placeholder="Step" value="7">
+                            <input type="number" class="form-control" id="rsi-period-step" placeholder="Step" value="5">
                         </div>
                     </div>
                 </div>
@@ -673,7 +713,7 @@ function setupOptimizationParameters() {
                             <input type="number" class="form-control" id="oversold-min" placeholder="Min" value="20">
                         </div>
                         <div class="col">
-                            <input type="number" class="form-control" id="oversold-max" placeholder="Max" value="35">
+                            <input type="number" class="form-control" id="oversold-max" placeholder="Max" value="40">
                         </div>
                         <div class="col">
                             <input type="number" class="form-control" id="oversold-step" placeholder="Step" value="5">
@@ -684,13 +724,27 @@ function setupOptimizationParameters() {
                     <label class="form-label">Overbought Level</label>
                     <div class="row">
                         <div class="col">
-                            <input type="number" class="form-control" id="overbought-min" placeholder="Min" value="65">
+                            <input type="number" class="form-control" id="overbought-min" placeholder="Min" value="60">
                         </div>
                         <div class="col">
                             <input type="number" class="form-control" id="overbought-max" placeholder="Max" value="80">
                         </div>
                         <div class="col">
                             <input type="number" class="form-control" id="overbought-step" placeholder="Step" value="5">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Exit Middle Level</label>
+                    <div class="row">
+                        <div class="col">
+                            <input type="number" class="form-control" id="exit-middle-min" placeholder="Min" value="45">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="exit-middle-max" placeholder="Max" value="55">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="exit-middle-step" placeholder="Step" value="5">
                         </div>
                     </div>
                 </div>
@@ -705,7 +759,7 @@ function setupOptimizationParameters() {
                             <input type="number" class="form-control" id="lookback-period-min" placeholder="Min" value="10">
                         </div>
                         <div class="col">
-                            <input type="number" class="form-control" id="lookback-period-max" placeholder="Max" value="30">
+                            <input type="number" class="form-control" id="lookback-period-max" placeholder="Max" value="50">
                         </div>
                         <div class="col">
                             <input type="number" class="form-control" id="lookback-period-step" placeholder="Step" value="10">
@@ -716,13 +770,13 @@ function setupOptimizationParameters() {
                     <label class="form-label">Volume Threshold</label>
                     <div class="row">
                         <div class="col">
-                            <input type="number" class="form-control" id="volume-threshold-min" placeholder="Min" value="1.2">
+                            <input type="number" class="form-control" id="volume-threshold-min" placeholder="Min" value="1.0">
                         </div>
                         <div class="col">
-                            <input type="number" class="form-control" id="volume-threshold-max" placeholder="Max" value="2.0">
+                            <input type="number" class="form-control" id="volume-threshold-max" placeholder="Max" value="3.0">
                         </div>
                         <div class="col">
-                            <input type="number" class="form-control" id="volume-threshold-step" placeholder="Step" value="0.4">
+                            <input type="number" class="form-control" id="volume-threshold-step" placeholder="Step" value="0.5">
                         </div>
                     </div>
                 </div>
@@ -733,10 +787,109 @@ function setupOptimizationParameters() {
                             <input type="number" class="form-control" id="price-threshold-min" placeholder="Min" value="1">
                         </div>
                         <div class="col">
-                            <input type="number" class="form-control" id="price-threshold-max" placeholder="Max" value="3">
+                            <input type="number" class="form-control" id="price-threshold-max" placeholder="Max" value="5">
                         </div>
                         <div class="col">
                             <input type="number" class="form-control" id="price-threshold-step" placeholder="Step" value="1">
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (strategyType === 'ml_based') {
+            html = `
+                <h6 class="mt-4">Parameter Ranges</h6>
+                <div class="mb-3">
+                    <label class="form-label">Model Type</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="random_forest" id="model-type-random_forest" checked>
+                        <label class="form-check-label" for="model-type-random_forest">Random Forest</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="logistic_regression" id="model-type-logistic_regression" checked>
+                        <label class="form-check-label" for="model-type-logistic_regression">Logistic Regression</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Training Size (0-1)</label>
+                    <div class="row">
+                        <div class="col">
+                            <input type="number" class="form-control" id="training-size-min" placeholder="Min" value="0.6">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="training-size-max" placeholder="Max" value="0.9">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="training-size-step" placeholder="Step" value="0.1">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Prediction Horizon (days)</label>
+                    <div class="row">
+                        <div class="col">
+                            <input type="number" class="form-control" id="predict-n-days-min" placeholder="Min" value="1">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="predict-n-days-max" placeholder="Max" value="5">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="predict-n-days-step" placeholder="Step" value="1">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Prediction Threshold</label>
+                    <div class="row">
+                        <div class="col">
+                            <input type="number" class="form-control" id="threshold-min" placeholder="Min" value="0.5">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="threshold-max" placeholder="Max" value="0.8">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="threshold-step" placeholder="Step" value="0.05">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">RSI Period</label>
+                    <div class="row">
+                        <div class="col">
+                            <input type="number" class="form-control" id="rsi-period-min" placeholder="Min" value="7">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="rsi-period-max" placeholder="Max" value="21">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="rsi-period-step" placeholder="Step" value="7">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">SMA Period</label>
+                    <div class="row">
+                        <div class="col">
+                            <input type="number" class="form-control" id="sma-period-min" placeholder="Min" value="10">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="sma-period-max" placeholder="Max" value="50">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="sma-period-step" placeholder="Step" value="10">
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Bollinger Bands Period</label>
+                    <div class="row">
+                        <div class="col">
+                            <input type="number" class="form-control" id="bbands-period-min" placeholder="Min" value="10">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="bbands-period-max" placeholder="Max" value="30">
+                        </div>
+                        <div class="col">
+                            <input type="number" class="form-control" id="bbands-period-step" placeholder="Step" value="5">
                         </div>
                     </div>
                 </div>
@@ -830,6 +983,16 @@ async function runBacktest() {
                 volatility_exit: document.getElementById('volatility-exit').checked,
                 atr_multiplier: parseFloat(document.getElementById('atr-multiplier').value),
                 use_bbands: document.getElementById('use-bbands').checked
+            };
+        } else if (strategyType === 'ml_based') {
+            parameters = {
+                model_type: document.getElementById('model-type').value,
+                training_size: parseFloat(document.getElementById('training-size').value),
+                predict_n_days: parseInt(document.getElementById('predict-n-days').value),
+                threshold: parseFloat(document.getElementById('threshold').value),
+                rsi_period: parseInt(document.getElementById('rsi-period').value),
+                sma_period: parseInt(document.getElementById('sma-period').value),
+                bbands_period: parseInt(document.getElementById('bbands-period').value)
             };
         }
         
@@ -1120,6 +1283,80 @@ async function runOptimization() {
                 lookback_period: lookbackPeriods,
                 volume_threshold: volumeThresholds,
                 price_threshold: priceThresholds
+            };
+        } else if (strategyType === 'ml_based') {
+            // Model type
+            const modelType = document.getElementById('model-type').value;
+            
+            // Training size
+            const trainingSizeMin = parseFloat(document.getElementById('training-size-min').value);
+            const trainingSizeMax = parseFloat(document.getElementById('training-size-max').value);
+            const trainingSizeStep = parseFloat(document.getElementById('training-size-step').value);
+            const trainingSizes = [];
+            
+            for (let i = trainingSizeMin; i <= trainingSizeMax; i += trainingSizeStep) {
+                trainingSizes.push(i);
+            }
+            
+            // Prediction horizon
+            const predictNDaysMin = parseInt(document.getElementById('predict-n-days-min').value);
+            const predictNDaysMax = parseInt(document.getElementById('predict-n-days-max').value);
+            const predictNDaysStep = parseInt(document.getElementById('predict-n-days-step').value);
+            const predictNDays = [];
+            
+            for (let i = predictNDaysMin; i <= predictNDaysMax; i += predictNDaysStep) {
+                predictNDays.push(i);
+            }
+            
+            // Threshold
+            const thresholdMin = parseFloat(document.getElementById('threshold-min').value);
+            const thresholdMax = parseFloat(document.getElementById('threshold-max').value);
+            const thresholdStep = parseFloat(document.getElementById('threshold-step').value);
+            const thresholds = [];
+            
+            for (let i = thresholdMin; i <= thresholdMax; i += thresholdStep) {
+                thresholds.push(parseFloat(i.toFixed(4)));
+            }
+            
+            // RSI period
+            const rsiPeriodMin = parseInt(document.getElementById('rsi-period-min').value);
+            const rsiPeriodMax = parseInt(document.getElementById('rsi-period-max').value);
+            const rsiPeriodStep = parseInt(document.getElementById('rsi-period-step').value);
+            const rsiPeriods = [];
+            
+            for (let i = rsiPeriodMin; i <= rsiPeriodMax; i += rsiPeriodStep) {
+                rsiPeriods.push(i);
+            }
+            
+            // SMA period
+            const smaPeriodMin = parseInt(document.getElementById('sma-period-min').value);
+            const smaPeriodMax = parseInt(document.getElementById('sma-period-max').value);
+            const smaPeriodStep = parseInt(document.getElementById('sma-period-step').value);
+            const smaPeriods = [];
+            
+            for (let i = smaPeriodMin; i <= smaPeriodMax; i += smaPeriodStep) {
+                smaPeriods.push(i);
+            }
+            
+            // Bollinger Bands period
+            const bbandsPeriodMin = parseInt(document.getElementById('bbands-period-min').value);
+            const bbandsPeriodMax = parseInt(document.getElementById('bbands-period-max').value);
+            const bbandsPeriodStep = parseInt(document.getElementById('bbands-period-step').value);
+            const bbandsPeriods = [];
+            
+            for (let i = bbandsPeriodMin; i <= bbandsPeriodMax; i += bbandsPeriodStep) {
+                bbandsPeriods.push(i);
+            }
+            
+            // Build parameter ranges
+            paramRanges = {
+                model_type: modelType,
+                training_size: trainingSizes,
+                predict_n_days: predictNDays,
+                threshold: thresholds,
+                rsi_period: rsiPeriods,
+                sma_period: smaPeriods,
+                bbands_period: bbandsPeriods
             };
         }
         
@@ -1433,608 +1670,128 @@ function compareStrategies() {
             const table = document.createElement('table');
             table.className = 'table table-striped table-sm';
             
-            // Create table header
+            // Table header
             const thead = document.createElement('thead');
             const headerRow = document.createElement('tr');
             
-            const metricHeader = document.createElement('th');
-            metricHeader.textContent = 'Metric';
-            headerRow.appendChild(metricHeader);
+            const headers = ['Metric'];
+            data.strategies.forEach(s => {
+                headers.push(s.strategy_name);
+            });
             
-            // Add a column for each strategy
-            for (const strategy of selectedStrategies) {
+            headers.forEach(h => {
                 const th = document.createElement('th');
-                th.textContent = strategy;
+                th.textContent = h;
                 headerRow.appendChild(th);
-            }
+            });
             
             thead.appendChild(headerRow);
             table.appendChild(thead);
             
-            // Create table body
+            // Table body
             const tbody = document.createElement('tbody');
             
-            // Get all metrics from the first strategy
-            if (data.results && Object.keys(data.results).length > 0) {
-                const firstStrategy = Object.keys(data.results)[0];
-                const metrics = Object.keys(data.results[firstStrategy]);
-                
-                // Create a row for each metric
-                for (const metric of metrics) {
+            // Get all available metrics
+            const metrics = new Set();
+            data.strategies.forEach(s => {
+                Object.keys(s.performance).forEach(k => metrics.add(k));
+            });
+            
+            // Create rows for each metric
+            ['total_return', 'annual_return', 'sharpe_ratio', 'max_drawdown', 'win_rate'].forEach(metric => {
+                if (metrics.has(metric)) {
                     const row = document.createElement('tr');
                     
+                    // Add metric name
                     const metricCell = document.createElement('td');
                     metricCell.textContent = formatMetricName(metric);
                     row.appendChild(metricCell);
                     
-                    // Add the metric value for each strategy
-                    for (const strategy of selectedStrategies) {
+                    // Add values for each strategy
+                    data.strategies.forEach(s => {
                         const valueCell = document.createElement('td');
-                        
-                        if (data.results[strategy] && data.results[strategy][metric] !== undefined) {
-                            valueCell.textContent = formatMetricValue(metric, data.results[strategy][metric]);
-                        } else {
-                            valueCell.textContent = 'N/A';
-                        }
-                        
+                        valueCell.textContent = formatMetricValue(metric, s.performance[metric]);
                         row.appendChild(valueCell);
-                    }
+                    });
                     
                     tbody.appendChild(row);
                 }
-            }
+            });
             
             table.appendChild(tbody);
             resultsContainer.appendChild(table);
             
-            // Display equity curve chart if available
+            // Add chart if available
             if (data.chart_image) {
-                const chartContainer = document.getElementById('comparison-chart-container');
-                if (chartContainer) {
-                    chartContainer.innerHTML = '';
-                    
-                    const chartImg = document.createElement('img');
-                    chartImg.src = `data:image/png;base64,${data.chart_image}`;
-                    chartImg.alt = 'Strategy Comparison';
-                    chartImg.style.width = '100%';
-                    chartContainer.appendChild(chartImg);
-                    
-                    // Make sure the chart container is visible
-                    chartContainer.style.display = 'block';
+                // Create chart container if it doesn't exist
+                if (!document.getElementById('comparison-chart-container')) {
+                    const chartContainer = document.createElement('div');
+                    chartContainer.id = 'comparison-chart-container';
+                    chartContainer.style.marginTop = '20px';
+                    chartContainer.innerHTML = '<h5>Strategy Comparison</h5>';
+                    resultsContainer.appendChild(chartContainer);
                 }
+                
+                const chartContainer = document.getElementById('comparison-chart-container');
+                chartContainer.style.display = 'block';
+                
+                // Add chart image
+                const img = document.createElement('img');
+                img.src = `data:image/png;base64,${data.chart_image}`;
+                img.className = 'img-fluid';
+                img.alt = 'Strategy Comparison Chart';
+                
+                // Clear previous content and add new image
+                chartContainer.innerHTML = '<h5>Strategy Comparison</h5>';
+                chartContainer.appendChild(img);
             }
         }
     })
     .catch(error => {
-        hideLoader();
         console.error('Error comparing strategies:', error);
-        showNotification(`Error comparing strategies: ${error.message}`, 'error');
+        hideLoader();
+        showNotification('Error comparing strategies: ' + error.message, 'error');
     });
 }
 
 // Initialize the app
-document.addEventListener('DOMContentLoaded', async () => {
-    // Check backend data status first
-    await checkDataStatus();
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
     
-    // Rest of initialization code...
-    // Check if we have stored state in sessionStorage
-    if (sessionStorage.getItem('dataUploaded') === 'true') {
-        dataUploaded = true;
-    }
+    // Check if data has been uploaded and processed
+    checkDataStatus();
     
-    if (sessionStorage.getItem('dataProcessed') === 'true') {
-        dataProcessed = true;
-    }
+    // Set up event listeners for strategy type change
+    document.getElementById('strategy-type').addEventListener('change', loadStrategyParameters);
+    document.getElementById('optimization-strategy').addEventListener('change', setupOptimizationParameters);
     
-    // Restore the active tab if saved
-    const activeTabId = sessionStorage.getItem('activeTab');
-    if (activeTabId && dataProcessed) {
-        const tabMap = {
-            'data-tab': { tab: dataTab, section: dataSection, title: 'Data Upload' },
-            'indicators-tab': { tab: indicatorsTab, section: indicatorsSection, title: 'Technical Indicators' },
-            'strategies-tab': { tab: strategiesTab, section: strategiesSection, title: 'Trading Strategies' },
-            'backtest-tab': { tab: backtestTab, section: backtestSection, title: 'Backtest' },
-            'optimization-tab': { tab: optimizationTab, section: optimizationSection, title: 'Strategy Optimization' },
-            'seasonality-tab': { tab: seasonalityTab, section: seasonalitySection, title: 'Seasonality Analysis' },
-            'results-tab': { tab: resultsTab, section: resultsSection, title: 'Analysis Results' }
-        };
-        
-        if (tabMap[activeTabId]) {
-            const { tab, section, title } = tabMap[activeTabId];
-            activateTab(tab, section, title);
-            
-            // If navigating to strategies tab, load parameters
-            if (activeTabId === 'strategies-tab') {
-                loadStrategyParameters();
-            }
-            
-            // If navigating to optimization tab, setup parameters
-            if (activeTabId === 'optimization-tab') {
-                setupOptimizationParameters();
-            }
-            
-            return;
-        }
-    }
+    // Set up event listener for update strategy button
+    document.getElementById('update-strategy-btn').addEventListener('click', updateStrategy);
     
-    // Default to first tab
-    activateTab(dataTab, dataSection, 'Data Upload');
+    // Load default strategy parameters
+    loadStrategyParameters();
     
-    // Add event listeners for the backtest form
-    const backtestForm = document.getElementById('backtest-form');
-    if (backtestForm) {
-        backtestForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            // Get strategy type and create appropriate parameters
-            const strategyType = document.getElementById('backtest-strategy').value;
-            const initialCapital = parseFloat(document.getElementById('initial-capital').value || 10000);
-            const commission = parseFloat(document.getElementById('commission').value || 0.001);
-            const startDate = document.getElementById('backtest-start-date').value;
-            const endDate = document.getElementById('backtest-end-date').value;
-            
-            // Disable the button
-            const backTestBtn = document.getElementById('run-backtest-btn');
-            backTestBtn.disabled = true;
-            backTestBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running...';
-            
-            // Get default parameters for the selected strategy
-            fetch(`${API_ENDPOINTS.STRATEGY_PARAMETERS}/${strategyType}`)
-                .then(response => response.json())
-                .then(data => {
-                    // Prepare request data using default parameters with the correct structure
-                    const requestData = {
-                        strategy_config: {
-                            strategy_type: strategyType,
-                            parameters: data.parameters
-                        },
-                        backtest_config: {
-                            initial_capital: initialCapital,
-                            commission: commission,
-                            start_date: startDate,
-                            end_date: endDate
-                        }
-                    };
-                    
-                    console.log('Sending backtest request with data:', requestData);
-                    
-                    // Call the API
-                    return fetch(API_ENDPOINTS.RUN_BACKTEST, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(requestData)
-                    });
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success) {
-                        throw new Error(data.message || 'Error running backtest');
-                    }
-                    
-                    console.log('Backtest results:', data);
-                    
-                    // Ensure we save session state
-                    sessionStorage.setItem('dataUploaded', 'true');
-                    sessionStorage.setItem('dataProcessed', 'true');
-                    sessionStorage.setItem('activeTab', 'backtest-tab');
-                    dataUploaded = true;
-                    dataProcessed = true;
-                    
-                    // Update backtest results
-                    displayBacktestResults(data);
-                    
-                    // Ensure we stay on the backtest tab
-                    activateTab(backtestTab, backtestSection, 'Backtest');
-                })
-                .catch(error => {
-                    console.error('Error running backtest:', error);
-                    showError('Error running backtest: ' + error.message);
-                })
-                .finally(() => {
-                    const backTestBtn = document.getElementById('run-backtest-btn');
-                    if (backTestBtn) {
-                        backTestBtn.disabled = false;
-                        backTestBtn.textContent = 'Run Backtest';
-                    }
-                });
-        });
-    }
+    // Set up optimization parameters
+    setupOptimizationParameters();
     
-    // Add event listener for the optimization form
-    const optimizationForm = document.getElementById('optimization-form');
-    if (optimizationForm) {
-        optimizationForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            // Set up optimization parameters based on the form values
-            setupOptimizationParameters();
-            
-            // Directly call runOptimization instead of looking for the button
-            runOptimization();
-        });
-    }
-    
-    // Add event listener for the indicators form
-    const indicatorsForm = document.getElementById('indicators-form');
-    if (indicatorsForm) {
-        indicatorsForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            // Ensure data is still processed
-            if (!dataProcessed) {
-                showError('Please upload and process data first.');
-                activateTab(dataTab, dataSection, 'Data Upload');
-                return;
-            }
-            
-            // Get selected indicators
-            const indicatorConfig = {};
-            
-            // Moving Averages (SMA)
-            const smaCheckbox = document.getElementById('sma-checkbox');
-            if (smaCheckbox && smaCheckbox.checked) {
-                if (!indicatorConfig.moving_averages) {
-                    indicatorConfig.moving_averages = {
-                        types: []
-                    };
-                }
-                
-                indicatorConfig.moving_averages.types.push('sma');
-                
-                // Extract SMA periods (comma separated values)
-                const smaPeriodsStr = document.getElementById('sma-periods').value;
-                const smaPeriods = smaPeriodsStr.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p) && p > 0);
-                indicatorConfig.moving_averages.sma_periods = smaPeriods;
-                
-                console.log("Adding SMA with periods:", smaPeriods);
-            }
-            
-            // Moving Averages (EMA)
-            const emaCheckbox = document.getElementById('ema-checkbox');
-            if (emaCheckbox && emaCheckbox.checked) {
-                if (!indicatorConfig.moving_averages) {
-                    indicatorConfig.moving_averages = {
-                        types: []
-                    };
-                }
-                
-                indicatorConfig.moving_averages.types.push('ema');
-                
-                // Extract EMA periods (comma separated values)
-                const emaPeriodsStr = document.getElementById('ema-periods').value;
-                const emaPeriods = emaPeriodsStr.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p) && p > 0);
-                indicatorConfig.moving_averages.ema_periods = emaPeriods;
-                
-                console.log("Adding EMA with periods:", emaPeriods);
-            }
-            
-            // RSI
-            const rsiCheckbox = document.getElementById('rsi-checkbox');
-            if (rsiCheckbox && rsiCheckbox.checked) {
-                const rsiPeriod = document.getElementById('rsi-period');
-                indicatorConfig.rsi = {
-                    period: rsiPeriod ? parseInt(rsiPeriod.value) : 14
-                };
-                console.log("Adding RSI with period:", indicatorConfig.rsi.period);
-            }
-            
-            // MACD
-            const macdCheckbox = document.getElementById('macd-checkbox');
-            if (macdCheckbox && macdCheckbox.checked) {
-                const macdFast = document.getElementById('macd-fast');
-                const macdSlow = document.getElementById('macd-slow');
-                const macdSignal = document.getElementById('macd-signal');
-                indicatorConfig.macd = {
-                    fast_period: macdFast ? parseInt(macdFast.value) : 12,
-                    slow_period: macdSlow ? parseInt(macdSlow.value) : 26,
-                    signal_period: macdSignal ? parseInt(macdSignal.value) : 9
-                };
-                console.log("Adding MACD with parameters:", indicatorConfig.macd);
-            }
-            
-            // Bollinger Bands
-            const bbandsCheckbox = document.getElementById('bbands-checkbox');
-            if (bbandsCheckbox && bbandsCheckbox.checked) {
-                const bbandsPeriod = document.getElementById('bbands-period');
-                const bbandsStd = document.getElementById('bbands-std');
-                indicatorConfig.bollinger_bands = {
-                    window: bbandsPeriod ? parseInt(bbandsPeriod.value) : 20,
-                    num_std: bbandsStd ? parseFloat(bbandsStd.value) : 2.0
-                };
-                console.log("Adding Bollinger Bands with parameters:", indicatorConfig.bollinger_bands);
-            }
-            
-            // Stochastic
-            const stochCheckbox = document.getElementById('stoch-checkbox');
-            if (stochCheckbox && stochCheckbox.checked) {
-                const stochK = document.getElementById('stoch-k');
-                const stochD = document.getElementById('stoch-d');
-                const stochSlowing = document.getElementById('stoch-slowing');
-                indicatorConfig.stochastic = {
-                    k_period: stochK ? parseInt(stochK.value) : 14,
-                    d_period: stochD ? parseInt(stochD.value) : 3,
-                    slowing: stochSlowing ? parseInt(stochSlowing.value) : 3
-                };
-                console.log("Adding Stochastic with parameters:", indicatorConfig.stochastic);
-            }
-            
-            // Volume
-            const volumeCheckbox = document.getElementById('volume-checkbox');
-            if (volumeCheckbox && volumeCheckbox.checked) {
-                indicatorConfig.volume = true;
-                console.log("Adding Volume indicators");
-            }
-            
-            // ATR
-            const atrCheckbox = document.getElementById('atr-checkbox');
-            if (atrCheckbox && atrCheckbox.checked) {
-                const atrPeriod = document.getElementById('atr-period');
-                indicatorConfig.atr = {
-                    period: atrPeriod ? parseInt(atrPeriod.value) : 14
-                };
-                console.log("Adding ATR with period:", indicatorConfig.atr.period);
-            }
-            
-            // Check if any indicator is selected
-            if (Object.keys(indicatorConfig).length === 0) {
-                showError('Please select at least one indicator to add.');
-                return;
-            }
-            
-            // Disable the add indicators button
-            const addIndicatorsBtn = document.getElementById('add-indicators-btn');
-            addIndicatorsBtn.disabled = true;
-            addIndicatorsBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...';
-            
-            console.log("Sending indicator config:", JSON.stringify(indicatorConfig));
-            
-            // Call the API
-            fetch(API_ENDPOINTS.ADD_INDICATORS, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(indicatorConfig)
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (!data.success) {
-                    throw new Error(data.message || 'Error adding indicators');
-                }
-                
-                console.log("API response:", data);
-                
-                // IMPORTANT: Replace the indicators list entirely rather than merging
-                // This ensures previously checked indicators that are now unchecked don't persist
-                availableIndicators = data.available_indicators || [];
-                console.log("Updated indicators list:", availableIndicators);
-                
-                // Update the indicator selection dropdowns
-                updateIndicatorDropdowns();
-                
-                // Show success message
-                showSuccessMessage('Indicators added successfully!');
-                
-                // Ensure dataProcessed flag remains true
-                dataProcessed = true;
-                sessionStorage.setItem('dataProcessed', 'true');
-            })
-            .catch(error => {
-                console.error('Error adding indicators:', error);
-                showError('Error adding indicators: ' + error.message);
-            })
-            .finally(() => {
-                // Re-enable the button
-                if (addIndicatorsBtn) {
-                    addIndicatorsBtn.disabled = false;
-                    addIndicatorsBtn.textContent = 'Add Indicators';
-                }
-            });
-        });
-    }
-    
-    // Add event listener for the chart form
-    const chartForm = document.getElementById('chart-form');
-    if (chartForm) {
-        chartForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            // Ensure data is still processed
-            if (!dataProcessed) {
-                showError('Please upload and process data first.');
-                activateTab(dataTab, dataSection, 'Data Upload');
-                return;
-            }
-            
-            // Get all indicators from the respective lists
-            const mainIndicatorsSelect = document.getElementById('main-indicators');
-            const subplotIndicatorsSelect = document.getElementById('subplot-indicators');
-            
-            // Get all options (not just selected ones) from each list
-            const mainIndicators = Array.from(mainIndicatorsSelect.options).map(opt => opt.value);
-            const subplotIndicators = Array.from(subplotIndicatorsSelect.options).map(opt => opt.value);
-            
-            // Get date range
-            const startDate = document.getElementById('chart-start-date').value;
-            const endDate = document.getElementById('chart-end-date').value;
-            
-            // Prepare request data
-            const plotConfig = {
-                main_indicators: mainIndicators,
-                subplot_indicators: subplotIndicators,
-                title: 'Price Chart with Selected Indicators',
-                start_date: startDate,
-                end_date: endDate
-            };
-            
-            // Disable the plot button
-            const plotChartBtn = document.getElementById('plot-chart-btn');
-            plotChartBtn.disabled = true;
-            plotChartBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Plotting...';
-            
-            // Call the API
-            fetch(API_ENDPOINTS.PLOT_INDICATORS, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(plotConfig)
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(data => {
-                        throw new Error(data.message || `Error plotting chart (${response.status})`);
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Check if the response indicates success, regardless of the message
-                if (!data.success && data.message !== 'Plot created successfully') {
-                    throw new Error(data.message || 'Error plotting chart');
-                }
-                
-                // Display the chart
-                const chartImage = document.getElementById('chart-image');
-                if (data.chart_image) {
-                    chartImage.src = `data:image/png;base64,${data.chart_image}`;
-                    chartImage.style.display = 'block';
-                } else {
-                    showError('No chart image data returned from server');
-                }
-                
-                // Display indicator summary if available
-                if (data.indicator_summary) {
-                    const indicatorSummary = document.getElementById('indicator-summary');
-                    indicatorSummary.innerHTML = data.indicator_summary;
-                }
-                
-                // Ensure dataProcessed flag remains true
-                dataProcessed = true;
-                sessionStorage.setItem('dataProcessed', 'true');
-            })
-            .catch(error => {
-                // Don't log or show "Plot created successfully" as an error
-                if (error.message !== 'Plot created successfully') {
-                    console.error('Error plotting chart:', error);
-                    showError('Error plotting chart: ' + error.message);
-                }
-            })
-            .finally(() => {
-                // Re-enable the button
-                if (plotChartBtn) {
-                    plotChartBtn.disabled = false;
-                    plotChartBtn.textContent = 'Plot Chart';
-                }
-            });
-        });
-    }
-    
-    // Add event listener for the strategy comparison form
-    const compareStrategiesForm = document.getElementById('compare-strategies-form');
-    if (compareStrategiesForm) {
-        compareStrategiesForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            // Ensure data is still processed
-            if (!dataProcessed) {
-                showError('Please upload and process data first.');
-                activateTab(dataTab, dataSection, 'Data Upload');
-                return;
-            }
-            
-            // Get selected strategies to compare using the value of the checkboxes
-            const selectedStrategies = Array.from(document.querySelectorAll('#compare-strategies-form input[type="checkbox"]:checked'))
-                .map(checkbox => checkbox.value);
-                
-            if (selectedStrategies.length === 0) {
-                showNotification('Please select at least one strategy to compare', 'warning');
-                return;
-            }
-            
-            // Compare strategies
-            compareStrategies();
-        });
-    }
-    
-    // Add event listener for the update strategy button
-    const updateStrategyBtn = document.getElementById('update-strategy-btn');
-    if (updateStrategyBtn) {
-        updateStrategyBtn.addEventListener('click', () => {
-            // Ensure data is still processed
-            if (!dataProcessed) {
-                showError('Please upload and process data first.');
-                activateTab(dataTab, dataSection, 'Data Upload');
-                return;
-            }
-            
-            // Get the strategy type and parameters
-            const strategyType = document.getElementById('strategy-type').value;
-            
-            // Check if parameters have been loaded
-            if (!document.getElementById('strategy-parameters').children.length) {
-                showError('Strategy parameters not loaded. Please wait or try again.');
-                return;
-            }
-            
-            try {
-                // Different parameters based on strategy type
-                let parameters = {};
-                
-                if (strategyType === 'trend_following') {
-                    parameters = {
-                        fast_ma_type: document.getElementById('fast-ma-type').value,
-                        fast_ma_period: parseInt(document.getElementById('fast-ma-period').value),
-                        slow_ma_type: document.getElementById('slow-ma-type').value,
-                        slow_ma_period: parseInt(document.getElementById('slow-ma-period').value)
-                    };
-                } else if (strategyType === 'mean_reversion') {
-                    parameters = {
-                        rsi_period: parseInt(document.getElementById('rsi-period').value),
-                        oversold: parseInt(document.getElementById('oversold').value),
-                        overbought: parseInt(document.getElementById('overbought').value),
-                        exit_middle: parseInt(document.getElementById('exit-middle').value)
-                    };
-                } else if (strategyType === 'breakout') {
-                    parameters = {
-                        lookback_period: parseInt(document.getElementById('lookback-period').value),
-                        volume_threshold: parseFloat(document.getElementById('volume-threshold').value),
-                        price_threshold: parseFloat(document.getElementById('price-threshold').value) / 100, // Convert from % to decimal
-                        volatility_exit: document.getElementById('volatility-exit').checked,
-                        atr_multiplier: parseFloat(document.getElementById('atr-multiplier').value),
-                        use_bbands: document.getElementById('use-bbands').checked
-                    };
-                }
-                
-                // Update current configuration
-                if (!currentConfig.strategies) {
-                    currentConfig.strategies = {};
-                }
-                
-                currentConfig.strategies[strategyType] = parameters;
-                
-                // Show success message
-                showSuccessMessage(`${strategyType.replace('_', ' ')} strategy parameters updated.`);
-                
-                // Ensure dataProcessed flag remains true
-                dataProcessed = true;
-                sessionStorage.setItem('dataProcessed', 'true');
-                
-            } catch (error) {
-                console.error('Error updating strategy parameters:', error);
-                showError('Error updating strategy parameters: ' + error.message);
-            }
-        });
-    }
+    // Initialize seasonality controls
+    initializeSeasonalityControls();
     
     // Initialize indicator controls
     initializeIndicatorControls();
     
-    // Initialize seasonality controls
-    initializeSeasonalityControls();
+    // Restore active tab from session storage
+    const activeTab = sessionStorage.getItem('activeTab');
+    if (activeTab) {
+        const tab = document.getElementById(activeTab);
+        if (tab) {
+            tab.click();
+        }
+    }
 });
 
 // Helper function to show success message
@@ -2629,16 +2386,77 @@ function createSeasonalitySummaryAccordionHTML(data) {
     return accordionHtml;
 }
 
-// ... existing code ...
-
-// Document Ready
-document.addEventListener('DOMContentLoaded', () => {
-    // ... existing code ...
+// Function to update strategy parameters
+async function updateStrategy() {
+    const strategyType = document.getElementById('strategy-type').value;
+    let parameters = {};
     
-    // Initialize seasonality controls
-    initializeSeasonalityControls();
+    if (strategyType === 'trend_following') {
+        parameters = {
+            fast_ma_type: document.getElementById('fast-ma-type').value,
+            fast_ma_period: parseInt(document.getElementById('fast-ma-period').value),
+            slow_ma_type: document.getElementById('slow-ma-type').value,
+            slow_ma_period: parseInt(document.getElementById('slow-ma-period').value)
+        };
+    } else if (strategyType === 'mean_reversion') {
+        parameters = {
+            rsi_period: parseInt(document.getElementById('rsi-period').value),
+            oversold: parseInt(document.getElementById('oversold').value),
+            overbought: parseInt(document.getElementById('overbought').value),
+            exit_middle: parseInt(document.getElementById('exit-middle').value)
+        };
+    } else if (strategyType === 'breakout') {
+        parameters = {
+            lookback_period: parseInt(document.getElementById('lookback-period').value),
+            volume_threshold: parseFloat(document.getElementById('volume-threshold').value),
+            price_threshold: parseFloat(document.getElementById('price-threshold').value) / 100,
+            volatility_exit: document.getElementById('volatility-exit').checked,
+            atr_multiplier: parseFloat(document.getElementById('atr-multiplier').value),
+            use_bbands: document.getElementById('use-bbands').checked
+        };
+    } else if (strategyType === 'ml_based') {
+        parameters = {
+            model_type: document.getElementById('model-type').value,
+            training_size: parseFloat(document.getElementById('training-size').value),
+            predict_n_days: parseInt(document.getElementById('predict-n-days').value),
+            threshold: parseFloat(document.getElementById('threshold').value),
+            rsi_period: parseInt(document.getElementById('rsi-period').value),
+            sma_period: parseInt(document.getElementById('sma-period').value),
+            bbands_period: parseInt(document.getElementById('bbands-period').value)
+        };
+    }
     
-    // ... existing code ...
-});
-
-// ... existing code ...
+    try {
+        const updateStrategyBtn = document.getElementById('update-strategy-btn');
+        updateStrategyBtn.disabled = true;
+        updateStrategyBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
+        
+        const response = await fetch(API_ENDPOINTS.UPDATE_STRATEGY, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                strategy_type: strategyType,
+                parameters: parameters
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Error updating strategy');
+        }
+        
+        // Show success notification
+        showNotification('Strategy updated successfully', 'success');
+        
+    } catch (error) {
+        console.error('Error updating strategy:', error);
+        showError('Error updating strategy: ' + error.message);
+    } finally {
+        const updateStrategyBtn = document.getElementById('update-strategy-btn');
+        updateStrategyBtn.disabled = false;
+        updateStrategyBtn.textContent = 'Update Strategy';
+    }
+}

@@ -1,11 +1,13 @@
 from strategies.trend_following import TrendFollowingStrategy
 from strategies.mean_reversion import MeanReversionStrategy
 from strategies.breakout import BreakoutStrategy
+from strategies.ml_based import MLBasedStrategy
 
 __all__ = [
     'TrendFollowingStrategy',
     'MeanReversionStrategy',
-    'BreakoutStrategy'
+    'BreakoutStrategy',
+    'MLBasedStrategy'
 ]
 
 # Factory function to create strategy instances based on type
@@ -26,6 +28,8 @@ def create_strategy(strategy_type, **parameters):
         return MeanReversionStrategy.from_parameters(parameters)
     elif strategy_type == 'breakout':
         return BreakoutStrategy.from_parameters(parameters)
+    elif strategy_type == 'ml_based':
+        return MLBasedStrategy.from_parameters(parameters)
     else:
         raise ValueError(f"Unknown strategy type: {strategy_type}")
 
@@ -63,6 +67,16 @@ def get_default_parameters(strategy_type):
             'atr_multiplier': 2.0,
             'use_bbands': True
         }
+    elif strategy_type == 'ml_based':
+        return {
+            'model_type': 'random_forest',
+            'training_size': 0.7,
+            'predict_n_days': 1,
+            'threshold': 0.55,
+            'rsi_period': 14,
+            'sma_period': 20,
+            'bbands_period': 20
+        }
     else:
         raise ValueError(f"Unknown strategy type: {strategy_type}")
 
@@ -82,5 +96,10 @@ AVAILABLE_STRATEGIES = [
         'type': 'breakout',
         'name': 'Breakout (Price & Volume)',
         'description': 'Buys when price breaks above resistance with increased volume and sells when price breaks below support with increased volume.'
+    },
+    {
+        'type': 'ml_based',
+        'name': 'Machine Learning (RF/Logistic Regression)',
+        'description': 'Uses machine learning models to predict price direction and generate trading signals based on technical indicators.'
     }
 ] 
