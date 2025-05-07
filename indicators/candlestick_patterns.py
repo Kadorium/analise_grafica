@@ -201,15 +201,15 @@ def detect_morning_star(data, body_ratio_threshold=0.3, body_size_ratio=2.0):
     bearish_prev2 = data['close'].shift(2) < data['open'].shift(2)
     
     # Gap between first and second candles
-    gap_down = ((min(data['open'].shift(1), data['close'].shift(1)) < 
-                 min(data['open'].shift(2), data['close'].shift(2))) & 
-                (max(data['open'].shift(1), data['close'].shift(1)) < 
-                 max(data['open'].shift(2), data['close'].shift(2))))
+    gap_down = ((pd.DataFrame({'a': data['open'].shift(1), 'b': data['close'].shift(1)}).min(axis=1) < 
+                pd.DataFrame({'a': data['open'].shift(2), 'b': data['close'].shift(2)}).min(axis=1)) & 
+               (pd.DataFrame({'a': data['open'].shift(1), 'b': data['close'].shift(1)}).max(axis=1) < 
+                pd.DataFrame({'a': data['open'].shift(2), 'b': data['close'].shift(2)}).max(axis=1)))
     
-    gap_up = ((min(data['open'].shift(1), data['close'].shift(1)) > 
-               min(data['open'].shift(2), data['close'].shift(2))) & 
-              (max(data['open'].shift(1), data['close'].shift(1)) > 
-               max(data['open'].shift(2), data['close'].shift(2))))
+    gap_up = ((pd.DataFrame({'a': data['open'].shift(1), 'b': data['close'].shift(1)}).min(axis=1) > 
+              pd.DataFrame({'a': data['open'].shift(2), 'b': data['close'].shift(2)}).min(axis=1)) & 
+             (pd.DataFrame({'a': data['open'].shift(1), 'b': data['close'].shift(1)}).max(axis=1) > 
+              pd.DataFrame({'a': data['open'].shift(2), 'b': data['close'].shift(2)}).max(axis=1)))
     
     # Morning Star: First bearish, small middle, third bullish
     morning_star = (bearish_prev2 & 
