@@ -35,20 +35,18 @@ function updateIndicatorDropdowns() {
     
     console.log("Updating indicator dropdowns with available indicators:", appState.availableIndicators);
     
-    // Categorize indicators based on type with expanded naming conventions
-    const indicatorPrefixes = {
-        main: [
-            'sma_', 'simple_moving_average_', 'ema_', 'exponential_moving_average_', 
-            'bb_', 'typical_price', 'supertrend', 'donchian_', 'dc_', 'keltner_', 'kc_',
-            'bullish_engulfing', 'bearish_engulfing', 'doji', 'hammer', 'inverted_hammer',
-            'morning_star', 'evening_star'
-        ],
-        subplot: [
-            'rsi', 'macd', 'stoch', 'obv', 'vpt', 'volume_', 'atr',
-            'adx', 'plus_di', 'minus_di', 'cci', 'williams_r', 'cmf', 
-            'ad_line', 'adl', 'accumulation_distribution'
-        ]
-    };
+    // Categorize indicators based on type
+    const mainIndicatorPrefixes = [
+        'sma_', 'ema_', 'bb_', 'typical_price', 
+        'supertrend', 'donchian_', 'dc_', 'keltner_', 'kc_',
+        'bullish_engulfing', 'bearish_engulfing', 'doji', 'hammer', 'inverted_hammer',
+        'morning_star', 'evening_star'
+    ];
+    
+    const subplotIndicatorPrefixes = [
+        'rsi', 'macd', 'stoch', 'obv', 'vpt', 'volume_', 'atr',
+        'adx', 'plus_di', 'minus_di', 'cci', 'williams_r', 'cmf', 'ad_line'
+    ];
     
     // Exclude columns that are not indicators
     const excludedItems = ['ticker', 'index'];
@@ -84,8 +82,8 @@ function updateIndicatorDropdowns() {
     // Categorize only new indicators
     newIndicators.forEach(indicator => {
         // Decide which dropdown this indicator belongs to
-        let isMainIndicator = indicatorPrefixes.main.some(prefix => indicator.startsWith(prefix) || indicator === prefix);
-        let isSubplotIndicator = indicatorPrefixes.subplot.some(prefix => indicator.startsWith(prefix) || indicator === prefix);
+        let isMainIndicator = mainIndicatorPrefixes.some(prefix => indicator.startsWith(prefix) || indicator === prefix);
+        let isSubplotIndicator = subplotIndicatorPrefixes.some(prefix => indicator.startsWith(prefix) || indicator === prefix);
         
         if (isMainIndicator) {
             categorizedMain.push(indicator);
@@ -171,20 +169,7 @@ export function removeSelectedOptions(selectId) {
     });
 }
 
-// Add this function at the end of the file to help debug server responses
-function logIndicatorCheckStatus() {
-    const indicatorList = [...document.querySelectorAll('#indicators-form input[type="checkbox"]')].map(checkbox => ({
-        name: checkbox.id,
-        checked: checkbox.checked
-    }));
-    console.log("Current indicator checkboxes status:", indicatorList);
-    
-    if (appState.availableIndicators) {
-        console.log("Current available indicators from server:", appState.availableIndicators);
-    }
-}
-
-// Update the initializeIndicatorControls function to add debug logging
+// Initialize indicator control buttons and event listeners
 export function initializeIndicatorControls() {
     // Indicator form submission
     if (indicatorForm) {
@@ -198,9 +183,6 @@ export function initializeIndicatorControls() {
             }
             
             showGlobalLoader('Adding indicators...');
-            
-            // Log the checkbox statuses before sending the request
-            logIndicatorCheckStatus();
             
             try {
                 // Initialize empty indicator config object
@@ -404,26 +386,23 @@ export function initializeIndicatorControls() {
                     if (subplotIndicatorsSelect) subplotIndicatorsSelect.innerHTML = '';
                     
                     // Update the indicator dropdowns - only add indicators that were checked
-                    // First, categorize the indicators based on their types with expanded prefixes
-                    // to match different naming conventions from the server
-                    const indicatorPrefixes = {
-                        main: [
-                            'sma_', 'simple_moving_average_', 'ema_', 'exponential_moving_average_', 
-                            'bb_', 'typical_price', 'supertrend', 'donchian_', 'dc_', 'keltner_', 'kc_',
-                            'bullish_engulfing', 'bearish_engulfing', 'doji', 'hammer', 'inverted_hammer',
-                            'morning_star', 'evening_star'
-                        ],
-                        subplot: [
-                            'rsi', 'macd', 'stoch', 'obv', 'vpt', 'volume_', 'atr',
-                            'adx', 'plus_di', 'minus_di', 'cci', 'williams_r', 'cmf', 
-                            'ad_line', 'adl', 'accumulation_distribution'
-                        ]
-                    };
+                    // First, categorize the indicators based on their types
+                    const mainIndicatorPrefixes = [
+                        'sma_', 'ema_', 'bb_', 'typical_price', 
+                        'supertrend', 'donchian_', 'dc_', 'keltner_', 'kc_',
+                        'bullish_engulfing', 'bearish_engulfing', 'doji', 'hammer', 'inverted_hammer',
+                        'morning_star', 'evening_star'
+                    ];
+                    
+                    const subplotIndicatorPrefixes = [
+                        'rsi', 'macd', 'stoch', 'obv', 'vpt', 'volume_', 'atr',
+                        'adx', 'plus_di', 'minus_di', 'cci', 'williams_r', 'cmf', 'ad_line'
+                    ];
                     
                     // Check which indicator types were selected in the form
                     const selectedIndicatorTypes = [];
-                    if (smaCheckbox && smaCheckbox.checked) selectedIndicatorTypes.push('sma_', 'simple_moving_average_');
-                    if (emaCheckbox && emaCheckbox.checked) selectedIndicatorTypes.push('ema_', 'exponential_moving_average_');
+                    if (smaCheckbox && smaCheckbox.checked) selectedIndicatorTypes.push('sma_');
+                    if (emaCheckbox && emaCheckbox.checked) selectedIndicatorTypes.push('ema_');
                     if (rsiCheckbox && rsiCheckbox.checked) selectedIndicatorTypes.push('rsi');
                     if (macdCheckbox && macdCheckbox.checked) selectedIndicatorTypes.push('macd');
                     if (bbandsCheckbox && bbandsCheckbox.checked) selectedIndicatorTypes.push('bb_');
@@ -435,7 +414,7 @@ export function initializeIndicatorControls() {
                     if (cciCheckbox && cciCheckbox.checked) selectedIndicatorTypes.push('cci');
                     if (williamsRCheckbox && williamsRCheckbox.checked) selectedIndicatorTypes.push('williams_r');
                     if (cmfCheckbox && cmfCheckbox.checked) selectedIndicatorTypes.push('cmf');
-                    if (adLineCheckbox && adLineCheckbox.checked) selectedIndicatorTypes.push('ad_line', 'adl', 'accumulation_distribution');
+                    if (adLineCheckbox && adLineCheckbox.checked) selectedIndicatorTypes.push('ad_line');
                     if (donchianCheckbox && donchianCheckbox.checked) selectedIndicatorTypes.push('donchian_', 'dc_');
                     if (keltnerCheckbox && keltnerCheckbox.checked) selectedIndicatorTypes.push('keltner_', 'kc_');
                     if (candlestickPatternsCheckbox && candlestickPatternsCheckbox.checked) {
@@ -450,28 +429,63 @@ export function initializeIndicatorControls() {
                         // Always include typical_price for the main chart
                         if (indicator === 'typical_price') return true;
                         
-                        // Add logging to see what indicators are being checked
-                        console.log(`Checking indicator: ${indicator}`);
-                        
                         // Check if indicator matches any selected type
-                        return selectedIndicatorTypes.some(type => {
-                            const matches = indicator.startsWith(type) || indicator === type;
-                            if (matches) {
-                                console.log(`Matched ${indicator} with type ${type}`);
-                            }
-                            return matches;
-                        });
+                        return selectedIndicatorTypes.some(type => 
+                            indicator.startsWith(type) || indicator === type
+                        );
                     });
                     
                     console.log("Filtered indicators based on checkbox selection:", filteredIndicators);
                     
+                    // If certain indicators were checked but aren't in the filtered list, we need to manually add them
+                    // This handles cases where the API doesn't return specific indicators in the available_indicators list
+                    
+                    // For SMA: Add indicators like sma_20, sma_50, sma_200 if SMA was checked
+                    if (smaCheckbox && smaCheckbox.checked) {
+                        const periodsInput = document.getElementById('sma-periods');
+                        const periods = periodsInput && periodsInput.value 
+                            ? periodsInput.value.split(',').map(p => parseInt(p.trim())) 
+                            : [20, 50, 200];
+                            
+                        // Add SMA indicators for each period
+                        periods.forEach(period => {
+                            const smaIndicator = `sma_${period}`;
+                            if (!filteredIndicators.includes(smaIndicator)) {
+                                filteredIndicators.push(smaIndicator);
+                            }
+                        });
+                    }
+                    
+                    // For EMA: Add indicators like ema_12, ema_26, ema_50 if EMA was checked
+                    if (emaCheckbox && emaCheckbox.checked) {
+                        const periodsInput = document.getElementById('ema-periods');
+                        const periods = periodsInput && periodsInput.value 
+                            ? periodsInput.value.split(',').map(p => parseInt(p.trim())) 
+                            : [12, 26, 50];
+                            
+                        // Add EMA indicators for each period
+                        periods.forEach(period => {
+                            const emaIndicator = `ema_${period}`;
+                            if (!filteredIndicators.includes(emaIndicator)) {
+                                filteredIndicators.push(emaIndicator);
+                            }
+                        });
+                    }
+                    
+                    // For Accumulation/Distribution Line: Add the indicator if it was checked
+                    if (adLineCheckbox && adLineCheckbox.checked && !filteredIndicators.includes('ad_line')) {
+                        filteredIndicators.push('ad_line');
+                    }
+                    
+                    console.log("Updated filtered indicators with manually added ones:", filteredIndicators);
+                    
                     // Categorize filtered indicators into main chart or subplot
                     const mainIndicators = filteredIndicators.filter(indicator => 
-                        indicatorPrefixes.main.some(type => indicator.startsWith(type) || indicator === type)
+                        mainIndicatorPrefixes.some(type => indicator.startsWith(type) || indicator === type)
                     );
                     
                     const subplotIndicators = filteredIndicators.filter(indicator => 
-                        indicatorPrefixes.subplot.some(type => indicator.startsWith(type) || indicator === type)
+                        subplotIndicatorPrefixes.some(type => indicator.startsWith(type) || indicator === type)
                     );
                     
                     console.log("Categorized main indicators:", mainIndicators);
@@ -547,14 +561,101 @@ export function initializeIndicatorControls() {
             }
             
             try {
-                // Prepare request data
+                // Add indicators again with the proper configuration
+                const indicatorConfig = {};
+                
+                // SMA
+                const smaCheckbox = document.getElementById('sma-checkbox');
+                if (smaCheckbox && smaCheckbox.checked) {
+                    const periodsInput = document.getElementById('sma-periods');
+                    const periodsStr = periodsInput ? periodsInput.value : '20,50,200';
+                    const periods = periodsStr.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p) && p > 0);
+                    
+                    if (!indicatorConfig.moving_averages) {
+                        indicatorConfig.moving_averages = {
+                            types: []
+                        };
+                    }
+                    
+                    indicatorConfig.moving_averages.types.push('sma');
+                    indicatorConfig.moving_averages.sma_periods = periods;
+                }
+                
+                // EMA
+                const emaCheckbox = document.getElementById('ema-checkbox');
+                if (emaCheckbox && emaCheckbox.checked) {
+                    const periodsInput = document.getElementById('ema-periods');
+                    const periodsStr = periodsInput ? periodsInput.value : '12,26,50';
+                    const periods = periodsStr.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p) && p > 0);
+                    
+                    if (!indicatorConfig.moving_averages) {
+                        indicatorConfig.moving_averages = {
+                            types: []
+                        };
+                    }
+                    
+                    indicatorConfig.moving_averages.types.push('ema');
+                    indicatorConfig.moving_averages.ema_periods = periods;
+                }
+                
+                // AD Line
+                const adLineCheckbox = document.getElementById('ad-line-checkbox');
+                if (adLineCheckbox && adLineCheckbox.checked) {
+                    indicatorConfig.ad_line = true;
+                }
+                
+                // First, add the indicators to ensure they're available 
+                // in the expected format on the server
+                console.log("Adding indicators with configuration:", indicatorConfig);
+                const addResponse = await addIndicators(indicatorConfig);
+                
+                if (!addResponse.success) {
+                    throw new Error(addResponse.message || 'Error adding indicators');
+                }
+                
+                // Now plot using the available indicators (from server response)
+                // This avoids the naming mismatch issue
+                let availableMainIndicators = [];
+                let availableSubplotIndicators = [];
+                
+                if (addResponse.available_indicators) {
+                    const mainIndicatorPrefixes = [
+                        'sma_', 'ema_', 'bb_', 'typical_price', 
+                        'supertrend', 'donchian_', 'dc_', 'keltner_', 'kc_',
+                        'bullish_engulfing', 'bearish_engulfing', 'doji', 'hammer', 'inverted_hammer',
+                        'morning_star', 'evening_star'
+                    ];
+                    
+                    const subplotIndicatorPrefixes = [
+                        'rsi', 'macd', 'stoch', 'obv', 'vpt', 'volume_', 'atr',
+                        'adx', 'plus_di', 'minus_di', 'cci', 'williams_r', 'cmf', 'ad_line'
+                    ];
+                    
+                    // Categorize available indicators
+                    availableMainIndicators = addResponse.available_indicators.filter(indicator => 
+                        mainIndicatorPrefixes.some(type => indicator.startsWith(type) || indicator === type)
+                    );
+                    
+                    availableSubplotIndicators = addResponse.available_indicators.filter(indicator => 
+                        subplotIndicatorPrefixes.some(type => indicator.startsWith(type) || indicator === type)
+                    );
+                    
+                    // Update UI with available indicators
+                    if (addResponse.available_indicators.length > 0) {
+                        appState.availableIndicators = addResponse.available_indicators;
+                    }
+                }
+                
+                // Prepare request data for plotting, using the available indicators
                 const plotConfig = {
-                    main_indicators: mainIndicators,
-                    subplot_indicators: subplotIndicators,
+                    main_indicators: availableMainIndicators.length > 0 ? availableMainIndicators : [],
+                    subplot_indicators: availableSubplotIndicators.length > 0 ? availableSubplotIndicators : [],
                     title: 'Price Chart with Selected Indicators',
                     start_date: startDate,
                     end_date: endDate
                 };
+                
+                console.log("Plotting with configuration:", plotConfig);
                 
                 // Plot indicators
                 const response = await plotIndicators(plotConfig);
