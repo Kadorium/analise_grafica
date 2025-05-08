@@ -43,8 +43,29 @@ export async function runBacktest(params = {}) {
     try {
         showGlobalLoader('Running backtest...');
         
+        // Combine parameters with existing strategy parameters if they exist
+        const requestParams = { ...params };
+        
+        // Make sure we have the strategy from state if not provided
+        if (!requestParams.strategy && appState.selectedStrategy) {
+            requestParams.strategy = appState.selectedStrategy;
+        }
+        
+        // Add strategy parameters from appState
+        if (appState.strategyParameters && Object.keys(appState.strategyParameters).length > 0) {
+            // Only use appState parameters if not provided directly
+            if (!requestParams.parameters || Object.keys(requestParams.parameters).length === 0) {
+                requestParams.parameters = JSON.parse(JSON.stringify(appState.strategyParameters));
+            }
+            console.log('Using strategy parameters:', requestParams.parameters);
+        } else {
+            console.warn('No strategy parameters found in appState');
+        }
+        
+        console.log('Running backtest with parameters:', requestParams);
+        
         // Run backtest
-        const response = await runBacktestApi(params);
+        const response = await runBacktestApi(requestParams);
         
         if (response.success) {
             showSuccessMessage('Backtest completed successfully');
@@ -143,6 +164,12 @@ function displayBacktestSummary(metrics) {
 export function initializeBacktestView() {
     // Initialize backtest form
     if (backtestForm) {
+        // Get the run backtest button
+        const runBacktestBtn = document.querySelector('#backtest-form button[type="submit"]');
+        if (runBacktestBtn) {
+            runBacktestBtn.id = 'run-backtest-form-btn';
+        }
+        
         backtestForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -158,6 +185,19 @@ export function initializeBacktestView() {
                 } else {
                     params[key] = value;
                 }
+            }
+            
+            // Add selected strategy
+            if (appState.selectedStrategy) {
+                params.strategy = appState.selectedStrategy;
+            }
+            
+            // Add strategy parameters from appState 
+            if (appState.strategyParameters && Object.keys(appState.strategyParameters).length > 0) {
+                params.parameters = JSON.parse(JSON.stringify(appState.strategyParameters));
+                console.log('Using strategy parameters from appState:', params.parameters);
+            } else {
+                console.warn('No strategy parameters found in appState');
             }
             
             // Run backtest with form params

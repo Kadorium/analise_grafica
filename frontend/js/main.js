@@ -15,7 +15,7 @@ import { initializeResultsViewer } from './modules/resultsViewer.js';
 import { initializeConfigManager, fetchCurrentConfig } from './modules/configManager.js';
 
 // DOM references for tabs and sections
-const tabLinks = document.querySelectorAll('.nav-link[data-bs-toggle="tab"]');
+const tabLinks = document.querySelectorAll('.nav-link');
 const dataTab = document.getElementById('data-tab');
 const indicatorsTab = document.getElementById('indicators-tab');
 const strategiesTab = document.getElementById('strategies-tab');
@@ -113,6 +113,11 @@ function toggleTabSection(tabElement, targetId) {
         } else {
             console.warn('appState.setActiveTab is not available');
         }
+        
+        // Special handling for strategies tab
+        if (targetId === '#strategies-section' && typeof window.loadStrategyParameters === 'function') {
+            setTimeout(() => window.loadStrategyParameters(), 100);
+        }
     } else {
         console.error(`Target section not found: ${targetId}`);
     }
@@ -127,20 +132,18 @@ function canActivateTab(targetTab) {
         return true;
     }
     
-    // For other tabs, check if data is uploaded
-    if (!appState.dataUploaded) {
-        showError('Please upload data before accessing this tab');
+    // For other tabs, check if data is uploaded and processed
+    if (!appState.dataUploaded || !appState.dataProcessed) {
+        const errorMessage = !appState.dataUploaded ? 
+            'Please upload data before accessing this tab' : 
+            'Please process data before accessing this tab';
+        
+        showError(errorMessage);
         
         // Navigate back to data tab
         const dataTabLink = document.getElementById('data-tab');
         if (dataTabLink) setTimeout(() => dataTabLink.click(), 100);
         
-        return false;
-    }
-    
-    // For some tabs, check if data is processed
-    if (['#indicators-section', '#strategies-section', '#backtest-section', '#optimization-section', '#seasonality-section'].includes(targetTab) && !appState.dataProcessed) {
-        showError('Please process data before accessing this tab');
         return false;
     }
     
