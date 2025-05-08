@@ -154,14 +154,30 @@ export async function fetchAvailableStrategies() {
 }
 
 export async function fetchStrategyParameters(strategyType) {
-    return fetchApi(`${API_ENDPOINTS.STRATEGY_PARAMETERS}?type=${strategyType}`);
+    return fetchApi(`${API_ENDPOINTS.STRATEGY_PARAMETERS}/${strategyType}`);
 }
 
 export async function runBacktest(requestData) {
+    // Transform request data into the expected format
+    const formattedData = {
+        strategy_config: {
+            strategy_type: requestData.strategy || '',
+            parameters: requestData.parameters || {}
+        },
+        backtest_config: {
+            initial_capital: requestData.initial_capital || 10000.0,
+            commission: requestData.commission || 0.001,
+            start_date: requestData.start_date || null,
+            end_date: requestData.end_date || null
+        }
+    };
+    
+    console.log('Formatted backtest request:', formattedData);
+    
     return fetchApi(API_ENDPOINTS.RUN_BACKTEST, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestData)
+        body: JSON.stringify(formattedData)
     });
 }
 

@@ -43,7 +43,7 @@ export async function runBacktest(params = {}) {
     try {
         showGlobalLoader('Running backtest...');
         
-        // Combine parameters with existing strategy parameters if they exist
+        // Create request parameters
         const requestParams = { ...params };
         
         // Make sure we have the strategy from state if not provided
@@ -62,6 +62,36 @@ export async function runBacktest(params = {}) {
             console.warn('No strategy parameters found in appState');
         }
         
+        // Ensure backtest configuration parameters are included
+        if (!requestParams.initial_capital) {
+            const capitalInput = document.getElementById('initial-capital');
+            if (capitalInput) {
+                requestParams.initial_capital = parseFloat(capitalInput.value) || 10000.0;
+            }
+        }
+        
+        if (!requestParams.commission) {
+            const commissionInput = document.getElementById('commission');
+            if (commissionInput) {
+                requestParams.commission = parseFloat(commissionInput.value) || 0.001;
+            }
+        }
+        
+        // Add date range if provided
+        if (!requestParams.start_date) {
+            const startDateInput = document.getElementById('backtest-start-date');
+            if (startDateInput && startDateInput.value) {
+                requestParams.start_date = startDateInput.value;
+            }
+        }
+        
+        if (!requestParams.end_date) {
+            const endDateInput = document.getElementById('backtest-end-date');
+            if (endDateInput && endDateInput.value) {
+                requestParams.end_date = endDateInput.value;
+            }
+        }
+        
         console.log('Running backtest with parameters:', requestParams);
         
         // Run backtest
@@ -75,10 +105,11 @@ export async function runBacktest(params = {}) {
             
             return response.results;
         } else {
-            throw new Error(response.error || 'Error running backtest');
+            throw new Error(response.message || 'Error running backtest');
         }
     } catch (error) {
         showError(error.message || 'Failed to run backtest');
+        console.error('Backtest error:', error);
         return null;
     } finally {
         hideGlobalLoader();
@@ -179,11 +210,26 @@ export function initializeBacktestView() {
             
             // Convert form data to params object
             for (const [key, value] of formData.entries()) {
-                // Convert numeric values
-                if (!isNaN(value) && value !== '') {
+                // Skip empty values
+                if (value === '') continue;
+                
+                // Handle numeric values
+                if (!isNaN(value)) {
                     params[key] = parseFloat(value);
                 } else {
                     params[key] = value;
+                }
+                
+                // Convert field IDs to expected parameter names
+                if (key === 'initial-capital') {
+                    params['initial_capital'] = params[key];
+                    delete params[key];
+                } else if (key === 'backtest-start-date') {
+                    params['start_date'] = params[key];
+                    delete params[key];
+                } else if (key === 'backtest-end-date') {
+                    params['end_date'] = params[key];
+                    delete params[key];
                 }
             }
             
