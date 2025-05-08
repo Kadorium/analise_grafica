@@ -56,7 +56,7 @@ def log_endpoint(endpoint_name, **kwargs):
 # Import our modules
 from data.data_loader import DataLoader
 from indicators.indicator_utils import combine_indicators, plot_price_with_indicators, create_indicator_summary
-from strategies import create_strategy, get_default_parameters, AVAILABLE_STRATEGIES
+from strategies import create_strategy, get_default_parameters, AVAILABLE_STRATEGIES, STRATEGY_REGISTRY
 from backtesting.backtester import Backtester
 from optimization.optimizer import optimize_strategy, compare_optimized_strategies
 from indicators.seasonality import day_of_week_returns, monthly_returns, day_of_week_volatility, calendar_heatmap, seasonality_summary
@@ -668,167 +668,350 @@ async def get_strategy_parameters(strategy_type: str):
 async def run_backtest(strategy_config: StrategyConfig, backtest_config: BacktestConfig):
     global PROCESSED_DATA, BACKTESTER
     
-    start_time = time.time()
-    log_endpoint("POST /api/run-backtest", 
-                strategy=strategy_config.dict(), 
-                backtest_config=backtest_config.dict(),
-                data_shape=PROCESSED_DATA.shape if PROCESSED_DATA is not None else None)
+    log_endpoint("run_backtest", 
+                 strategy_type=strategy_config.strategy_type, 
+                 params=strategy_config.parameters,
+                 backtest_config=backtest_config.dict())
     
     if PROCESSED_DATA is None:
-        elapsed_time = time.time() - start_time
-        log_endpoint("POST /api/run-backtest - ERROR", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    error="No processed data available")
-        
         return JSONResponse(
             status_code=400,
             content={"success": False, "message": "No processed data available. Please upload and process data first."}
         )
     
     try:
-        logger.info(f"Running backtest with strategy: {strategy_config.strategy_type}, params: {strategy_config.parameters}")
-        logger.info(f"Backtest config: {backtest_config}")
+        # Get data
+        data = PROCESSED_DATA.copy()
         
-        # Check that required columns exist
-        required_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
-        missing_columns = [col for col in required_columns if col not in PROCESSED_DATA.columns]
-        if missing_columns:
-            elapsed_time = time.time() - start_time
-            log_endpoint("POST /api/run-backtest - ERROR", 
-                        elapsed_time=f"{elapsed_time:.2f}s",
-                        error=f"Missing required columns: {missing_columns}")
-            
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": f"Missing required columns in data: {', '.join(missing_columns)}"}
-            )
-            
-        # Make a copy of the data for backtesting
-        backtest_data = PROCESSED_DATA.copy()
-        logger.info(f"Backtest data prepared: {backtest_data.shape}")
+        # Create backtester if needed
+        if BACKTESTER is None:
+            BACKTESTER = Backtester(initial_capital=backtest_config.initial_capital,
+                                   commission=backtest_config.commission)
         
-        # Create the strategy
-        try:
-            logger.info(f"Creating strategy: {strategy_config.strategy_type}")
+        # Set up backtester data
+        BACKTESTER.set_data(data)
+        
+        # Support for new modular strategies or legacy strategy classes
+        if strategy_config.strategy_type in STRATEGY_REGISTRY:
+            # New modular strategy approach (functional)
+            strategy_func = STRATEGY_REGISTRY[strategy_config.strategy_type]
+            
+            # Filter data by date range if specified
+            filtered_data = data.copy()
+            
+            if backtest_config.start_date:
+                start_date = pd.to_datetime(backtest_config.start_date)
+                filtered_data = filtered_data[filtered_data['date'] >= start_date]
+                
+            if backtest_config.end_date:
+                end_date = pd.to_datetime(backtest_config.end_date)
+                filtered_data = filtered_data[filtered_data['date'] <= end_date]
+            
+            # Get signals using the strategy function
+            signals_df = strategy_func(filtered_data, **strategy_config.parameters)
+            
+            # Calculate performance metrics directly
+            results = calculate_performance_metrics(signals_df, 
+                                                   initial_capital=backtest_config.initial_capital, 
+                                                   commission=backtest_config.commission)
+            
+            # Generate chart
+            chart_html = plot_backtest_results(signals_df, 
+                                              strategy_name=strategy_config.strategy_type.replace("_", " ").title(),
+                                              initial_capital=backtest_config.initial_capital)
+            
+            # Format results
+            result_data = {
+                "metrics": results,
+                "charts": chart_html,
+                "trades": extract_trades(signals_df, 
+                                        commission=backtest_config.commission,
+                                        initial_capital=backtest_config.initial_capital)
+            }
+            
+        else:
+            # Legacy strategy class approach
             strategy = create_strategy(strategy_config.strategy_type, **strategy_config.parameters)
-            logger.info(f"Strategy created: {strategy.name}")
-        except Exception as e:
-            elapsed_time = time.time() - start_time
-            error_trace = traceback.format_exc()
-            log_endpoint("POST /api/run-backtest - ERROR", 
-                        elapsed_time=f"{elapsed_time:.2f}s",
-                        error=f"Error creating strategy: {str(e)}",
-                        traceback=error_trace)
             
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": f"Error creating strategy: {str(e)}"}
-            )
+            # Run the backtest
+            result = BACKTESTER.run_backtest(strategy, 
+                                            start_date=backtest_config.start_date, 
+                                            end_date=backtest_config.end_date)
+            
+            # Get chart
+            chart_img = BACKTESTER.plot_equity_curves([strategy_config.strategy_type])
+            
+            # Format results
+            result_data = {
+                "metrics": result['performance_metrics'],
+                "charts": f'<img src="data:image/png;base64,{chart_img}" class="img-fluid" alt="Equity Curve">'
+            }
         
-        # Create a backtester
-        try:
-            logger.info("Initializing backtester")
-            BACKTESTER = Backtester(
-                data=backtest_data,
-                initial_capital=backtest_config.initial_capital,
-                commission=backtest_config.commission
-            )
-            logger.info("Backtester initialized successfully")
-        except Exception as e:
-            elapsed_time = time.time() - start_time
-            error_trace = traceback.format_exc()
-            log_endpoint("POST /api/run-backtest - ERROR", 
-                        elapsed_time=f"{elapsed_time:.2f}s",
-                        error=f"Error initializing backtester: {str(e)}",
-                        traceback=error_trace)
-            
-            return JSONResponse(
-                status_code=500,
-                content={"success": False, "message": f"Error initializing backtester: {str(e)}"}
-            )
-        
-        # Run the backtest
-        try:
-            logger.info(f"Running backtest with date range: {backtest_config.start_date} to {backtest_config.end_date}")
-            backtest_result = BACKTESTER.run_backtest(
-                strategy=strategy,
-                start_date=backtest_config.start_date,
-                end_date=backtest_config.end_date
-            )
-            logger.info("Backtest execution completed successfully")
-        except Exception as e:
-            elapsed_time = time.time() - start_time
-            error_trace = traceback.format_exc()
-            log_endpoint("POST /api/run-backtest - ERROR", 
-                        elapsed_time=f"{elapsed_time:.2f}s",
-                        error=f"Error during backtest execution: {str(e)}",
-                        traceback=error_trace)
-            
-            return JSONResponse(
-                status_code=500,
-                content={"success": False, "message": f"Error during backtest execution: {str(e)}"}
-            )
-        
-        # Generate plots and statistics (with proper error handling)
-        try:
-            logger.info("Generating equity curve plots")
-            # Get the equity curve plot
-            equity_curve_image = BACKTESTER.plot_equity_curves([strategy.name])
-            
-            logger.info("Generating drawdown plots")
-            # Get the drawdown plot
-            drawdown_image = BACKTESTER.plot_drawdowns([strategy.name])
-            
-            logger.info("Calculating trade statistics")
-            # Get trade statistics
-            trade_stats = BACKTESTER.get_trade_statistics(strategy.name)
-            
-            logger.info("Plots and statistics generated successfully")
-        except Exception as e:
-            # If plotting fails, we can still return the backtest result
-            logger.error(f"Error generating plots: {str(e)}")
-            logger.error(traceback.format_exc())
-            equity_curve_image = None
-            drawdown_image = None
-            trade_stats = {}
-        
-        elapsed_time = time.time() - start_time
-        
-        # Log some performance metrics
-        performance_metrics = backtest_result.get("performance_metrics", {})
-        log_data = {
-            "elapsed_time": f"{elapsed_time:.2f}s",
-            "strategy_name": backtest_result.get("strategy_name", "unknown"),
-            "trades": trade_stats.get("total_trades", 0),
-            "win_rate": f"{trade_stats.get('win_rate', 0):.2f}%",
-            "profit_factor": trade_stats.get("profit_factor", 0),
-            "sharpe_ratio": performance_metrics.get("sharpe_ratio", 0),
-            "max_drawdown": f"{performance_metrics.get('max_drawdown', 0):.2f}%"
+        # Save the current configuration
+        CURRENT_CONFIG['strategy'] = {
+            'type': strategy_config.strategy_type,
+            'parameters': strategy_config.parameters
         }
         
-        log_endpoint("POST /api/run-backtest - COMPLETE", **log_data)
+        # Save indicators
+        indicator_columns = []
+        for col in data.columns:
+            if col not in ['date', 'open', 'high', 'low', 'close', 'volume']:
+                indicator_columns.append(col)
+                
+        CURRENT_CONFIG['indicators'] = indicator_columns
         
-        return {
-            "success": True,
-            "message": "Backtest completed successfully",
-            "strategy_name": backtest_result["strategy_name"],
-            "performance_metrics": backtest_result["performance_metrics"],
-            "trade_statistics": trade_stats,
-            "equity_curve": equity_curve_image,
-            "drawdown_curve": drawdown_image
-        }
+        return {"success": True, "results": result_data}
+    
     except Exception as e:
-        elapsed_time = time.time() - start_time
-        error_trace = traceback.format_exc()
-        log_endpoint("POST /api/run-backtest - ERROR", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    error=str(e),
-                    traceback=error_trace)
-        
+        stack_trace = traceback.format_exc()
+        logger.error(f"Error in run_backtest: {e}\n{stack_trace}")
         return JSONResponse(
             status_code=500,
             content={"success": False, "message": f"Error running backtest: {str(e)}"}
         )
+
+# New helper functions for the modular strategy approach
+def calculate_performance_metrics(signals_df, initial_capital=10000.0, commission=0.001):
+    """
+    Calculate performance metrics from signals DataFrame.
+    
+    Args:
+        signals_df (pd.DataFrame): DataFrame with signal column ('buy', 'sell', 'hold')
+        initial_capital (float): Initial capital for the backtest
+        commission (float): Commission rate per trade
+        
+    Returns:
+        dict: Performance metrics
+    """
+    df = signals_df.copy()
+    
+    # Ensure we have the right columns
+    required_cols = ['date', 'close', 'signal']
+    if not all(col in df.columns for col in required_cols):
+        raise ValueError(f"Data must contain columns: {required_cols}")
+    
+    # Initialize position and equity columns
+    df['position'] = 0
+    df['entry_price'] = 0.0
+    df['equity'] = initial_capital
+    df['trade_profit'] = 0.0
+    df['trade_returns'] = 0.0
+    
+    # Calculate positions
+    position = 0
+    entry_price = 0.0
+    equity = initial_capital
+    
+    for i in range(len(df)):
+        if df.iloc[i]['signal'] == 'buy' and position == 0:
+            position = 1
+            entry_price = df.iloc[i]['close'] * (1 + commission)  # Include commission
+        elif df.iloc[i]['signal'] == 'sell' and position == 1:
+            position = 0
+            exit_price = df.iloc[i]['close'] * (1 - commission)  # Include commission
+            trade_profit = exit_price - entry_price
+            trade_return = trade_profit / entry_price
+            equity += trade_profit
+            df.at[df.index[i], 'trade_profit'] = trade_profit
+            df.at[df.index[i], 'trade_returns'] = trade_return
+        
+        df.at[df.index[i], 'position'] = position
+        df.at[df.index[i], 'equity'] = equity
+        df.at[df.index[i], 'entry_price'] = entry_price
+    
+    # Calculate market returns for comparison
+    df['market_return'] = df['close'].pct_change().fillna(0)
+    df['cumulative_market_return'] = (1 + df['market_return']).cumprod()
+    
+    # Calculate strategy metrics
+    start_date = df['date'].min()
+    end_date = df['date'].max()
+    days = (end_date - start_date).days
+    years = days / 365.25
+    
+    total_return = (df['equity'].iloc[-1] / initial_capital) - 1
+    annual_return = ((1 + total_return) ** (1 / max(years, 0.01))) - 1
+    
+    # Drawdown calculation
+    df['drawdown'] = (df['equity'].cummax() - df['equity']) / df['equity'].cummax()
+    max_drawdown = df['drawdown'].max()
+    
+    # Trade statistics
+    winning_trades = df[df['trade_profit'] > 0]
+    losing_trades = df[df['trade_profit'] < 0]
+    
+    total_trades = len(winning_trades) + len(losing_trades)
+    win_rate = len(winning_trades) / max(total_trades, 1)
+    
+    avg_win = winning_trades['trade_profit'].mean() if len(winning_trades) > 0 else 0
+    avg_loss = abs(losing_trades['trade_profit'].mean()) if len(losing_trades) > 0 else 0
+    
+    profit_factor = abs(winning_trades['trade_profit'].sum() / losing_trades['trade_profit'].sum()) if len(losing_trades) > 0 and losing_trades['trade_profit'].sum() != 0 else float('inf')
+    
+    # Calculate volatility and Sharpe ratio
+    daily_returns = df['equity'].pct_change().fillna(0)
+    annual_volatility = daily_returns.std() * (252 ** 0.5)  # Annualized
+    sharpe_ratio = annual_return / max(annual_volatility, 0.0001)  # Avoid division by zero
+    
+    metrics = {
+        'start_date': start_date.strftime('%Y-%m-%d'),
+        'end_date': end_date.strftime('%Y-%m-%d'),
+        'initial_capital': initial_capital,
+        'final_capital': df['equity'].iloc[-1],
+        'total_return_percent': total_return * 100,
+        'annual_return_percent': annual_return * 100,
+        'max_drawdown_percent': max_drawdown * 100,
+        'sharpe_ratio': sharpe_ratio,
+        'total_trades': total_trades,
+        'win_rate_percent': win_rate * 100,
+        'profit_factor': profit_factor,
+        'avg_win': avg_win,
+        'avg_loss': avg_loss,
+        'annual_volatility_percent': annual_volatility * 100
+    }
+    
+    return metrics
+
+def plot_backtest_results(signals_df, strategy_name='Strategy', initial_capital=10000.0):
+    """
+    Generate HTML chart for backtest results.
+    
+    Args:
+        signals_df (pd.DataFrame): DataFrame with backtest results
+        strategy_name (str): Name of the strategy
+        initial_capital (float): Initial capital
+        
+    Returns:
+        str: HTML chart
+    """
+    df = signals_df.copy()
+    
+    # Calculate buy and hold equity
+    df['buy_hold_equity'] = initial_capital * df['cumulative_market_return']
+    
+    # Create chart HTML
+    chart_html = f"""
+    <div class="chart-container">
+        <canvas id="equity-curve-chart"></canvas>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {{
+        const ctx = document.getElementById('equity-curve-chart').getContext('2d');
+        const dates = {df['date'].dt.strftime('%Y-%m-%d').tolist()};
+        const equity = {df['equity'].tolist()};
+        const buyHoldEquity = {df['buy_hold_equity'].tolist()};
+        
+        new Chart(ctx, {{
+            type: 'line',
+            data: {{
+                labels: dates,
+                datasets: [
+                    {{
+                        label: '{strategy_name}',
+                        data: equity,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }},
+                    {{
+                        label: 'Buy & Hold',
+                        data: buyHoldEquity,
+                        borderColor: 'rgb(192, 75, 75)',
+                        backgroundColor: 'rgba(192, 75, 75, 0.1)',
+                        borderDash: [5, 5],
+                        tension: 0.1,
+                        fill: true
+                    }}
+                ]
+            }},
+            options: {{
+                responsive: true,
+                plugins: {{
+                    title: {{
+                        display: true,
+                        text: 'Equity Curve'
+                    }},
+                    tooltip: {{
+                        mode: 'index',
+                        intersect: false,
+                    }}
+                }},
+                scales: {{
+                    x: {{
+                        display: true,
+                        title: {{
+                            display: true,
+                            text: 'Date'
+                        }}
+                    }},
+                    y: {{
+                        display: true,
+                        title: {{
+                            display: true,
+                            text: 'Equity ($)'
+                        }}
+                    }}
+                }}
+            }}
+        }});
+    }});
+    </script>
+    """
+    
+    return chart_html
+
+def extract_trades(signals_df, commission=0.001, initial_capital=10000.0):
+    """
+    Extract individual trades from signals DataFrame.
+    
+    Args:
+        signals_df (pd.DataFrame): DataFrame with signal column
+        commission (float): Commission rate per trade
+        initial_capital (float): Initial capital
+        
+    Returns:
+        list: List of trade dictionaries
+    """
+    df = signals_df.copy()
+    trades = []
+    
+    # Find all buy signals
+    buy_signals = df[df['signal'] == 'buy'].index
+    
+    for buy_idx in buy_signals:
+        # Skip if we're at the last row
+        if buy_idx >= len(df) - 1:
+            continue
+            
+        entry_date = df.loc[buy_idx, 'date']
+        entry_price = df.loc[buy_idx, 'close'] * (1 + commission)
+        
+        # Find next sell signal after this buy
+        sell_indices = df.loc[buy_idx+1:][df.loc[buy_idx+1:]['signal'] == 'sell'].index
+        
+        if len(sell_indices) > 0:
+            sell_idx = sell_indices[0]
+            exit_date = df.loc[sell_idx, 'date']
+            exit_price = df.loc[sell_idx, 'close'] * (1 - commission)
+            
+            profit = exit_price - entry_price
+            profit_pct = (profit / entry_price) * 100
+            
+            trade = {
+                'entry_date': entry_date.strftime('%Y-%m-%d'),
+                'exit_date': exit_date.strftime('%Y-%m-%d'),
+                'entry_price': entry_price,
+                'exit_price': exit_price,
+                'profit': profit,
+                'profit_pct': profit_pct,
+                'result': 'win' if profit > 0 else 'loss'
+            }
+            
+            trades.append(trade)
+    
+    return trades
 
 @app.post("/api/optimize-strategy")
 async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, background_tasks: BackgroundTasks):

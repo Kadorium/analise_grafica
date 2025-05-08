@@ -5,6 +5,7 @@ import { fetchAvailableStrategies, fetchStrategyParameters } from '../utils/api.
 import { showError, showLoading, showGlobalLoader, hideGlobalLoader } from '../utils/ui.js';
 import { formatParamName } from '../utils/formatters.js';
 import { appState } from '../utils/state.js';
+import { getStrategyConfig, getStrategyDescription, getStrategyDefaultParams } from '../utils/strategies-config.js';
 
 // DOM references
 const strategySelect = document.getElementById('strategy-select');
@@ -97,23 +98,27 @@ export async function loadStrategyParameters(strategyType = null) {
         
         console.log('Loading parameters for strategy:', strategy);
         
-        // Fetch strategy parameters
-        const response = await fetchStrategyParameters(strategy);
-        
-        // Update strategy description if container exists
-        if (strategyDescriptionContainer) {
-            updateStrategyDescription(strategy);
-        }
-        
-        // Extract parameters from response
+        // Get parameters either from the config or API
         let parameters;
-        if (response.parameters) {
-            parameters = response.parameters;
-        } else if (response.data && response.data.parameters) {
-            parameters = response.data.parameters;
+        const strategyConfig = getStrategyConfig(strategy);
+        
+        if (strategyConfig) {
+            // Use the predefined parameters from our configuration
+            parameters = getStrategyDefaultParams(strategy);
+            console.log('Using predefined parameters for', strategy, parameters);
         } else {
-            // For direct parameters object
-            parameters = response;
+            // Fetch parameters from API (legacy approach)
+            const response = await fetchStrategyParameters(strategy);
+            
+            // Extract parameters from response
+            if (response.parameters) {
+                parameters = response.parameters;
+            } else if (response.data && response.data.parameters) {
+                parameters = response.data.parameters;
+            } else {
+                // For direct parameters object
+                parameters = response;
+            }
         }
         
         // Check if we have parameters
@@ -123,11 +128,16 @@ export async function loadStrategyParameters(strategyType = null) {
         
         console.log('Strategy parameters loaded:', parameters);
         
+        // Update strategy description if container exists
+        if (strategyDescriptionContainer) {
+            updateStrategyDescription(strategy);
+        }
+        
         // Save parameters to app state
         appState.setStrategyParameters(parameters);
         
         // Update the UI with parameters
-        updateStrategyParameters(parameters);
+        updateStrategyParameters(parameters, strategy);
         
         return parameters;
     } catch (error) {
@@ -147,27 +157,36 @@ export async function loadStrategyParameters(strategyType = null) {
 function updateStrategyDescription(strategyType) {
     if (!strategyDescriptionContainer) return;
     
-    let description = '';
+    // Try to get the description from our configuration first
+    const description = getStrategyDescription(strategyType);
+    
+    if (description) {
+        strategyDescriptionContainer.innerHTML = `<p>${description}</p>`;
+        return;
+    }
+    
+    // Fallback to hardcoded descriptions for legacy strategies
+    let legacyDescription = '';
     
     switch(strategyType) {
         case 'trend_following':
-            description = '<p>Buys when fast MA crosses above slow MA (golden cross) and sells when fast MA crosses below slow MA (death cross).</p>';
+            legacyDescription = 'Buys when fast MA crosses above slow MA (golden cross) and sells when fast MA crosses below slow MA (death cross).';
             break;
         case 'mean_reversion':
-            description = '<p>Buys when RSI is below oversold level and sells when RSI is above overbought level. Also exits positions when RSI crosses the middle level.</p>';
+            legacyDescription = 'Buys when RSI is below oversold level and sells when RSI is above overbought level. Also exits positions when RSI crosses the middle level.';
             break;
         case 'breakout':
-            description = '<p>Buys when price breaks out above recent highs with increased volume. Uses volatility-based exit strategies.</p>';
+            legacyDescription = 'Buys when price breaks out above recent highs with increased volume. Uses volatility-based exit strategies.';
             break;
         default:
-            description = '<p>Select a strategy type to see its description.</p>';
+            legacyDescription = 'Select a strategy type to see its description.';
     }
     
-    strategyDescriptionContainer.innerHTML = description;
+    strategyDescriptionContainer.innerHTML = `<p>${legacyDescription}</p>`;
 }
 
 // Update the strategy parameters UI
-export function updateStrategyParameters(parameters) {
+export function updateStrategyParameters(parameters, strategyType) {
     if (!strategyParametersContainer) return;
     
     // Clear existing parameters
@@ -181,102 +200,141 @@ export function updateStrategyParameters(parameters) {
     // Ensure parameters are stored in app state
     appState.setStrategyParameters(parameters);
     
-    // Create form elements for each parameter
-    Object.entries(parameters).forEach(([paramName, paramConfig]) => {
-        const formGroup = document.createElement('div');
-        formGroup.className = 'mb-3';
-        
-        // Create label
-        const label = document.createElement('label');
-        label.className = 'form-label';
-        label.textContent = formatParamName(paramName);
-        
-        if (typeof paramConfig === 'object' && paramConfig.description) {
-            label.title = paramConfig.description;
-            label.classList.add('text-info');
-        }
-        
-        // Determine default value and input type
-        let defaultValue, min, max, step;
-        let inputType = 'number';
-        
-        if (typeof paramConfig === 'object') {
-            defaultValue = paramConfig.default !== undefined ? paramConfig.default : '';
-            min = paramConfig.min !== undefined ? paramConfig.min : '';
-            max = paramConfig.max !== undefined ? paramConfig.max : '';
-            step = paramConfig.step !== undefined ? paramConfig.step : 'any';
+    // Get strategy configuration if available
+    const strategyConfig = getStrategyConfig(strategyType);
+    
+    if (strategyConfig && strategyConfig.params) {
+        // Use the configuration to create the form elements with proper labels, types, etc.
+        strategyConfig.params.forEach(paramConfig => {
+            const formGroup = document.createElement('div');
+            formGroup.className = 'mb-3';
             
-            if (paramConfig.type === 'boolean') {
-                inputType = 'checkbox';
-            } else if (paramConfig.type === 'select' && paramConfig.options) {
-                inputType = 'select';
+            // Create label
+            const label = document.createElement('label');
+            label.className = 'form-label';
+            label.textContent = paramConfig.label;
+            
+            if (paramConfig.description) {
+                label.title = paramConfig.description;
+                label.classList.add('text-info');
             }
-        } else {
-            defaultValue = paramConfig;
-        }
-        
-        // Create input element
-        let input;
-        
-        if (inputType === 'select') {
-            input = document.createElement('select');
-            input.className = 'form-select';
             
-            // Add options
-            if (paramConfig.options) {
+            // Create input element based on type
+            let input;
+            
+            if (paramConfig.type === 'select' && paramConfig.options) {
+                input = document.createElement('select');
+                input.className = 'form-select';
+                
+                // Add options
                 paramConfig.options.forEach(option => {
                     const optionEl = document.createElement('option');
                     optionEl.value = option.value || option;
                     optionEl.textContent = option.label || option;
                     
-                    if (option.value === defaultValue || option === defaultValue) {
+                    if (option.value === parameters[paramConfig.id] || option === parameters[paramConfig.id]) {
                         optionEl.selected = true;
                     }
                     
                     input.appendChild(optionEl);
                 });
+            } else if (paramConfig.type === 'checkbox') {
+                input = document.createElement('input');
+                input.type = 'checkbox';
+                input.className = 'form-check-input';
+                input.checked = parameters[paramConfig.id] === true;
+                
+                // Use form-check div for checkbox
+                formGroup.className = 'form-check mb-3';
+                label.className = 'form-check-label';
+                label.style.marginLeft = '10px';
+            } else {
+                input = document.createElement('input');
+                input.type = paramConfig.type || 'number';
+                input.className = 'form-control';
+                input.value = parameters[paramConfig.id] !== undefined ? parameters[paramConfig.id] : paramConfig.default;
+                
+                if (paramConfig.type === 'number') {
+                    if (paramConfig.min !== undefined) input.min = paramConfig.min;
+                    if (paramConfig.max !== undefined) input.max = paramConfig.max;
+                    if (paramConfig.step !== undefined) input.step = paramConfig.step;
+                }
             }
-        } else if (inputType === 'checkbox') {
-            input = document.createElement('input');
-            input.type = 'checkbox';
-            input.className = 'form-check-input';
-            input.checked = defaultValue === true;
             
-            // Use form-check div for checkbox
-            formGroup.className = 'form-check mb-3';
-            label.className = 'form-check-label';
-            label.style.marginLeft = '10px';
-        } else {
-            input = document.createElement('input');
-            input.type = inputType;
-            input.className = 'form-control';
-            input.value = defaultValue;
+            input.id = `param-${paramConfig.id}`;
+            input.name = paramConfig.id;
             
-            if (inputType === 'number') {
-                if (min !== '') input.min = min;
-                if (max !== '') input.max = max;
-                if (step !== '') input.step = step;
+            // Add data attribute to store parameter metadata
+            input.dataset.paramType = typeof paramConfig.default;
+            
+            // Add elements to form group
+            if (paramConfig.type === 'checkbox') {
+                formGroup.appendChild(input);
+                formGroup.appendChild(label);
+            } else {
+                formGroup.appendChild(label);
+                formGroup.appendChild(input);
             }
-        }
-        
-        input.id = `param-${paramName}`;
-        input.name = paramName;
-        
-        // Add data attribute to store parameter metadata
-        input.dataset.paramType = typeof defaultValue;
-        
-        // Add elements to form group
-        if (inputType === 'checkbox') {
-            formGroup.appendChild(input);
-            formGroup.appendChild(label);
-        } else {
-            formGroup.appendChild(label);
-            formGroup.appendChild(input);
-        }
-        
-        // Add form group to container
-        strategyParametersContainer.appendChild(formGroup);
-    });
+            
+            // Add form group to container
+            strategyParametersContainer.appendChild(formGroup);
+        });
+    } else {
+        // Fallback to generic parameter rendering for unknown strategies
+        Object.entries(parameters).forEach(([paramName, paramValue]) => {
+            const formGroup = document.createElement('div');
+            formGroup.className = 'mb-3';
+            
+            // Create label
+            const label = document.createElement('label');
+            label.className = 'form-label';
+            label.textContent = formatParamName(paramName);
+            
+            // Create input element based on value type
+            let input;
+            
+            if (typeof paramValue === 'boolean') {
+                input = document.createElement('input');
+                input.type = 'checkbox';
+                input.className = 'form-check-input';
+                input.checked = paramValue;
+                
+                // Use form-check div for checkbox
+                formGroup.className = 'form-check mb-3';
+                label.className = 'form-check-label';
+                label.style.marginLeft = '10px';
+            } else if (typeof paramValue === 'number') {
+                input = document.createElement('input');
+                input.type = 'number';
+                input.className = 'form-control';
+                input.value = paramValue;
+                input.step = paramName.includes('period') ? 1 : 0.1;
+            } else {
+                input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'form-control';
+                input.value = paramValue;
+            }
+            
+            input.id = `param-${paramName}`;
+            input.name = paramName;
+            
+            // Add data attribute to store parameter metadata
+            input.dataset.paramType = typeof paramValue;
+            
+            // Add elements to form group
+            if (typeof paramValue === 'boolean') {
+                formGroup.appendChild(input);
+                formGroup.appendChild(label);
+            } else {
+                formGroup.appendChild(label);
+                formGroup.appendChild(input);
+            }
+            
+            // Add form group to container
+            strategyParametersContainer.appendChild(formGroup);
+        });
+    }
     
     // Add run backtest button if it doesn't exist
     if (!document.getElementById('run-backtest-btn')) {
