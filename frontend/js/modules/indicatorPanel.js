@@ -329,7 +329,13 @@ export function initializeIndicatorControls() {
                 // Accumulation Distribution Line
                 const adLineCheckbox = document.getElementById('ad-line-checkbox');
                 if (adLineCheckbox && adLineCheckbox.checked) {
-                    indicatorConfig.adl = true;
+                    indicatorConfig.ad_line = true;
+                }
+                
+                // Candlestick Patterns
+                const candlestickPatternsCheckbox = document.getElementById('candlestick-patterns-checkbox');
+                if (candlestickPatternsCheckbox && candlestickPatternsCheckbox.checked) {
+                    indicatorConfig.candlestick_patterns = true;
                 }
                 
                 // Donchian Channels
@@ -353,12 +359,6 @@ export function initializeIndicatorControls() {
                         atr_period: atrInput && atrInput.value ? parseInt(atrInput.value) : 10,
                         multiplier: multiplierInput && multiplierInput.value ? parseFloat(multiplierInput.value) : 1.5
                     };
-                }
-                
-                // Candlestick Patterns - use direct boolean instead of object with enabled property
-                const candlestickPatternsCheckbox = document.getElementById('candlestick-patterns-checkbox');
-                if (candlestickPatternsCheckbox && candlestickPatternsCheckbox.checked) {
-                    indicatorConfig.candlestick_patterns = true;
                 }
                 
                 // Check if any indicator is selected
@@ -602,6 +602,12 @@ export function initializeIndicatorControls() {
                 const adLineCheckbox = document.getElementById('ad-line-checkbox');
                 if (adLineCheckbox && adLineCheckbox.checked) {
                     indicatorConfig.ad_line = true;
+                }
+                
+                // Candlestick Patterns
+                const candlestickPatternsCheckbox = document.getElementById('candlestick-patterns-checkbox');
+                if (candlestickPatternsCheckbox && candlestickPatternsCheckbox.checked) {
+                    indicatorConfig.candlestick_patterns = true;
                 }
                 
                 // First, add the indicators to ensure they're available 
