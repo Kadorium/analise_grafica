@@ -1,0 +1,125 @@
+// frontend/js/utils/ui.js
+
+// Error handling
+export function showError(message) {
+    const errorModal = new bootstrap.Modal(document.getElementById('error-modal'));
+    const errorMessage = document.getElementById('error-message');
+    errorMessage.textContent = message;
+    errorModal.show();
+}
+
+// Loading indicator
+export function showLoading(element) {
+    const spinnerHtml = `
+        <div class="spinner-container">
+            <div class="spinner-border text-primary spinner" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    element.innerHTML = spinnerHtml;
+}
+
+// Global loader
+export function showGlobalLoader(message = 'Loading...') {
+    let loaderEl = document.createElement('div');
+    loaderEl.id = 'global-loader';
+    loaderEl.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50';
+    loaderEl.style.zIndex = '9999';
+    loaderEl.innerHTML = `
+        <div class="bg-white p-3 rounded">
+            <div class="d-flex align-items-center">
+                <div class="spinner-border text-primary me-3"></div>
+                <span>${message}</span>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loaderEl);
+}
+
+export function hideGlobalLoader() {
+    const loader = document.getElementById('global-loader');
+    if (loader) {
+        loader.remove();
+    }
+}
+
+// Success message
+export function showSuccessMessage(message) {
+    const successDiv = document.createElement('div');
+    successDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+    successDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    // Find a good place to show the message
+    const currentSection = document.querySelector('.content-section.active');
+    if (currentSection) {
+        currentSection.appendChild(successDiv);
+        
+        // Remove the message after 5 seconds
+        setTimeout(() => {
+            successDiv.remove();
+        }, 5000);
+    }
+}
+
+// Notification
+export function showNotification(message, type = 'info') {
+    // Create a Bootstrap alert
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.setAttribute('role', 'alert');
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    // Add to the current active section
+    const currentSection = document.querySelector('.content-section.active');
+    if (currentSection) {
+        currentSection.prepend(alertDiv);
+        
+        // Auto dismiss after 5 seconds
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+}
+
+// Tab navigation
+export function activateTab(tabElement) {
+    // Get the target section ID from the tab's href or data-bs-target attribute
+    const targetId = tabElement.getAttribute('href') || tabElement.dataset.bsTarget;
+    if (!targetId) return;
+    
+    // Remove the leading # to get the actual ID
+    const sectionId = targetId.replace('#', '');
+    
+    // Find the section element
+    const sectionElement = document.getElementById(sectionId);
+    if (!sectionElement) return;
+    
+    // Get the section title (can be customized based on your needs)
+    const title = tabElement.textContent.trim();
+    
+    // DOM elements for all tabs and sections
+    const tabs = document.querySelectorAll('.nav-link');
+    const sections = document.querySelectorAll('.content-section');
+    
+    // Deactivate all tabs and hide all sections
+    tabs.forEach(t => t.classList.remove('active'));
+    sections.forEach(s => s.classList.remove('active'));
+    
+    // Activate the selected tab and show the corresponding section
+    tabElement.classList.add('active');
+    sectionElement.classList.add('active');
+    
+    // Update page title if available
+    const pageTitle = document.getElementById('page-title');
+    if (pageTitle) pageTitle.textContent = title;
+    
+    // Save the active tab to session storage to persist across page reloads
+    sessionStorage.setItem('activeTab', tabElement.id);
+}

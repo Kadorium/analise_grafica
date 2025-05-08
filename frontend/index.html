@@ -219,37 +219,37 @@
                     </h5>
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link active" href="#" id="data-tab">
+                            <a class="nav-link active" href="#data-section" id="data-tab">
                                 <i class="bi bi-file-earmark-text"></i> Data
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#" id="indicators-tab">
+                            <a class="nav-link" href="#indicators-section" id="indicators-tab">
                                 <i class="bi bi-graph-up"></i> Indicators
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#" id="strategies-tab">
+                            <a class="nav-link" href="#strategies-section" id="strategies-tab">
                                 <i class="bi bi-lightbulb"></i> Strategies
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#" id="backtest-tab">
+                            <a class="nav-link" href="#backtest-section" id="backtest-tab">
                                 <i class="bi bi-clipboard-data"></i> Backtest
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#" id="optimization-tab">
+                            <a class="nav-link" href="#optimization-section" id="optimization-tab">
                                 <i class="bi bi-gear"></i> Optimization
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#" id="seasonality-tab">
+                            <a class="nav-link" href="#seasonality-section" id="seasonality-tab">
                                 <i class="bi bi-calendar3"></i> Seasonality
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#" id="results-tab">
+                            <a class="nav-link" href="#results-section" id="results-tab">
                                 <i class="bi bi-bar-chart"></i> Results
                             </a>
                         </li>
@@ -955,7 +955,47 @@
 
     <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- App JS -->
-    <script src="/static/js/app.js"></script>
+    <!-- Application Scripts -->
+    <script type="module" src="/static/js/main.js"></script>
+    
+    <!-- Direct tab navigation fallback script -->
+    <script>
+        // Simple backup script to ensure tabs work if the main.js implementation fails
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add click handlers to tab links
+            const tabLinks = document.querySelectorAll('.nav-link');
+            
+            tabLinks.forEach(function(tab) {
+                tab.addEventListener('click', function(e) {
+                    // Try to activate tab directly if the main module doesn't handle it
+                    setTimeout(function() {
+                        const targetId = tab.getAttribute('href');
+                        if (targetId) {
+                            const targetSection = document.getElementById(targetId.substring(1));
+                            
+                            // Check if target section is visible
+                            if (targetSection && !targetSection.classList.contains('active')) {
+                                console.log('Fallback tab activation for', targetId);
+                                
+                                // Hide all sections
+                                document.querySelectorAll('.content-section').forEach(function(section) {
+                                    section.classList.remove('active');
+                                });
+                                
+                                // Show target section
+                                targetSection.classList.add('active');
+                                
+                                // Update active tab
+                                tabLinks.forEach(function(t) {
+                                    t.classList.remove('active');
+                                });
+                                tab.classList.add('active');
+                            }
+                        }
+                    }, 100); // Small delay to let the module code run first
+                });
+            });
+        });
+    </script>
 </body>
 </html> 
