@@ -245,6 +245,7 @@ export async function fetchAndDisplayOptimizationResults(jobId = null) {
 
 // Display optimization results
 function displayOptimizationResults(results) {
+    console.log("Received optimization results:", results);
     const container = document.getElementById('optimization-results');
     if (!container) {
         console.error("Optimization results container not found");
@@ -269,7 +270,129 @@ function displayOptimizationResults(results) {
             .join('');
     }
 
-    // Create a clean and simple display of just the best parameters
+    // Check if we have comparison data
+    const hasComparison = results.default_params && results.optimized_params && 
+                         results.default_performance && results.optimized_performance;
+                         
+    console.log("Has comparison data:", hasComparison);
+    if (hasComparison) {
+        console.log("Default params:", results.default_params);
+        console.log("Optimized params:", results.optimized_params);
+    }
+
+    // Create the comparison section if it exists
+    let comparisonHtml = '';
+    if (hasComparison) {
+        const defaultParams = results.default_params;
+        const optimizedParams = results.optimized_params;
+        
+        // Create parameter comparison table
+        let paramComparisonRows = '';
+        const allParamKeys = [...new Set([...Object.keys(defaultParams), ...Object.keys(optimizedParams)])];
+        
+        for (const key of allParamKeys) {
+            const defaultValue = defaultParams[key] !== undefined ? defaultParams[key] : 'N/A';
+            const optimizedValue = optimizedParams[key] !== undefined ? optimizedParams[key] : 'N/A';
+            const isChanged = defaultValue !== optimizedValue;
+            
+            paramComparisonRows += `
+                <tr ${isChanged ? 'class="table-success"' : ''}>
+                    <td>${formatParamName(key)}</td>
+                    <td>${defaultValue}</td>
+                    <td>${optimizedValue}</td>
+                </tr>
+            `;
+        }
+        
+        // Create performance metric comparison table
+        let metricComparisonRows = '';
+        const metricsToCompare = [
+            {key: 'sharpe_ratio', label: 'Sharpe Ratio', higherBetter: true},
+            {key: 'total_return_percent', label: 'Total Return (%)', higherBetter: true},
+            {key: 'annual_return_percent', label: 'Annual Return (%)', higherBetter: true},
+            {key: 'max_drawdown_percent', label: 'Max Drawdown (%)', higherBetter: false},
+            {key: 'win_rate_percent', label: 'Win Rate (%)', higherBetter: true},
+            {key: 'profit_factor', label: 'Profit Factor', higherBetter: true}
+        ];
+        
+        for (const metric of metricsToCompare) {
+            if (!results.default_performance || !results.optimized_performance) {
+                console.error("Missing performance data:", { 
+                    default: results.default_performance, 
+                    optimized: results.optimized_performance
+                });
+                continue;
+            }
+            
+            const defaultValue = results.default_performance[metric.key] !== undefined ? 
+                                formatNumber(results.default_performance[metric.key]) : 'N/A';
+            const optimizedValue = results.optimized_performance[metric.key] !== undefined ? 
+                                  formatNumber(results.optimized_performance[metric.key]) : 'N/A';
+            
+            let isImproved = false;
+            if (results.default_performance[metric.key] !== undefined && 
+                results.optimized_performance[metric.key] !== undefined) {
+                isImproved = metric.higherBetter ? 
+                            (results.optimized_performance[metric.key] > results.default_performance[metric.key]) :
+                            (results.optimized_performance[metric.key] < results.default_performance[metric.key]);
+            }
+            
+            metricComparisonRows += `
+                <tr ${isImproved ? 'class="table-success"' : ''}>
+                    <td>${metric.label}</td>
+                    <td>${defaultValue}</td>
+                    <td>${optimizedValue}</td>
+                </tr>
+            `;
+        }
+        
+        // Build the complete comparison HTML
+        comparisonHtml = `
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Default vs. Optimized Comparison</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Parameter Comparison</h6>
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Default Value</th>
+                                <th>Optimized Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${paramComparisonRows}
+                        </tbody>
+                    </table>
+                    
+                    <h6 class="mt-4">Performance Comparison</h6>
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Default</th>
+                                <th>Optimized</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${metricComparisonRows}
+                        </tbody>
+                    </table>
+                    
+                    ${results.comparison_chart_html ? `
+                        <h6 class="mt-4">Equity Curve Comparison</h6>
+                        <div class="comparison-chart-container">
+                            ${results.comparison_chart_html}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Create a clean and simple display of the best parameters and comparison
     let summaryHtml = `
         <div class="card mb-4">
             <div class="card-header bg-success text-white">
@@ -290,6 +413,7 @@ function displayOptimizationResults(results) {
                 ${best.score ? `<p class="mt-3 mb-0"><strong>Score:</strong> ${formatNumber(best.score)}</p>` : ''}
             </div>
         </div>
+        ${comparisonHtml}
     `;
     
     // Add the summary to the container
@@ -301,6 +425,24 @@ function displayOptimizationResults(results) {
         appState.currentOptimizationStrategy;
         
     addDownloadButton(results, currentStrategy);
+    
+    // Add "Use Optimized Parameters" button if not already present
+    if (!document.getElementById('use-optimized-params')) {
+        const useParamsBtn = document.createElement('button');
+        useParamsBtn.id = 'use-optimized-params';
+        useParamsBtn.className = 'btn btn-success ms-2';
+        useParamsBtn.innerHTML = '<i class="bi bi-check-circle"></i> Use Optimized Parameters';
+        useParamsBtn.onclick = () => {
+            if (results.best_params) {
+                useOptimizedParameters(results.best_params);
+            } else if (best && best.params) {
+                useOptimizedParameters(best.params);
+            } else {
+                showError('No optimized parameters available to use');
+            }
+        };
+        document.querySelector('#optimization-results .d-flex').appendChild(useParamsBtn);
+    }
 }
 
 // Use optimized parameters

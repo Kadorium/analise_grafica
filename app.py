@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import json
 from fastapi import FastAPI, UploadFile, File, Form, BackgroundTasks, Request
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
@@ -22,6 +22,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import functools
+import traceback as tb
 
 # Configuração de logging
 logging.basicConfig(
@@ -191,7 +192,8 @@ OPTIMIZATION_STATUS = {
     "in_progress": False,
     "strategy_type": None,
     "start_time": None,
-    "latest_result_file": None
+    "latest_result_file": None,
+    "comparison_data": {}
 }
 
 # Create the FastAPI app
@@ -307,6 +309,102 @@ class PlotConfig(BaseModel):
     title: str = "Price Chart with Indicators"
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+
+# Update log_optimization_request to accept extra info and errors
+
+def log_optimization_request(request_data, extra_info=None, error=None, traceback_info=None):
+    """
+    Appends optimization request data, extra info, and errors to a log file for debugging and traceability.
+    """
+    import json
+    import traceback as tb
+    from datetime import datetime
+    log_file = 'optimization_requests.log'
+    
+    # Create basic log entry
+    log_entry = {
+        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        'strategy_type': request_data.get('strategy_type', 'unknown')
+    }
+    
+    # Add request parameters with better formatting
+    if 'param_ranges' in request_data:
+        formatted_params = {}
+        for param_name, param_values in request_data['param_ranges'].items():
+            # If the parameter has many values, just show count and range
+            if isinstance(param_values, list) and len(param_values) > 10:
+                formatted_params[param_name] = f"{len(param_values)} values from {min(param_values)} to {max(param_values)}"
+            else:
+                formatted_params[param_name] = param_values
+        log_entry['param_ranges'] = formatted_params
+    
+    # Add other request fields
+    for key, value in request_data.items():
+        if key != 'param_ranges' and key != 'strategy_type':
+            log_entry[key] = value
+    
+    # Add extra info if provided
+    if extra_info is not None:
+        # Format optimization results for better readability
+        if 'default_performance' in extra_info and 'optimized_performance' in extra_info:
+            perf_comparison = {}
+            for metric in ['sharpe_ratio', 'total_return_percent', 'max_drawdown_percent', 'win_rate_percent']:
+                if metric in extra_info['default_performance'] and metric in extra_info['optimized_performance']:
+                    default_val = extra_info['default_performance'][metric]
+                    opt_val = extra_info['optimized_performance'][metric]
+                    perf_comparison[metric] = {
+                        'default': round(default_val, 4) if isinstance(default_val, (int, float)) else default_val,
+                        'optimized': round(opt_val, 4) if isinstance(opt_val, (int, float)) else opt_val,
+                        'improvement': f"{round((opt_val - default_val) / abs(default_val) * 100, 2)}%" 
+                            if isinstance(default_val, (int, float)) and default_val != 0 else "N/A"
+                    }
+            log_entry['performance_comparison'] = perf_comparison
+        
+        # Add parameter comparison
+        if 'default_params' in extra_info and 'optimized_params' in extra_info:
+            param_comparison = {}
+            # Get all unique parameter names
+            all_params = set(list(extra_info['default_params'].keys()) + list(extra_info['optimized_params'].keys()))
+            for param in all_params:
+                default_val = extra_info['default_params'].get(param, "N/A")
+                opt_val = extra_info['optimized_params'].get(param, "N/A")
+                if default_val != opt_val:
+                    param_comparison[param] = {
+                        'default': default_val,
+                        'optimized': opt_val
+                    }
+            log_entry['parameter_changes'] = param_comparison
+        
+        # Add summary of all results
+        if 'all_results' in extra_info:
+            top_results_summary = []
+            for i, result in enumerate(extra_info['all_results'][:min(3, len(extra_info['all_results']))]):
+                result_summary = {
+                    'rank': i + 1,
+                    'params': result['params'],
+                    'score': round(result['value'], 4) if isinstance(result['value'], (int, float)) else result['value']
+                }
+                top_results_summary.append(result_summary)
+            log_entry['top_results_summary'] = top_results_summary
+    
+    # Add error if any
+    if error is not None:
+        log_entry['error'] = str(error)
+        
+        # Add traceback info if available
+        if traceback_info is not None:
+            log_entry['traceback'] = traceback_info
+        # If traceback not provided, try to get current exception traceback
+        elif error:
+            current_tb = tb.format_exc()
+            if current_tb and 'NoneType' not in current_tb:
+                log_entry['traceback'] = current_tb
+    
+    try:
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(json.dumps(log_entry, ensure_ascii=False, indent=2) + '\n\n')
+    except Exception as e:
+        logger.error(f"Failed to write optimization request log: {e}")
 
 # Routes
 @app.get("/")
@@ -754,23 +852,39 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
 @app.post("/api/optimize-strategy")
 @endpoint_wrapper("POST /api/optimize-strategy")
 async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, background_tasks: BackgroundTasks, request: Request):
-    global PROCESSED_DATA, OPTIMIZATION_STATUS
-    
+    global PROCESSED_DATA, OPTIMIZATION_STATUS, CURRENT_CONFIG
+
+    # Log the incoming optimization request
+    log_optimization_request(optimization_config.dict())
+
     log_endpoint(f"{request.method} {request.url.path} - DETAILS", optimization_cfg=optimization_config.dict())
 
     if PROCESSED_DATA is None:
+        log_optimization_request(optimization_config.dict(), error="No processed data.")
         return JSONResponse(status_code=400, content={"success": False, "message": "No processed data."})
-    
+
     OPTIMIZATION_STATUS["in_progress"] = True
     OPTIMIZATION_STATUS["strategy_type"] = optimization_config.strategy_type
     OPTIMIZATION_STATUS["start_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     OPTIMIZATION_STATUS["latest_result_file"] = None
-    
+
+    # If 'strategies' doesn't exist in CURRENT_CONFIG, create it
+    if 'strategies' not in CURRENT_CONFIG:
+        CURRENT_CONFIG['strategies'] = {}
+
+    # Prepare comparison result to be returned
+    comparison_result = {
+        "status": "in_progress",
+        "message": f"Optimization for {optimization_config.strategy_type} is running in the background."
+    }
+
     def run_optimization_task():
         global CURRENT_CONFIG, OPTIMIZATION_STATUS
+        error_message = None
+
         try:
-            # Assuming optimize_strategy from import handles its own detailed logging if necessary
-            best_strategy, best_params, best_performance, all_results_raw = optimize_strategy(
+            # 1. Run optimization
+            best_params, best_performance, all_results_raw = optimize_strategy(
                 data=PROCESSED_DATA,
                 strategy_type=optimization_config.strategy_type,
                 param_ranges=optimization_config.param_ranges,
@@ -778,64 +892,152 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
                 start_date=optimization_config.start_date,
                 end_date=optimization_config.end_date
             )
-            
-            # CURRENT_CONFIG update was inside 'strategies', ensure key exists
-            if 'strategies' not in CURRENT_CONFIG: CURRENT_CONFIG['strategies'] = {}
+
+            # Create the best strategy object using the best parameters
+            best_strategy = create_strategy(optimization_config.strategy_type, **best_params)
+
+            # Update the CURRENT_CONFIG with best parameters
             if optimization_config.strategy_type not in CURRENT_CONFIG['strategies']:
-                 CURRENT_CONFIG['strategies'][optimization_config.strategy_type] = {}
+                CURRENT_CONFIG['strategies'][optimization_config.strategy_type] = {}
             CURRENT_CONFIG['strategies'][optimization_config.strategy_type].update(best_params)
+
+            # 2. Get default parameters and run backtest for default
+            default_params = get_default_parameters(optimization_config.strategy_type)
+            from backtesting.backtester import Backtester
+            backtester = Backtester(PROCESSED_DATA, 10000.0, 0.001)
+            default_strategy = create_strategy(optimization_config.strategy_type, **default_params)
+            default_result = backtester.run_backtest(default_strategy, optimization_config.start_date, optimization_config.end_date)
+            default_performance = default_result['performance_metrics']
+            default_signals = default_result['signals'] if 'signals' in default_result else None
+
+            # 3. Run backtest for optimized parameters
+            combined_params = {**default_params, **best_params}
+            optimized_strategy = create_strategy(optimization_config.strategy_type, **combined_params)
+            optimized_result = backtester.run_backtest(optimized_strategy, optimization_config.start_date, optimization_config.end_date)
+            optimized_performance = optimized_result['performance_metrics']
+            optimized_signals = optimized_result['signals'] if 'signals' in optimized_result else None
+
+            # 4. Generate comparison chart (equity curve)
+            chart_html = None
+            if default_signals is not None and optimized_signals is not None:
+                import matplotlib.pyplot as plt
+                import io, base64
+                plt.figure(figsize=(10, 5))
+                plt.plot(default_signals['date'], default_signals['equity'], label='Default', color='red')
+                plt.plot(optimized_signals['date'], optimized_signals['equity'], label='Optimized', color='green')
+                plt.xlabel('Date')
+                plt.ylabel('Equity')
+                plt.title('Equity Curve Comparison')
+                plt.legend()
+                buf = io.BytesIO()
+                plt.tight_layout()
+                plt.savefig(buf, format='png')
+                buf.seek(0)
+                chart_html = f"<img src='data:image/png;base64,{base64.b64encode(buf.read()).decode()}' style='max-width:100%;'/>"
+                plt.close()
+
+            # 5. Update comparison result
+            comparison_result.update({
+                "status": "completed",
+                "default_params": default_params,
+                "default_performance": default_performance,
+                "optimized_params": combined_params,
+                "optimized_performance": optimized_performance,
+                "comparison_chart_html": chart_html
+            })
             
-            # Ensure directory exists
+            # Store comparison data in OPTIMIZATION_STATUS
+            OPTIMIZATION_STATUS["comparison_data"] = {
+                "default_params": default_params,
+                "default_performance": default_performance,
+                "optimized_params": combined_params,
+                "optimized_performance": optimized_performance,
+                "comparison_chart_html": chart_html
+            }
+
+            # 6. Log everything
+            log_optimization_request(
+                optimization_config.dict(),
+                extra_info={
+                    'default_params': default_params,
+                    'default_performance': default_performance,
+                    'optimized_params': combined_params,
+                    'optimized_performance': optimized_performance,
+                    'all_results': all_results_raw[:10]  # log top 10
+                }
+            )
+
+            # 7. Save results as before
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             results_dir = os.path.join("results", "optimization")
             try:
                 os.makedirs(results_dir, exist_ok=True)
             except Exception as e_dir:
                 logger.error(f"Error creating optimization results directory: {str(e_dir)}")
-                # Try another location as fallback
                 results_dir = "."
-            
+                
             results_file = os.path.join(results_dir, f"optimization_{optimization_config.strategy_type}_{timestamp}.json")
             
             # Format results in structure expected by frontend
-            top_results = []
-            for result in all_results_raw[:10]:  # Take top 10 results
-                top_results.append({
-                    "params": result['params'],
-                    "score": result['value'],
-                    "metrics": result.get('performance', {})
-                })
-            
-            # Create final results structure that matches what frontend expects
-            serializable_results = {
-                'strategy_type': optimization_config.strategy_type,
-                'metric': optimization_config.metric,
-                'best_params': best_params,
-                'best_performance': best_performance,
-                'top_results': top_results,
-                'all_results': [{'params': r['params'], 'value': r['value'], 'performance': r['performance']} 
-                               for r in all_results_raw]
+            formatted_results = {
+                "top_results": [],
+                "best_params": best_params,
+                "default_params": default_params,
+                "optimized_params": combined_params,
+                "default_performance": default_performance,
+                "optimized_performance": optimized_performance,
+                "comparison_chart_html": chart_html
             }
             
+            # Add top 10 results
+            for result in all_results_raw[:10]:  # Take top 10 results
+                formatted_results["top_results"].append({
+                    "params": result["params"],
+                    "score": result["value"],
+                    "performance": result.get("performance", {})
+                })
+            
+            # Save formatted results to a file
             try:
+                os.makedirs(results_dir, exist_ok=True)
+                results_file = os.path.join(results_dir, f"optimization_{optimization_config.strategy_type}_{timestamp}.json")
                 with open(results_file, 'w') as f:
-                    json.dump(serializable_results, f, indent=4)
-                logger.info(f"Optimization results saved to {results_file}")
+                    json.dump(formatted_results, f, indent=2)
                 OPTIMIZATION_STATUS["latest_result_file"] = results_file
+                logger.info(f"Optimization results saved to {results_file}")
             except Exception as e_file:
                 logger.error(f"Error saving optimization results: {str(e_file)}\n{traceback.format_exc()}")
-        except Exception as e_opt:
-            logger.error(f"Error in optimization background task: {str(e_opt)}\n{traceback.format_exc()}")
-        finally:
+        except Exception as e:
+            error_msg = str(e)
+            traceback_str = tb.format_exc()
+            logger.error(f"Error during optimization: {error_msg}\n{traceback_str}")
+            log_optimization_request(
+                optimization_config.dict(), 
+                error=error_msg,
+                traceback_info=traceback_str
+            )
+            
+            # Mark optimization as complete but failed
             OPTIMIZATION_STATUS["in_progress"] = False
+            OPTIMIZATION_STATUS["error"] = error_msg
+            comparison_result.update({
+                "status": "failed",
+                "error": error_msg
+            })
+        finally:
+            # Always mark as complete when done
+            OPTIMIZATION_STATUS["in_progress"] = False
+            OPTIMIZATION_STATUS["completion_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     background_tasks.add_task(run_optimization_task)
-    
+
     log_endpoint(f"{request.method} {request.url.path} - TASK_SCHEDULED", strategy=optimization_config.strategy_type)
+    # Return the comparison result structure in the API response
     return {
         "message": "Optimization started in the background",
         "strategy_type": optimization_config.strategy_type,
-        "metric": optimization_config.metric
+        "metric": optimization_config.metric,
+        "comparison": comparison_result
     }
 
 @app.get("/api/optimization-status")
@@ -894,6 +1096,17 @@ async def get_optimization_results(strategy_type: str, request: Request):
             else:
                 # Create empty top_results if all_results is missing
                 results_content['top_results'] = []
+
+        # Check if comparison data is present in the file
+        has_comparison = ('default_params' in results_content and 
+                          'optimized_params' in results_content and
+                          'default_performance' in results_content and
+                          'optimized_performance' in results_content)
+        
+        # If no comparison data in the file but we have it in memory, add it to the results
+        if not has_comparison and hasattr(OPTIMIZATION_STATUS, 'comparison_data'):
+            logger.info(f"Adding comparison data from memory to results: {strategy_type}")
+            results_content.update(OPTIMIZATION_STATUS.get('comparison_data', {}))
                 
         log_endpoint(f"{request.method} {request.url.path} - RESULTS_LOADED", file=latest_file)
         return JSONResponse(content={
