@@ -909,6 +909,11 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
             default_result = backtester.run_backtest(default_strategy, optimization_config.start_date, optimization_config.end_date)
             default_performance = default_result['performance_metrics']
             default_signals = default_result['signals'] if 'signals' in default_result else None
+            
+            # Calculate additional metrics for default strategy
+            if default_signals is not None:
+                additional_metrics = calculate_advanced_metrics(default_signals)
+                default_performance.update(additional_metrics)
 
             # 3. Run backtest for optimized parameters
             combined_params = {**default_params, **best_params}
@@ -916,6 +921,11 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
             optimized_result = backtester.run_backtest(optimized_strategy, optimization_config.start_date, optimization_config.end_date)
             optimized_performance = optimized_result['performance_metrics']
             optimized_signals = optimized_result['signals'] if 'signals' in optimized_result else None
+            
+            # Calculate additional metrics for optimized strategy
+            if optimized_signals is not None:
+                additional_metrics = calculate_advanced_metrics(optimized_signals)
+                optimized_performance.update(additional_metrics)
 
             # 4. Generate comparison chart (equity curve)
             chart_html = None
@@ -1798,6 +1808,76 @@ async def check_optimization_directory():
             "message": f"Error with optimization directory: {str(e)}",
             "directory": results_dir
         }
+
+# Calculate additional performance metrics
+def calculate_advanced_metrics(signals_df, initial_capital=10000.0):
+    """Calculate additional performance metrics that aren't in the base set"""
+    df = signals_df.copy()
+    metrics = {}
+    
+    try:
+        # Calculate daily returns
+        df['daily_return'] = df['equity'].pct_change().fillna(0)
+        
+        # Percent profitable days
+        profitable_days = (df['daily_return'] > 0).sum()
+        total_days = len(df)
+        metrics['percent_profitable_days'] = (profitable_days / total_days) * 100 if total_days > 0 else 0
+        
+        # Sortino ratio (downside risk only)
+        negative_returns = df['daily_return'][df['daily_return'] < 0]
+        downside_std = negative_returns.std() * np.sqrt(252) if len(negative_returns) > 0 else 0.001  # Avoid division by zero
+        avg_return = df['daily_return'].mean() * 252  # Annualized
+        metrics['sortino_ratio'] = avg_return / downside_std if downside_std > 0 else 0
+        
+        # Calmar ratio (return / max drawdown)
+        if 'drawdown' in df.columns and df['drawdown'].max() > 0:
+            metrics['calmar_ratio'] = avg_return / df['drawdown'].max()
+        else:
+            metrics['calmar_ratio'] = 0
+            
+        # Risk-adjusted return ratio
+        if 'annual_volatility_percent' in metrics and metrics['annual_volatility_percent'] > 0:
+            metrics['risk_adjusted_return'] = metrics.get('annual_return_percent', 0) / metrics['annual_volatility_percent']
+        else:
+            metrics['risk_adjusted_return'] = 0
+            
+        # Consecutive wins/losses
+        if 'trade_profit' in df.columns:
+            wins = df['trade_profit'] > 0
+            win_streaks = []
+            current_streak = 0
+            for win in wins:
+                if win:
+                    current_streak += 1
+                else:
+                    if current_streak > 0:
+                        win_streaks.append(current_streak)
+                        current_streak = 0
+            if current_streak > 0:
+                win_streaks.append(current_streak)
+                
+            metrics['max_consecutive_wins'] = max(win_streaks) if win_streaks else 0
+            
+            # Same for losses
+            losses = df['trade_profit'] < 0
+            loss_streaks = []
+            current_streak = 0
+            for loss in losses:
+                if loss:
+                    current_streak += 1
+                else:
+                    if current_streak > 0:
+                        loss_streaks.append(current_streak)
+                        current_streak = 0
+            if current_streak > 0:
+                loss_streaks.append(current_streak)
+                
+            metrics['max_consecutive_losses'] = max(loss_streaks) if loss_streaks else 0
+    except Exception as e:
+        logger.error(f"Error calculating advanced metrics: {str(e)}")
+        
+    return metrics
 
 # Run the app
 if __name__ == "__main__":

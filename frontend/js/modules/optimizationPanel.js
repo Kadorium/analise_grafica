@@ -308,11 +308,16 @@ function displayOptimizationResults(results) {
         let metricComparisonRows = '';
         const metricsToCompare = [
             {key: 'sharpe_ratio', label: 'Sharpe Ratio', higherBetter: true},
+            {key: 'sortino_ratio', label: 'Sortino Ratio', higherBetter: true},
+            {key: 'calmar_ratio', label: 'Calmar Ratio', higherBetter: true},
             {key: 'total_return_percent', label: 'Total Return (%)', higherBetter: true},
             {key: 'annual_return_percent', label: 'Annual Return (%)', higherBetter: true},
             {key: 'max_drawdown_percent', label: 'Max Drawdown (%)', higherBetter: false},
             {key: 'win_rate_percent', label: 'Win Rate (%)', higherBetter: true},
-            {key: 'profit_factor', label: 'Profit Factor', higherBetter: true}
+            {key: 'profit_factor', label: 'Profit Factor', higherBetter: true},
+            {key: 'percent_profitable_days', label: 'Profitable Days (%)', higherBetter: true},
+            {key: 'max_consecutive_wins', label: 'Max Consecutive Wins', higherBetter: true},
+            {key: 'max_consecutive_losses', label: 'Max Consecutive Losses', higherBetter: false}
         ];
         
         for (const metric of metricsToCompare) {
@@ -330,11 +335,27 @@ function displayOptimizationResults(results) {
                                   formatNumber(results.optimized_performance[metric.key]) : 'N/A';
             
             let isImproved = false;
+            let improvementPercent = '';
+            
             if (results.default_performance[metric.key] !== undefined && 
-                results.optimized_performance[metric.key] !== undefined) {
-                isImproved = metric.higherBetter ? 
-                            (results.optimized_performance[metric.key] > results.default_performance[metric.key]) :
-                            (results.optimized_performance[metric.key] < results.default_performance[metric.key]);
+                results.optimized_performance[metric.key] !== undefined &&
+                results.default_performance[metric.key] !== 0) {
+                
+                const defaultVal = results.default_performance[metric.key];
+                const optimizedVal = results.optimized_performance[metric.key];
+                
+                // For metrics where lower is better (like drawdown), reverse the calculation
+                if (metric.higherBetter) {
+                    isImproved = optimizedVal > defaultVal;
+                    if (defaultVal !== 0) {
+                        improvementPercent = `${((optimizedVal - defaultVal) / Math.abs(defaultVal) * 100).toFixed(2)}%`;
+                    }
+                } else {
+                    isImproved = optimizedVal < defaultVal;
+                    if (defaultVal !== 0) {
+                        improvementPercent = `${((defaultVal - optimizedVal) / Math.abs(defaultVal) * 100).toFixed(2)}%`;
+                    }
+                }
             }
             
             metricComparisonRows += `
@@ -342,6 +363,7 @@ function displayOptimizationResults(results) {
                     <td>${metric.label}</td>
                     <td>${defaultValue}</td>
                     <td>${optimizedValue}</td>
+                    <td>${improvementPercent || '-'}</td>
                 </tr>
             `;
         }
@@ -374,6 +396,7 @@ function displayOptimizationResults(results) {
                                 <th>Metric</th>
                                 <th>Default</th>
                                 <th>Optimized</th>
+                                <th>Improvement</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -383,9 +406,62 @@ function displayOptimizationResults(results) {
                     
                     ${results.comparison_chart_html ? `
                         <h6 class="mt-4">Equity Curve Comparison</h6>
+                        <div class="d-flex mb-2">
+                            <div class="btn-group chart-type-toggle">
+                                <button class="btn btn-sm btn-outline-primary active" data-chart-type="line">Line</button>
+                                <button class="btn btn-sm btn-outline-primary" data-chart-type="area">Area</button>
+                                <button class="btn btn-sm btn-outline-primary" data-chart-type="bar">Bar</button>
+                            </div>
+                            <button class="btn btn-sm btn-outline-success ms-2 download-chart-btn">
+                                <i class="bi bi-download"></i> Download Chart
+                            </button>
+                        </div>
                         <div class="comparison-chart-container">
                             ${results.comparison_chart_html}
                         </div>
+                        <script>
+                            // Add chart type toggle functionality
+                            document.querySelectorAll('.chart-type-toggle button').forEach(btn => {
+                                btn.addEventListener('click', function() {
+                                    // Remove active class from all buttons
+                                    document.querySelectorAll('.chart-type-toggle button').forEach(b => b.classList.remove('active'));
+                                    // Add active class to clicked button
+                                    this.classList.add('active');
+                                    
+                                    // Get the chart instance
+                                    const chartId = document.querySelector('.comparison-chart-container canvas').id;
+                                    const chartInstance = Chart.getChart(chartId);
+                                    if (!chartInstance) return;
+                                    
+                                    // Update chart type
+                                    const chartType = this.getAttribute('data-chart-type');
+                                    chartInstance.config.type = chartType === 'area' ? 'line' : chartType;
+                                    
+                                    // For area charts, set fill to true
+                                    chartInstance.data.datasets.forEach(dataset => {
+                                        dataset.fill = chartType === 'area';
+                                    });
+                                    
+                                    // Update the chart
+                                    chartInstance.update();
+                                });
+                            });
+                            
+                            // Add download chart functionality
+                            document.querySelector('.download-chart-btn').addEventListener('click', function() {
+                                const chartId = document.querySelector('.comparison-chart-container canvas').id;
+                                const chartInstance = Chart.getChart(chartId);
+                                if (!chartInstance) return;
+                                
+                                // Create a temporary link element
+                                const link = document.createElement('a');
+                                link.download = 'strategy_comparison_chart.png';
+                                link.href = chartInstance.toBase64Image();
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                            });
+                        </script>
                     ` : '<div class="alert alert-warning mt-4">No comparison chart available</div>'}
                 </div>
             </div>
