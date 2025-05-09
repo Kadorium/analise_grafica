@@ -6,9 +6,12 @@ export const appState = {
     dataProcessed: false,
     availableIndicators: [],
     selectedStrategy: 'trend_following',
+    strategyParameters: {},
     currentConfig: {},
     optimizationStatusInterval: null,
     currentOptimizationStrategy: null,
+    optimizationJobId: null,
+    optimizationResults: null,
     activeTab: null,
     dateRange: {
         startDate: '',
@@ -35,6 +38,11 @@ export const appState = {
         sessionStorage.setItem('selectedStrategy', strategy);
     },
     
+    setStrategyParameters(parameters) {
+        this.strategyParameters = parameters;
+        sessionStorage.setItem('strategyParameters', JSON.stringify(parameters));
+    },
+    
     setCurrentConfig(config) {
         this.currentConfig = config;
     },
@@ -46,6 +54,29 @@ export const appState = {
     setCurrentOptimizationStrategy(strategy) {
         this.currentOptimizationStrategy = strategy;
         sessionStorage.setItem('currentOptimizationStrategy', strategy);
+    },
+    
+    setOptimizationJobId(jobId) {
+        this.optimizationJobId = jobId;
+        sessionStorage.setItem('optimizationJobId', jobId);
+    },
+    
+    setOptimizationResults(results) {
+        this.optimizationResults = results;
+        try {
+            sessionStorage.setItem('optimizationResults', JSON.stringify(results));
+        } catch (e) {
+            console.error('Error storing optimization results in session storage:', e);
+            // Results might be too large for sessionStorage, store a simplified version
+            const simplifiedResults = {
+                strategy_type: results.strategy_type,
+                metric: results.metric,
+                best_params: results.best_params,
+                best_performance: results.best_performance,
+                top_results: results.top_results ? results.top_results.slice(0, 3) : []
+            };
+            sessionStorage.setItem('optimizationResults', JSON.stringify(simplifiedResults));
+        }
     },
     
     setActiveTab(tabId) {
@@ -78,8 +109,30 @@ export const appState = {
             this.selectedStrategy = sessionStorage.getItem('selectedStrategy');
         }
         
+        if (sessionStorage.getItem('strategyParameters')) {
+            try {
+                this.strategyParameters = JSON.parse(sessionStorage.getItem('strategyParameters'));
+            } catch (e) {
+                console.error('Error parsing strategy parameters from session storage:', e);
+                this.strategyParameters = {};
+            }
+        }
+        
         if (sessionStorage.getItem('currentOptimizationStrategy')) {
             this.currentOptimizationStrategy = sessionStorage.getItem('currentOptimizationStrategy');
+        }
+        
+        if (sessionStorage.getItem('optimizationJobId')) {
+            this.optimizationJobId = sessionStorage.getItem('optimizationJobId');
+        }
+        
+        if (sessionStorage.getItem('optimizationResults')) {
+            try {
+                this.optimizationResults = JSON.parse(sessionStorage.getItem('optimizationResults'));
+            } catch (e) {
+                console.error('Error parsing optimization results from session storage:', e);
+                this.optimizationResults = null;
+            }
         }
         
         if (sessionStorage.getItem('activeTab')) {
@@ -100,8 +153,11 @@ export const appState = {
         this.dataProcessed = false;
         this.availableIndicators = [];
         this.selectedStrategy = 'trend_following';
+        this.strategyParameters = {};
         this.currentConfig = {};
         this.currentOptimizationStrategy = null;
+        this.optimizationJobId = null;
+        this.optimizationResults = null;
         this.activeTab = null;
         this.dateRange = {
             startDate: '',
@@ -118,7 +174,10 @@ export const appState = {
         sessionStorage.removeItem('dataUploaded');
         sessionStorage.removeItem('dataProcessed');
         sessionStorage.removeItem('selectedStrategy');
+        sessionStorage.removeItem('strategyParameters');
         sessionStorage.removeItem('currentOptimizationStrategy');
+        sessionStorage.removeItem('optimizationJobId');
+        sessionStorage.removeItem('optimizationResults');
         sessionStorage.removeItem('activeTab');
         sessionStorage.removeItem('dateRangeStart');
         sessionStorage.removeItem('dateRangeEnd');

@@ -5,10 +5,14 @@ import { optimizeStrategy as runOptimizationApi, checkOptimizationStatus as chec
 import { showError, showLoading, showSuccessMessage, showGlobalLoader, hideGlobalLoader } from '../utils/ui.js';
 import { formatNumber, formatParamName } from '../utils/formatters.js';
 import { appState } from '../utils/state.js';
+import { getStrategyDefaultParams, getStrategyConfig } from '../utils/strategies-config.js';
+import { OptimizationParamTable } from './optimizationParamTable.js';
+import { Parameter } from '../utils/parameterModel.js';
+import { strategies } from '../utils/strategies-config.js';
 
 // DOM references
 const optimizationForm = document.getElementById('optimization-form');
-const optimizationParamsContainer = document.getElementById('optimization-params');
+const optimizationParamsContainer = document.getElementById('optimization-parameters');
 const optimizationResultsContainer = document.getElementById('optimization-results');
 const optimizationStatusContainer = document.getElementById('optimization-status');
 const optimizationProgressBar = document.getElementById('optimization-progress');
@@ -16,6 +20,8 @@ const useOptimizedParamsBtn = document.getElementById('use-optimized-params');
 
 // Status check interval
 let statusCheckInterval = null;
+let paramTable = null;
+let pollingInterval = null;
 
 // Setup optimization parameters based on strategy
 export function setupOptimizationParameters(strategyParams) {
@@ -36,18 +42,20 @@ export function setupOptimizationParameters(strategyParams) {
             defaultValue = paramConfig.default !== undefined ? paramConfig.default : '';
             minValue = paramConfig.min !== undefined ? paramConfig.min : '';
             maxValue = paramConfig.max !== undefined ? paramConfig.max : '';
-            stepValue = paramConfig.step !== undefined ? paramConfig.step : 'any';
+            stepValue = paramConfig.step !== undefined ? paramConfig.step : '';
         } else {
             defaultValue = paramConfig;
             minValue = '';
             maxValue = '';
-            stepValue = 'any';
+            stepValue = '';
         }
-        
+        // Only set value attribute if not empty
+        const minValueAttr = minValue !== '' ? `value="${minValue}"` : '';
+        const maxValueAttr = maxValue !== '' ? `value="${maxValue}"` : '';
+        const stepValueAttr = stepValue !== '' ? `step=\"${stepValue}\"` : 'step="any"';
         // Create form group
         const formGroup = document.createElement('div');
         formGroup.className = 'card mb-3';
-        
         // Create card header
         const cardHeader = document.createElement('div');
         cardHeader.className = 'card-header bg-light';
@@ -59,7 +67,6 @@ export function setupOptimizationParameters(strategyParams) {
                 </label>
             </div>
         `;
-        
         // Create card body
         const cardBody = document.createElement('div');
         cardBody.className = 'card-body';
@@ -67,19 +74,18 @@ export function setupOptimizationParameters(strategyParams) {
             <div class="row">
                 <div class="col-md-4">
                     <label class="form-label">Min</label>
-                    <input type="number" class="form-control param-min" name="min_${paramName}" value="${minValue}" step="${stepValue}">
+                    <input type="number" class="form-control param-min" name="min_${paramName}" ${minValueAttr} ${stepValueAttr}>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Max</label>
-                    <input type="number" class="form-control param-max" name="max_${paramName}" value="${maxValue}" step="${stepValue}">
+                    <input type="number" class="form-control param-max" name="max_${paramName}" ${maxValueAttr} ${stepValueAttr}>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Step</label>
-                    <input type="number" class="form-control param-step" name="step_${paramName}" value="${stepValue}" step="any">
+                    <input type="number" class="form-control param-step" name="step_${paramName}" ${stepValueAttr}>
                 </div>
             </div>
         `;
-        
         // Assemble the form group
         formGroup.appendChild(cardHeader);
         formGroup.appendChild(cardBody);
@@ -100,18 +106,25 @@ export async function runOptimization(params = {}) {
         // Run optimization
         const response = await runOptimizationApi(params);
         
-        if (response.success && response.job_id) {
-            showSuccessMessage('Optimization job started. Tracking progress...');
+        // Accept backend response with just a message as success
+        if ((response.job_id) || (response.message && response.message.toLowerCase().includes('optimization started'))) {
+            showSuccessMessage(response.message || 'Optimization job started. Tracking progress...');
             
-            // Store job ID in state
-            appState.setOptimizationJobId(response.job_id);
+            // Store strategy type in state
+            appState.setCurrentOptimizationStrategy(params.strategy_type);
             
-            // Start checking status
-            startStatusCheck(response.job_id);
+            // Store job ID in state if present
+            if (response.job_id) {
+                appState.setOptimizationJobId(response.job_id);
+            }
             
+            // Start polling for results
+            if (params.strategy_type) {
+                pollOptimizationResults(params.strategy_type);
+            }
             return true;
         } else {
-            throw new Error(response.error || 'Error starting optimization job');
+            throw new Error(response.error || response.message || 'Error starting optimization job');
         }
     } catch (error) {
         showError(error.message || 'Failed to start optimization');
@@ -232,72 +245,62 @@ export async function fetchAndDisplayOptimizationResults(jobId = null) {
 
 // Display optimization results
 function displayOptimizationResults(results) {
-    if (!optimizationResultsContainer || !results) return;
-    
-    // Create table for results
-    let tableHtml = `
-        <div class="table-responsive">
-            <table class="table table-bordered table-striped">
-                <thead>
-                    <tr>
-                        <th>Rank</th>
-                        <th>Score</th>
-                        ${Object.keys(results.best_params || {}).map(param => 
-                            `<th>${formatParamName(param)}</th>`
-                        ).join('')}
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
-    
-    // Add each result as a row
-    let rank = 1;
-    for (const result of results.top_results || []) {
-        tableHtml += `
-            <tr>
-                <td>${rank}</td>
-                <td>${formatNumber(result.score, 4)}</td>
-                ${Object.entries(result.params || {}).map(([param, value]) => 
-                    `<td>${formatNumber(value)}</td>`
-                ).join('')}
-                <td>
-                    <button class="btn btn-sm btn-primary use-params-btn" data-rank="${rank - 1}">
-                        Use
-                    </button>
-                </td>
-            </tr>
-        `;
-        rank++;
+    const container = document.getElementById('optimization-results');
+    if (!container) {
+        console.error("Optimization results container not found");
+        return;
     }
     
-    tableHtml += `
-                </tbody>
-            </table>
+    // Clear previous content
+    container.innerHTML = '';
+    
+    // Check if we have results to display
+    if (!results || !results.top_results || results.top_results.length === 0) {
+        container.innerHTML = '<div class="alert alert-warning">No optimization results found.</div>';
+        return;
+    }
+
+    // Show only the best result (first in top_results array)
+    const best = results.top_results[0];
+    let bestParamsHtml = '';
+    if (best && best.params) {
+        bestParamsHtml = Object.entries(best.params)
+            .map(([key, value]) => `<tr><td>${formatParamName(key)}</td><td><strong>${value}</strong></td></tr>`)
+            .join('');
+    }
+
+    // Create a clean and simple display of just the best parameters
+    let summaryHtml = `
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Best Optimization Result</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Parameter</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${bestParamsHtml}
+                    </tbody>
+                </table>
+                ${best.score ? `<p class="mt-3 mb-0"><strong>Score:</strong> ${formatNumber(best.score)}</p>` : ''}
+            </div>
         </div>
     `;
     
-    // Add charts if available
-    if (results.charts) {
-        tableHtml += `
-            <div class="optimization-charts mt-4">
-                ${results.charts}
-            </div>
-        `;
-    }
+    // Add the summary to the container
+    container.innerHTML = summaryHtml;
     
-    optimizationResultsContainer.innerHTML = tableHtml;
-    
-    // Add event listeners to "Use" buttons
-    const useButtons = optimizationResultsContainer.querySelectorAll('.use-params-btn');
-    useButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const rank = parseInt(button.dataset.rank);
-            if (!isNaN(rank) && results.top_results && results.top_results[rank]) {
-                useOptimizedParameters(results.top_results[rank].params);
-            }
-        });
-    });
+    // Add download and use parameter buttons
+    const currentStrategy = document.getElementById('optimization-strategy') ? 
+        document.getElementById('optimization-strategy').value : 
+        appState.currentOptimizationStrategy;
+        
+    addDownloadButton(results, currentStrategy);
 }
 
 // Use optimized parameters
@@ -311,44 +314,77 @@ export function useOptimizedParameters(params) {
     showSuccessMessage('Optimized parameters applied');
 }
 
+function createParameterObjects(paramConfigs) {
+    return paramConfigs.map(cfg => new Parameter({
+        id: cfg.id,
+        label: cfg.label,
+        type: cfg.type === 'checkbox' ? 'bool' : (cfg.type || 'number'),
+        defaultValue: cfg.default,
+        min: cfg.min,
+        max: cfg.max,
+        step: cfg.step,
+        options: cfg.options
+    }));
+}
+
 // Initialize optimization panel
 export function initializeOptimizationPanel() {
+    const optimizationStrategySelect = document.getElementById('optimization-strategy');
+    const paramTableContainer = document.getElementById('optimization-parameters');
+    
+    // Check if the optimization directory exists and is writable
+    fetch('/api/check-optimization-directory')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                console.error("Optimization directory issue:", data.message);
+                showError(`Warning: ${data.message} - Optimization results may not be saved.`);
+            } else {
+                console.log("Optimization directory check successful:", data.message);
+            }
+        })
+        .catch(err => {
+            console.error("Failed to check optimization directory:", err);
+        });
+    
+    if (optimizationStrategySelect) {
+        optimizationStrategySelect.addEventListener('change', function() {
+            const selectedStrategy = this.value;
+            if (selectedStrategy) {
+                const strategyConfig = getStrategyConfig(selectedStrategy);
+                if (strategyConfig && strategyConfig.params) {
+                    const parameterObjs = createParameterObjects(strategyConfig.params);
+                    paramTable = new OptimizationParamTable(paramTableContainer, parameterObjs);
+                }
+            }
+        });
+        // On initial load, render parameters for the default strategy
+        if (optimizationStrategySelect.value) {
+            const strategyConfig = getStrategyConfig(optimizationStrategySelect.value);
+            if (strategyConfig && strategyConfig.params) {
+                const parameterObjs = createParameterObjects(strategyConfig.params);
+                paramTable = new OptimizationParamTable(paramTableContainer, parameterObjs);
+            }
+        }
+    }
     // Initialize form submission
     if (optimizationForm) {
         optimizationForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            // Get selected parameters to optimize
-            const checkboxes = optimizationForm.querySelectorAll('input[name="optimize_params"]:checked');
-            if (!checkboxes.length) {
+            if (!paramTable) {
+                showError('No parameter table available');
+                return;
+            }
+            const paramRanges = paramTable.getParamRanges();
+            if (!paramRanges || Object.keys(paramRanges).length === 0) {
                 showError('Please select at least one parameter to optimize');
                 return;
             }
-            
-            // Build params object
             const params = {
-                strategy: document.getElementById('optimization-strategy').value,
-                params_to_optimize: {},
+                strategy_type: document.getElementById('optimization-strategy').value,
+                param_ranges: paramRanges,
                 optimization_metric: document.getElementById('optimization-metric').value
             };
-            
-            // Add each parameter range
-            checkboxes.forEach(checkbox => {
-                const paramName = checkbox.value;
-                const paramGroup = checkbox.closest('.card');
-                
-                const minInput = paramGroup.querySelector(`.param-min[name="min_${paramName}"]`);
-                const maxInput = paramGroup.querySelector(`.param-max[name="max_${paramName}"]`);
-                const stepInput = paramGroup.querySelector(`.param-step[name="step_${paramName}"]`);
-                
-                params.params_to_optimize[paramName] = {
-                    min: parseFloat(minInput.value),
-                    max: parseFloat(maxInput.value),
-                    step: parseFloat(stepInput.value)
-                };
-            });
-            
-            // Run optimization
             await runOptimization(params);
         });
     }
@@ -363,5 +399,140 @@ export function initializeOptimizationPanel() {
                 showError('No optimization results available');
             }
         });
+    }
+}
+
+function showOptimizationProgress(message = 'Optimization running...') {
+    const container = document.getElementById('optimization-results');
+    container.innerHTML = `
+        <div class="progress my-3">
+            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                 role="progressbar" style="width: 100%"> 
+                ${message}
+            </div>
+        </div>
+    `;
+}
+
+function addDownloadButton(results, strategyType) {
+    const container = document.getElementById('optimization-results');
+    if (!container) {
+        console.error("Optimization results container not found");
+        return;
+    }
+    
+    const btnContainer = document.createElement('div');
+    btnContainer.className = 'd-flex mt-3';
+    
+    // Add download button
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-primary';
+    btn.innerHTML = '<i class="fas fa-download"></i> Download Results (JSON)';
+    btn.onclick = () => {
+        try {
+            const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `optimization_${strategyType}_${new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-')}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error("Error creating download:", error);
+            showError("Could not create download file. See console for details.");
+        }
+    };
+    
+    btnContainer.appendChild(btn);
+    
+    // Add "Use Parameters" button if we have best parameters
+    if (results.top_results && results.top_results.length > 0 && results.top_results[0].params) {
+        const useBtn = document.createElement('button');
+        useBtn.className = 'btn btn-success ml-2';
+        useBtn.style.marginLeft = '10px';
+        useBtn.innerHTML = '<i class="fas fa-check"></i> Use These Parameters';
+        useBtn.onclick = () => {
+            useOptimizedParameters(results.top_results[0].params);
+        };
+        btnContainer.appendChild(useBtn);
+    }
+    
+    container.appendChild(btnContainer);
+}
+
+function pollOptimizationResults(strategyType) {
+    if (pollingInterval) clearInterval(pollingInterval);
+    
+    // Show progress indicator
+    showOptimizationProgress('Optimization running...');
+    
+    // Check immediately first
+    checkOptimizationStatus(strategyType);
+    
+    // Then set up polling
+    pollingInterval = setInterval(async () => {
+        await checkOptimizationStatus(strategyType);
+    }, 5000);
+}
+
+async function checkOptimizationStatus(strategyType) {
+    try {
+        // Get current status
+        const statusResponse = await fetch('/api/optimization-status');
+        const statusData = await statusResponse.json();
+        
+        if (!statusData) {
+            console.error('No status data received');
+            return;
+        }
+        
+        // Check if optimization is still in progress
+        if (statusData.in_progress) {
+            // Still running, show progress
+            showOptimizationProgress('Optimization in progress...');
+            return;
+        }
+        
+        // Optimization is complete, try to get results
+        clearInterval(pollingInterval);
+        
+        try {
+            const response = await fetch(`/api/optimization-results/${strategyType}`);
+            const data = await response.json();
+            
+            if (data && data.status === 'success' && data.results) {
+                // We have results, display them
+                displayOptimizationResults(data.results);
+                
+                // Check if results have a download button, if not add one
+                const downloadBtns = document.querySelectorAll('#optimization-results button.btn-primary');
+                if (downloadBtns.length === 0) {
+                    addDownloadButton(data.results, strategyType);
+                }
+            } else if (data && data.status === 'not_found') {
+                // No results found
+                const container = document.getElementById('optimization-results');
+                container.innerHTML = `<div class="alert alert-warning">${data.message || 'No optimization results found.'}</div>`;
+            } else {
+                // Unknown status
+                console.warn('Unknown status from optimization results API:', data);
+                showOptimizationProgress('Waiting for results to be processed...');
+                
+                // Try again in a few seconds
+                setTimeout(() => {
+                    checkOptimizationStatus(strategyType);
+                }, 5000);
+            }
+        } catch (err) {
+            console.error('Error fetching optimization results:', err);
+            showOptimizationProgress('Error fetching results. Retrying...');
+            
+            // Try again in a few seconds
+            setTimeout(() => {
+                checkOptimizationStatus(strategyType);
+            }, 5000);
+        }
+    } catch (err) {
+        console.error('Error checking optimization status:', err);
     }
 }

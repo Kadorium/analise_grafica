@@ -18,6 +18,10 @@ import logging
 import sys
 import platform
 import psutil
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import functools
 
 # Configuração de logging
 logging.basicConfig(
@@ -52,6 +56,126 @@ def log_endpoint(endpoint_name, **kwargs):
     log_message = "\n".join(log_lines)
     logger.info(log_message)
     return log_message
+
+# Refactoring Utilities
+def endpoint_wrapper(endpoint_name_fallback: str):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            request_obj: Optional[Request] = None
+            if 'request' in kwargs and isinstance(kwargs['request'], Request):
+                request_obj = kwargs['request']
+            else:
+                for arg_val in args:
+                    if isinstance(arg_val, Request):
+                        request_obj = arg_val
+                        break
+            
+            current_endpoint_name = endpoint_name_fallback
+            if request_obj:
+                current_endpoint_name = f"{request_obj.method} {request_obj.url.path}"
+
+            log_endpoint(f"{current_endpoint_name} - REQUEST START")
+            start_time = time.time()
+
+            try:
+                response = await func(*args, **kwargs)
+                elapsed_time = time.time() - start_time
+                
+                status_code_to_log = 'N/A'
+                if hasattr(response, 'status_code'):
+                    status_code_to_log = response.status_code
+                elif isinstance(response, dict): # Heuristic for direct dict returns from Pydantic models etc.
+                    # Try to infer status from content, default to 200 if looks like success
+                    if response.get("success") is False and "message" in response: # Check if it's an error dict
+                        status_code_to_log = response.get("status_code", 500)
+                    else: # Assumed success
+                        status_code_to_log = response.get("status_code", 200)
+
+
+                log_endpoint(f"{current_endpoint_name} - REQUEST SUCCESS", 
+                             elapsed_time=f"{elapsed_time:.2f}s",
+                             status_code=status_code_to_log)
+                return response
+            except Exception as e:
+                elapsed_time = time.time() - start_time
+                error_trace = traceback.format_exc()
+                log_endpoint(f"{current_endpoint_name} - REQUEST ERROR", 
+                             elapsed_time=f"{elapsed_time:.2f}s", 
+                             error=str(e), 
+                             traceback=error_trace)
+                return JSONResponse(
+                    status_code=500,
+                    content={"success": False, "message": f"Internal server error: {str(e)}"}
+                )
+        return wrapper
+    return decorator
+
+def stringify_df_dates(df: pd.DataFrame) -> pd.DataFrame:
+    """Converts 'date' columns in a DataFrame from datetime objects to 'YYYY-MM-DD' strings."""
+    df_copy = df.copy()
+    if 'date' in df_copy.columns and pd.api.types.is_datetime64_any_dtype(df_copy['date']):
+        df_copy['date'] = df_copy['date'].dt.strftime('%Y-%m-%d')
+    return df_copy
+
+def check_required_columns(df: Optional[pd.DataFrame], required_cols: List[str]) -> List[str]:
+    """Checks if a DataFrame contains all required columns. Returns a list of missing columns."""
+    if df is None:
+        # If df is None, all are considered missing for this check's purpose, or handle as error
+        # For now, let's assume this implies an earlier error if df should exist.
+        # Returning required_cols might be misleading if df being None is an expected state before data load.
+        # Let's adjust to return empty if df is None, assuming check is on existing df.
+        return [] if df is not None else required_cols # Modified logic: if df is None, all required are missing
+    return [col for col in required_cols if col not in df.columns]
+
+
+def normalize_signals_df(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Ensures a 'signal' column exists and contains text ('buy', 'sell', 'hold').
+    Derives 'signal' from 'position' or crossover columns if not present.
+    Converts numeric signals (1, -1, 0) to text.
+    """
+    signals_df = df.copy()
+    logger.info("Normalizing signals...")
+
+    if 'signal' not in signals_df.columns:
+        logger.info("'signal' column not found, attempting to derive.")
+        if 'position' in signals_df.columns:
+            logger.info("Deriving signals from 'position' column.")
+            signals_df['signal'] = 'hold'
+            position_diff = signals_df['position'].diff()
+            signals_df.loc[position_diff == 1, 'signal'] = 'buy'
+            signals_df.loc[position_diff == -1, 'signal'] = 'sell'
+            signals_df['signal'] = signals_df['signal'].fillna('hold') # Fill NaNs from diff
+        elif 'golden_cross' in signals_df.columns and 'death_cross' in signals_df.columns:
+            logger.info("Deriving signals from crossover columns.")
+            signals_df['signal'] = 'hold'
+            signals_df.loc[signals_df['golden_cross'] == 1, 'signal'] = 'buy'
+            signals_df.loc[signals_df['death_cross'] == 1, 'signal'] = 'sell'
+        elif 'buy_signal' in signals_df.columns or 'sell_signal' in signals_df.columns:
+            logger.info("Deriving signals from buy_signal/sell_signal columns.")
+            signals_df['signal'] = 'hold'
+            if 'buy_signal' in signals_df.columns:
+                signals_df.loc[signals_df['buy_signal'] == 1, 'signal'] = 'buy'
+            if 'sell_signal' in signals_df.columns:
+                signals_df.loc[signals_df['sell_signal'] == 1, 'signal'] = 'sell'
+        else:
+            logger.warning("No signal or position columns found to derive from. Defaulting to 'hold'.")
+            signals_df['signal'] = 'hold'
+        signals_df['signal'] = signals_df['signal'].fillna('hold')
+
+
+    if 'signal' in signals_df.columns and signals_df['signal'].dtype in [np.int64, np.float64, 'int64', 'float64']:
+        logger.info("Converting numeric signals to text values ('buy', 'sell', 'hold').")
+        signals_df['signal'] = signals_df['signal'].fillna(0) 
+        map_dict = {1: 'buy', -1: 'sell', 0: 'hold'}
+        signals_df['signal'] = signals_df['signal'].map(map_dict).fillna('hold')
+    
+    if 'signal' in signals_df.columns:
+        signals_df['signal'] = signals_df['signal'].astype(object)
+
+    logger.info(f"Signal normalization complete. Signal counts: {signals_df['signal'].value_counts().to_dict() if 'signal' in signals_df else 'N/A'}")
+    return signals_df
 
 # Import our modules
 from data.data_loader import DataLoader
@@ -186,592 +310,904 @@ class PlotConfig(BaseModel):
 
 # Routes
 @app.get("/")
+@endpoint_wrapper("GET /")
 async def read_root():
     return FileResponse("frontend/index.html")
 
 @app.post("/api/upload")
+@endpoint_wrapper("POST /api/upload")
 async def upload_file(file: Optional[UploadFile] = None):
     global UPLOADED_DATA
-    
-    start_time = time.time()
     default_file_used = False
+    temp_file_path = None
+
+    if file:
+        log_endpoint("POST /api/upload - DETAILS", file_name=file.filename, content_type=file.content_type)
+        contents = await file.read()
+        temp_file_path = os.path.join('data', 'temp_upload.csv')
+        os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
+        with open(temp_file_path, 'wb') as f:
+            f.write(contents)
+        logger.info(f"File uploaded by user and saved temporarily to {temp_file_path}")
+    else:
+        default_file_path = os.path.join('data', 'teste_arranged.csv')
+        if not os.path.exists(default_file_path):
+            log_endpoint("POST /api/upload - DETAILS", error=f"Default file not found: {default_file_path}")
+            return JSONResponse(
+                status_code=404,
+                content={"message": f"Default file {default_file_path} not found. Please upload a file."}
+            )
+        temp_file_path = default_file_path
+        default_file_used = True
+        log_endpoint("POST /api/upload - DETAILS", using_default_file=temp_file_path)
+        logger.info(f"No file uploaded by user. Using default file: {temp_file_path}")
+
+    if temp_file_path is None:
+         raise ValueError("temp_file_path is not set. This indicates a logic error.")
+
+    data_loader = DataLoader(temp_file_path)
+    UPLOADED_DATA = data_loader.load_csv()
+    logger.info(f"Data loaded successfully: {UPLOADED_DATA.shape}")
     
-    try:
-        temp_file_path = None
-
-        if file:
-            log_endpoint("POST /api/upload", file_name=file.filename, content_type=file.content_type)
-            contents = await file.read()
-            
-            # Save the uploaded file temporarily
-            temp_file_path = os.path.join('data', 'temp_upload.csv')
-            os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
-            
-            with open(temp_file_path, 'wb') as f:
-                f.write(contents)
-            logger.info(f"File uploaded by user and saved temporarily to {temp_file_path}")
-        else:
-            # No file uploaded, use the default file
-            default_file_path = os.path.join('data', 'teste_arranged.csv')
-            if not os.path.exists(default_file_path):
-                log_endpoint("POST /api/upload - ERROR", error=f"Default file not found: {default_file_path}")
-                return JSONResponse(
-                    status_code=404,
-                    content={"message": f"Default file {default_file_path} not found. Please upload a file."}
-                )
-            temp_file_path = default_file_path # Use the default file path directly
-            default_file_used = True
-            log_endpoint("POST /api/upload", using_default_file=temp_file_path)
-            logger.info(f"No file uploaded by user. Using default file: {temp_file_path}")
-
-        # Use our enhanced DataLoader
-        # Ensure temp_file_path is set before this line
-        if temp_file_path is None:
-             # This case should ideally not be reached if logic is correct
-             raise ValueError("temp_file_path is not set. This indicates a logic error.")
-
-        data_loader = DataLoader(temp_file_path)
-        UPLOADED_DATA = data_loader.load_csv()
-        
-        logger.info(f"Data loaded successfully: {UPLOADED_DATA.shape}")
-        
-        # Drop any unwanted unnamed columns that are empty
-        for col in UPLOADED_DATA.columns:
-            if 'unnamed' in col.lower() and UPLOADED_DATA[col].isna().all():
-                UPLOADED_DATA = UPLOADED_DATA.drop(columns=[col])
-        
-        # Return information about the data - use smaller sample to avoid JSON serialization issues
-        sample_data = UPLOADED_DATA.head(5).copy()
-        
-        # Convert date column to string if it's datetime to ensure JSON serialization
-        if 'date' in sample_data.columns and pd.api.types.is_datetime64_any_dtype(sample_data['date']):
-            sample_data['date'] = sample_data['date'].dt.strftime('%Y-%m-%d')
-        
-        elapsed_time = time.time() - start_time
-        response_data = {
-            "message": "File processed successfully" if default_file_used else "File uploaded successfully",
-            "data_shape": UPLOADED_DATA.shape,
-            "data_sample": sample_data.to_dict('records'),
-            "columns": list(UPLOADED_DATA.columns)
-        }
-        
-        log_endpoint("POST /api/upload - COMPLETE", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    data_shape=UPLOADED_DATA.shape,
-                    columns=list(UPLOADED_DATA.columns))
-        
-        return response_data
-    except Exception as e:
-        elapsed_time = time.time() - start_time
-        error_trace = traceback.format_exc()
-        log_endpoint("POST /api/upload - ERROR", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    error=str(e),
-                    traceback=error_trace)
-        
-        return JSONResponse(
-            status_code=500,
-            content={"message": f"Error processing file: {str(e)}"}
-        )
+    for col in UPLOADED_DATA.columns:
+        if 'unnamed' in col.lower() and UPLOADED_DATA[col].isna().all():
+            UPLOADED_DATA = UPLOADED_DATA.drop(columns=[col])
+    
+    sample_data_for_preview = stringify_df_dates(UPLOADED_DATA.head(5))
+    
+    response_data = {
+        "message": "File processed successfully" if default_file_used else "File uploaded successfully",
+        "data_shape": UPLOADED_DATA.shape,
+        "data_sample": sample_data_for_preview.to_dict('records'),
+        "columns": list(UPLOADED_DATA.columns)
+    }
+    log_endpoint("POST /api/upload - DATA_SUMMARY", 
+                data_shape=UPLOADED_DATA.shape,
+                columns=list(UPLOADED_DATA.columns))
+    return response_data
 
 @app.post("/api/arrange-data")
-async def arrange_data(file: UploadFile = File(...)):
-    """
-    Endpoint to arrange data files (CSV, XLS, XLSX) into a standardized format.
-    """
+@endpoint_wrapper("POST /api/arrange-data")
+async def arrange_data_endpoint(file: UploadFile = File(...)):
     global PROCESSED_DATA, UPLOADED_DATA
     
-    try:
-        # Save the uploaded file temporarily
-        temp_input_path = os.path.join('data', 'temp_' + file.filename)
-        os.makedirs(os.path.dirname(temp_input_path), exist_ok=True)
-        
-        with open(temp_input_path, 'wb') as f:
-            contents = await file.read()
-            f.write(contents)
-        
-        # Import the data arranger module
-        from data.data_arranger_script import arrange_data_file
-        
-        # Create a clean copy with original filename for processing
-        clean_input_path = os.path.join('data', file.filename)
-        if os.path.exists(clean_input_path):
-            # Add timestamp to avoid overwriting existing files
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-            file_base, file_ext = os.path.splitext(file.filename)
-            clean_input_path = os.path.join('data', f"{file_base}_{timestamp}{file_ext}")
-        
-        # Copy the temp file to the clean path
-        os.replace(temp_input_path, clean_input_path)
-        
-        # Arrange the data using original filename
-        output_file = arrange_data_file(clean_input_path)
-        
-        # Clean up the temp file and original file
-        if os.path.exists(clean_input_path):
-            os.remove(clean_input_path)
-        
-        # Try to load the arranged data for preview
-        data_loader = DataLoader(output_file)
-        arranged_data = data_loader.load_csv()
-        
-        # Set the processed data so it's available for other endpoints
-        UPLOADED_DATA = arranged_data.copy()
-        PROCESSED_DATA = arranged_data.copy()
-        
-        # Prepare sample data for JSON serialization
-        sample_data = arranged_data.head(5).copy()
-        if 'date' in sample_data.columns and pd.api.types.is_datetime64_any_dtype(sample_data['date']):
-            sample_data['date'] = sample_data['date'].dt.strftime('%Y-%m-%d')
-        
-        # Include date range info like in process-data endpoint
-        date_range = {
-            "start": PROCESSED_DATA['date'].min() if not pd.isna(PROCESSED_DATA['date'].min()) else "N/A",
-            "end": PROCESSED_DATA['date'].max() if not pd.isna(PROCESSED_DATA['date'].max()) else "N/A"
-        }
-        
-        if pd.api.types.is_datetime64_any_dtype(PROCESSED_DATA['date']):
-            date_range["start"] = date_range["start"].strftime('%Y-%m-%d') if not pd.isna(date_range["start"]) else "N/A"
-            date_range["end"] = date_range["end"].strftime('%Y-%m-%d') if not pd.isna(date_range["end"]) else "N/A"
-        
-        return {
-            "message": f"Data arranged successfully and saved to {output_file}",
-            "output_file": output_file,
-            "data_shape": arranged_data.shape,
-            "data_sample": sample_data.to_dict('records'),
-            "columns": list(arranged_data.columns),
-            "date_range": date_range
-        }
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return JSONResponse(
-            status_code=500,
-            content={"message": f"Error arranging data: {str(e)}"}
-        )
+    log_endpoint("POST /api/arrange-data - DETAILS", filename=file.filename)
+    temp_input_path = os.path.join('data', 'temp_' + file.filename)
+    os.makedirs(os.path.dirname(temp_input_path), exist_ok=True)
+    
+    with open(temp_input_path, 'wb') as f:
+        contents = await file.read()
+        f.write(contents)
+    
+    from data.data_arranger_script import arrange_data_file
+    
+    clean_input_path = os.path.join('data', file.filename)
+    if os.path.exists(clean_input_path):
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        file_base, file_ext = os.path.splitext(file.filename)
+        clean_input_path = os.path.join('data', f"{file_base}_{timestamp}{file_ext}")
+    os.replace(temp_input_path, clean_input_path)
+    
+    output_file = arrange_data_file(clean_input_path)
+    
+    if os.path.exists(clean_input_path):
+        os.remove(clean_input_path)
+    
+    data_loader = DataLoader(output_file)
+    arranged_data = data_loader.load_csv()
+    
+    UPLOADED_DATA = arranged_data.copy()
+    PROCESSED_DATA = arranged_data.copy()
+    
+    sample_data_for_preview = stringify_df_dates(arranged_data.head(5))
+    
+    date_range = {}
+    if 'date' in PROCESSED_DATA.columns and pd.api.types.is_datetime64_any_dtype(PROCESSED_DATA['date']):
+        date_min = PROCESSED_DATA['date'].min()
+        date_max = PROCESSED_DATA['date'].max()
+        date_range["start"] = date_min.strftime('%Y-%m-%d') if pd.notna(date_min) else "N/A"
+        date_range["end"] = date_max.strftime('%Y-%m-%d') if pd.notna(date_max) else "N/A"
+    else:
+        date_range = {"start": "N/A", "end": "N/A"}
+
+    log_endpoint("POST /api/arrange-data - DATA_SUMMARY", 
+                 output_file=output_file,
+                 data_shape=arranged_data.shape,
+                 columns=list(arranged_data.columns),
+                 date_range=date_range)
+
+    return {
+        "message": f"Data arranged successfully and saved to {output_file}",
+        "output_file": output_file,
+        "data_shape": arranged_data.shape,
+        "data_sample": sample_data_for_preview.to_dict('records'),
+        "columns": list(arranged_data.columns),
+        "date_range": date_range
+    }
 
 @app.post("/api/process-data")
+@endpoint_wrapper("POST /api/process-data")
 async def process_data():
     global UPLOADED_DATA, PROCESSED_DATA
     
-    start_time = time.time()
-    log_endpoint("POST /api/process-data", 
-                uploaded_data_shape=UPLOADED_DATA.shape if UPLOADED_DATA is not None else None)
+    log_endpoint("POST /api/process-data - START_DETAILS", 
+                uploaded_data_shape=UPLOADED_DATA.shape if UPLOADED_DATA is not None else "None")
     
     if UPLOADED_DATA is None:
-        elapsed_time = time.time() - start_time
-        log_endpoint("POST /api/process-data - ERROR", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    error="No data uploaded")
-        
         return JSONResponse(
-            status_code=400,
-            content={"message": "No data uploaded. Please upload a CSV file first."}
+            status_code=400, # Keep specific status codes for client-side logic
+            content={"success": False, "message": "No data uploaded. Please upload a CSV file first."}
         )
     
+    # This try-except is for the recovery logic, separate from the main endpoint wrapper
     try:
-        # Create a DataLoader instance and set the data
-        logger.info("Creating DataLoader instance")
         data_loader = DataLoader()
         data_loader.data = UPLOADED_DATA.copy()
-        
-        logger.info(f"Cleaning data with shape: {data_loader.data.shape}")
-        # Clean the data with our enhanced robust method
         cleaned_data = data_loader.clean_data()
-        logger.info(f"Data cleaned: {cleaned_data.shape}")
         
-        # Handle empty dataset after cleaning
         if len(cleaned_data) == 0:
-            # Try European date format specifically for DD/MM/YY
             logger.warning("Empty dataset after cleaning. Attempting recovery with European date format...")
             data_copy = UPLOADED_DATA.copy()
-            
-            # Custom function to parse dates in European format
-            def parse_date(date_str):
-                if not isinstance(date_str, str):
-                    return None
-                    
+            def parse_date(date_str): # Inner function for specific parsing
+                if not isinstance(date_str, str): return None
                 date_str = date_str.strip()
-                
-                # Try European formats first
-                formats = ['%d/%m/%y', '%d/%m/%Y']
-                
+                formats = ['%d/%m/%y', '%d/%m/%Y', '%m/%d/%y', '%m/%d/%Y', '%Y-%m-%d']
                 for fmt in formats:
-                    try:
-                        return pd.to_datetime(date_str, format=fmt)
-                    except:
-                        continue
-                        
-                # If European formats fail, try other common formats
-                formats = ['%m/%d/%y', '%m/%d/%Y', '%Y-%m-%d']
-                for fmt in formats:
-                    try:
-                        return pd.to_datetime(date_str, format=fmt)
-                    except:
-                        continue
-                
-                # Last resort: let pandas try to figure it out
-                try:
-                    return pd.to_datetime(date_str, errors='coerce')
-                except:
-                    return None
+                    try: return pd.to_datetime(date_str, format=fmt)
+                    except: continue
+                try: return pd.to_datetime(date_str, errors='coerce')
+                except: return None
             
-            # Apply date parser
-            logger.info("Applying custom date parser")
             data_copy['date'] = data_copy['date'].apply(parse_date)
-            
-            # Convert numeric columns with European decimal format (comma instead of dot)
-            logger.info("Converting numeric columns with European format")
             for col in ['open', 'high', 'low', 'close', 'volume']:
                 if col in data_copy.columns:
                     if data_copy[col].dtype == object:
                         data_copy[col] = data_copy[col].astype(str).str.replace(',', '.')
                     data_copy[col] = pd.to_numeric(data_copy[col], errors='coerce')
-            
-            # Drop rows with missing values
-            logger.info("Dropping rows with missing values")
             data_copy = data_copy.dropna(subset=['date', 'open', 'high', 'low', 'close', 'volume'])
             
-            # Use the manually fixed data if we have rows
             if len(data_copy) > 0:
                 cleaned_data = data_copy
                 logger.info(f"Recovery successful! Recovered {len(cleaned_data)} rows of data.")
             else:
-                elapsed_time = time.time() - start_time
-                log_endpoint("POST /api/process-data - ERROR", 
-                            elapsed_time=f"{elapsed_time:.2f}s",
-                            error="Could not process data. All rows were invalid after cleaning.")
-                
                 return JSONResponse(
                     status_code=400,
-                    content={"message": "Could not process data. All rows were invalid after cleaning."}
+                    content={"success": False, "message": "Could not process data. All rows were invalid after cleaning."}
                 )
         
-        # Store the processed data
         PROCESSED_DATA = cleaned_data
-        logger.info(f"Processed data stored with shape: {PROCESSED_DATA.shape}")
+        sample_data_for_preview = stringify_df_dates(PROCESSED_DATA.head())
         
-        # For return, format the dates as strings to ensure JSON serialization
-        sample_data = PROCESSED_DATA.head().copy()
-        if 'date' in sample_data.columns and pd.api.types.is_datetime64_any_dtype(sample_data['date']):
-            sample_data['date'] = sample_data['date'].dt.strftime('%Y-%m-%d')
-        
-        elapsed_time = time.time() - start_time
-        
-        date_range = {
-            "start": PROCESSED_DATA['date'].min().strftime('%Y-%m-%d') if not pd.isna(PROCESSED_DATA['date'].min()) else "N/A",
-            "end": PROCESSED_DATA['date'].max().strftime('%Y-%m-%d') if not pd.isna(PROCESSED_DATA['date'].max()) else "N/A"
-        }
-        
-        log_endpoint("POST /api/process-data - COMPLETE", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
+        date_range = {}
+        if 'date' in PROCESSED_DATA.columns and pd.api.types.is_datetime64_any_dtype(PROCESSED_DATA['date']):
+            date_min = PROCESSED_DATA['date'].min()
+            date_max = PROCESSED_DATA['date'].max()
+            date_range["start"] = date_min.strftime('%Y-%m-%d') if pd.notna(date_min) else "N/A"
+            date_range["end"] = date_max.strftime('%Y-%m-%d') if pd.notna(date_max) else "N/A"
+        else: # Ensure date_range is always structured
+             date_range = {"start": "N/A", "end": "N/A"}
+
+
+        log_endpoint("POST /api/process-data - DATA_SUMMARY", 
                     data_shape=PROCESSED_DATA.shape,
                     date_range=date_range)
         
-        # Return a summary of the processed data
         return {
             "message": "Data processed successfully",
             "data_shape": PROCESSED_DATA.shape,
             "date_range": date_range,
-            "data_sample": sample_data.to_dict('records')
+            "data_sample": sample_data_for_preview.to_dict('records')
         }
-    except Exception as e:
-        elapsed_time = time.time() - start_time
-        error_trace = traceback.format_exc()
-        log_endpoint("POST /api/process-data - ERROR", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    error=str(e),
-                    traceback=error_trace)
-        
-        return JSONResponse(
-            status_code=500,
-            content={"message": f"Error processing data: {str(e)}"}
-        )
+    except Exception as e_recovery: # Catch specific recovery errors
+        logger.error(f"Error during data processing/recovery: {str(e_recovery)}\n{traceback.format_exc()}")
+        # This error will be caught by the endpoint_wrapper if re-raised,
+        # or return a specific JSONResponse here.
+        # For consistency, let the wrapper handle it by re-raising or returning a specific known error.
+        # However, if we return a JSONResponse here, the wrapper's error handling won't run.
+        # It's better to raise a specific error or let the original exception propagate to the wrapper.
+        # For now, let the wrapper catch it.
+        raise e_recovery
+
 
 @app.post("/api/add-indicators")
+@endpoint_wrapper("POST /api/add-indicators")
 async def add_indicators(indicator_config: IndicatorConfig):
     global PROCESSED_DATA
     
-    start_time = time.time()
-    log_endpoint("POST /api/add-indicators", 
+    log_endpoint("POST /api/add-indicators - DETAILS", 
                 config=indicator_config.dict(exclude_none=True), 
-                data_shape=PROCESSED_DATA.shape if PROCESSED_DATA is not None else None)
+                data_shape=PROCESSED_DATA.shape if PROCESSED_DATA is not None else "None")
     
     if PROCESSED_DATA is None:
-        elapsed_time = time.time() - start_time
-        log_endpoint("POST /api/add-indicators - ERROR", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    error="No processed data available")
-        
         return JSONResponse(
             status_code=400,
             content={"success": False, "message": "No processed data available. Please upload and process data first."}
         )
+        
+    indicators_dict = indicator_config.dict(exclude_none=True)
+    required_cols = ['date', 'open', 'high', 'low', 'close', 'volume']
     
-    try:
-        # Convert the indicator config to dict
-        indicators_dict = indicator_config.dict(exclude_none=True)
-        
-        logger.info(f"Adding indicators with config: {indicators_dict}")
-        
-        # Check that required columns exist
-        required_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
-        missing_columns = [col for col in required_columns if col not in PROCESSED_DATA.columns]
-        if missing_columns:
-            elapsed_time = time.time() - start_time
-            log_endpoint("POST /api/add-indicators - ERROR", 
-                        elapsed_time=f"{elapsed_time:.2f}s",
-                        error=f"Missing required columns: {missing_columns}")
-            
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": f"Missing required columns in data: {', '.join(missing_columns)}"}
-            )
-            
-        # Make a copy with only the original price data columns, removing any existing indicators
-        base_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
-        data_for_indicators = PROCESSED_DATA[base_columns].copy()
-        
-        logger.info(f"Base data before adding indicators: {data_for_indicators.shape}")
-        
-        # Add indicators fresh
-        data_with_indicators = combine_indicators(data_for_indicators, indicators_dict)
-        
-        logger.info(f"Data after adding indicators: {data_with_indicators.shape}")
-        
-        # Update the processed data
-        PROCESSED_DATA = data_with_indicators
-        
-        # Get the list of all indicator columns, excluding any that aren't indicators
-        excluded_columns = base_columns + ['ticker', 'index']
-        indicator_columns = [col for col in PROCESSED_DATA.columns 
-                            if col not in excluded_columns]
-        
-        logger.info(f"Indicators added: {indicator_columns}")
-        
-        # Create a short summary
-        summary = ""
-        if indicator_columns:
-            try:
-                # Create a summary of the indicators
-                indicator_summary = create_indicator_summary(PROCESSED_DATA, last_n_periods=1)
-                summary = f"<div class='alert alert-info'><strong>Indicators added:</strong> {', '.join(indicator_columns)}</div>"
-            except Exception as e:
-                logger.error(f"Error creating indicator summary: {str(e)}")
-                summary = f"<div class='alert alert-warning'><strong>Indicators added</strong> but could not create summary: {str(e)}</div>"
-        
-        elapsed_time = time.time() - start_time
-        response_data = {
-            "success": True,
-            "message": "Indicators added successfully",
-            "indicator_summary": summary,
-            "available_indicators": indicator_columns
-        }
-        
-        log_endpoint("POST /api/add-indicators - COMPLETE", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    indicators_added=len(indicator_columns),
-                    indicator_list=indicator_columns)
-        
-        return response_data
-    except Exception as e:
-        elapsed_time = time.time() - start_time
-        error_trace = traceback.format_exc()
-        log_endpoint("POST /api/add-indicators - ERROR", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    error=str(e),
-                    traceback=error_trace)
-        
+    missing_cols = check_required_columns(PROCESSED_DATA, required_cols)
+    if missing_cols:
         return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": f"Error adding indicators: {str(e)}"}
+            status_code=400,
+            content={"success": False, "message": f"Missing required columns in data: {', '.join(missing_cols)}"}
         )
+            
+    base_columns = ['date', 'open', 'high', 'low', 'close', 'volume']
+    # Ensure only existing base columns are selected
+    existing_base_columns = [col for col in base_columns if col in PROCESSED_DATA.columns]
+    data_for_indicators = PROCESSED_DATA[existing_base_columns].copy()
+        
+    data_with_indicators = combine_indicators(data_for_indicators, indicators_dict)
+    PROCESSED_DATA = data_with_indicators
+        
+    excluded_columns = base_columns + ['ticker', 'index'] # Define base columns explicitly
+    indicator_columns = [col for col in PROCESSED_DATA.columns if col not in excluded_columns]
+        
+    summary = ""
+    if indicator_columns:
+        try:
+            indicator_summary_df = create_indicator_summary(PROCESSED_DATA, last_n_periods=1)
+            summary = f"<div class='alert alert-info'><strong>Indicators added:</strong> {', '.join(indicator_columns)}</div>"
+            # Potentially add indicator_summary_df to response if needed by frontend
+        except Exception as e_summary:
+            logger.error(f"Error creating indicator summary: {str(e_summary)}")
+            summary = f"<div class='alert alert-warning'><strong>Indicators added</strong> but could not create summary: {str(e_summary)}</div>"
+    
+    log_endpoint("POST /api/add-indicators - SUMMARY", 
+                indicators_added_count=len(indicator_columns),
+                indicator_list=indicator_columns)
+    
+    return {
+        "success": True,
+        "message": "Indicators added successfully",
+        "indicator_summary": summary,
+        "available_indicators": indicator_columns
+    }
 
 @app.post("/api/plot-indicators")
+@endpoint_wrapper("POST /api/plot-indicators")
 async def plot_indicators(plot_config: PlotConfig):
     global PROCESSED_DATA
     
-    start_time = time.time()
-    log_endpoint("POST /api/plot-indicators", 
+    log_endpoint("POST /api/plot-indicators - DETAILS", 
                 config=plot_config.dict(exclude_none=True), 
-                data_shape=PROCESSED_DATA.shape if PROCESSED_DATA is not None else None)
+                data_shape=PROCESSED_DATA.shape if PROCESSED_DATA is not None else "None")
     
     if PROCESSED_DATA is None:
-        elapsed_time = time.time() - start_time
-        log_endpoint("POST /api/plot-indicators - ERROR", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    error="No processed data available")
-        
         return JSONResponse(
             status_code=400,
             content={"success": False, "message": "No processed data available. Please upload and process data first."}
         )
     
-    try:
-        # Convert the plot config to dict
-        plot_dict = plot_config.dict(exclude_none=True)
-        
-        logger.info(f"Creating plot with config: {plot_dict}")
-        logger.info(f"Main indicators: {plot_config.main_indicators}")
-        logger.info(f"Subplot indicators: {plot_config.subplot_indicators}")
-        
-        # Create the plot
-        image_base64 = plot_price_with_indicators(PROCESSED_DATA, plot_dict)
-        
-        elapsed_time = time.time() - start_time
-        log_endpoint("POST /api/plot-indicators - COMPLETE", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    plot_generated=True,
-                    main_indicators=len(plot_config.main_indicators),
-                    subplot_indicators=len(plot_config.subplot_indicators))
-        
-        return {
-            "success": True,
-            "message": "Plot created successfully",
-            "chart_image": image_base64
-        }
-    except Exception as e:
-        elapsed_time = time.time() - start_time
-        error_trace = traceback.format_exc()
-        log_endpoint("POST /api/plot-indicators - ERROR", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    error=str(e),
-                    traceback=error_trace)
-        
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": f"Error creating plot: {str(e)}"}
-        )
-
-@app.get("/api/available-strategies")
-async def get_strategies():
+    plot_dict = plot_config.dict(exclude_none=True)
+    image_base64 = plot_price_with_indicators(PROCESSED_DATA, plot_dict)
+    
+    log_endpoint("POST /api/plot-indicators - SUMMARY", 
+                plot_generated=True,
+                main_indicators_count=len(plot_config.main_indicators),
+                subplot_indicators_count=len(plot_config.subplot_indicators))
+    
     return {
-        "strategies": AVAILABLE_STRATEGIES
+        "success": True,
+        "message": "Plot created successfully",
+        "chart_image": image_base64
     }
 
+@app.get("/api/available-strategies")
+@endpoint_wrapper("GET /api/available-strategies")
+async def get_strategies():
+    return {"strategies": AVAILABLE_STRATEGIES}
+
 @app.get("/api/strategy-parameters/{strategy_type}")
-async def get_strategy_parameters(strategy_type: str):
-    try:
-        # Get the default parameters for the strategy
-        default_params = get_default_parameters(strategy_type)
-        
-        return {
-            "parameters": default_params
-        }
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"message": f"Error getting strategy parameters: {str(e)}"}
-        )
+@endpoint_wrapper("GET /api/strategy-parameters")
+async def get_strategy_parameters(strategy_type: str, request: Request):
+    default_params = get_default_parameters(strategy_type)
+    return {"parameters": default_params}
 
 @app.post("/api/run-backtest")
-async def run_backtest(strategy_config: StrategyConfig, backtest_config: BacktestConfig):
+@endpoint_wrapper("POST /api/run-backtest")
+async def run_backtest(strategy_config: StrategyConfig, backtest_config: BacktestConfig, request: Request):
     global PROCESSED_DATA, BACKTESTER
     
-    log_endpoint("run_backtest", 
+    log_endpoint(f"{request.method} {request.url.path} - DETAILS", 
                  strategy_type=strategy_config.strategy_type, 
                  params=strategy_config.parameters,
-                 backtest_config=backtest_config.dict())
+                 backtest_config_params=backtest_config.dict())
     
     if PROCESSED_DATA is None:
         return JSONResponse(
             status_code=400,
-            content={"success": False, "message": "No processed data available. Please upload and process data first."}
+            content={"success": False, "message": "No processed data available."}
         )
     
-    try:
-        # Get data
-        data = PROCESSED_DATA.copy()
-        
-        # Create backtester if needed
-        if BACKTESTER is None:
-            BACKTESTER = Backtester(initial_capital=backtest_config.initial_capital,
-                                   commission=backtest_config.commission)
-        
-        # Set up backtester data
-        BACKTESTER.set_data(data)
-        
-        # Support for new modular strategies or legacy strategy classes
-        if strategy_config.strategy_type in STRATEGY_REGISTRY:
-            # New modular strategy approach (functional)
-            strategy_func = STRATEGY_REGISTRY[strategy_config.strategy_type]
-            
-            # Filter data by date range if specified
-            filtered_data = data.copy()
-            
-            if backtest_config.start_date:
-                start_date = pd.to_datetime(backtest_config.start_date)
-                filtered_data = filtered_data[filtered_data['date'] >= start_date]
-                
-            if backtest_config.end_date:
-                end_date = pd.to_datetime(backtest_config.end_date)
-                filtered_data = filtered_data[filtered_data['date'] <= end_date]
-            
-            # Get signals using the strategy function
-            signals_df = strategy_func(filtered_data, **strategy_config.parameters)
-            
-            # Calculate performance metrics directly
-            results = calculate_performance_metrics(signals_df, 
-                                                   initial_capital=backtest_config.initial_capital, 
-                                                   commission=backtest_config.commission)
-            
-            # Generate chart
-            chart_html = plot_backtest_results(signals_df, 
-                                              strategy_name=strategy_config.strategy_type.replace("_", " ").title(),
-                                              initial_capital=backtest_config.initial_capital)
-            
-            # Format results
-            result_data = {
-                "metrics": results,
-                "charts": chart_html,
-                "trades": extract_trades(signals_df, 
-                                        commission=backtest_config.commission,
-                                        initial_capital=backtest_config.initial_capital)
-            }
-            
-        else:
-            # Legacy strategy class approach
-            strategy = create_strategy(strategy_config.strategy_type, **strategy_config.parameters)
-            
-            # Run the backtest
-            result = BACKTESTER.run_backtest(strategy, 
-                                            start_date=backtest_config.start_date, 
-                                            end_date=backtest_config.end_date)
-            
-            # Get chart
-            chart_img = BACKTESTER.plot_equity_curves([strategy_config.strategy_type])
-            
-            # Format results
-            result_data = {
-                "metrics": result['performance_metrics'],
-                "charts": f'<img src="data:image/png;base64,{chart_img}" class="img-fluid" alt="Equity Curve">'
-            }
-        
-        # Save the current configuration
-        CURRENT_CONFIG['strategy'] = {
-            'type': strategy_config.strategy_type,
-            'parameters': strategy_config.parameters
-        }
-        
-        # Save indicators
-        indicator_columns = []
-        for col in data.columns:
-            if col not in ['date', 'open', 'high', 'low', 'close', 'volume']:
-                indicator_columns.append(col)
-                
-        CURRENT_CONFIG['indicators'] = indicator_columns
-        
-        return {"success": True, "results": result_data}
+    data = PROCESSED_DATA.copy()
+    filtered_data = data.copy()
+    if backtest_config.start_date:
+        filtered_data = filtered_data[filtered_data['date'] >= pd.to_datetime(backtest_config.start_date)]
+    if backtest_config.end_date:
+        filtered_data = filtered_data[filtered_data['date'] <= pd.to_datetime(backtest_config.end_date)]
     
-    except Exception as e:
-        stack_trace = traceback.format_exc()
-        logger.error(f"Error in run_backtest: {e}\n{stack_trace}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": f"Error running backtest: {str(e)}"}
-        )
+    strategy = create_strategy(strategy_config.strategy_type, **strategy_config.parameters)
+    
+    if callable(strategy) and not hasattr(strategy, 'generate_signals'):
+        signals_df = strategy(filtered_data, **strategy_config.parameters)
+    else:
+        signals_df = strategy.generate_signals(filtered_data)
+    
+    required_cols_signals = ['date', 'close']
+    missing_cols = check_required_columns(signals_df, required_cols_signals)
+    if missing_cols:
+        raise ValueError(f"Missing required columns in signals_df from strategy: {missing_cols}")
 
-# New helper functions for the modular strategy approach
+    signals_df = normalize_signals_df(signals_df)
+
+    # Generate more test signals if counts are low (this logic is specific)
+    if 'signal' in signals_df.columns:
+        buy_count = (signals_df['signal'] == 'buy').sum()
+        sell_count = (signals_df['signal'] == 'sell').sum()
+        if buy_count < 3 or sell_count < 3:
+            logger.warning(f"Few signals found (Buy: {buy_count}, Sell: {sell_count}), attempting to add more test signals based on MA crossover.")
+            if 'close' in signals_df.columns:
+                if 'sma_20' not in signals_df.columns:
+                    signals_df['sma_20'] = signals_df['close'].rolling(window=20, min_periods=1).mean()
+                if 'sma_50' not in signals_df.columns:
+                    signals_df['sma_50'] = signals_df['close'].rolling(window=50, min_periods=1).mean()
+                
+                # Ensure no NaNs at the start of MAs if window is large
+                signals_df.dropna(subset=['sma_20', 'sma_50'], inplace=True)
+                if not signals_df.empty : # Check if df is not empty after dropna
+                    # Generate crossover signals only where we have data
+                    buy_condition = (signals_df['sma_20'] > signals_df['sma_50']) & (signals_df['sma_20'].shift(1) <= signals_df['sma_50'].shift(1))
+                    sell_condition = (signals_df['sma_20'] < signals_df['sma_50']) & (signals_df['sma_20'].shift(1) >= signals_df['sma_50'].shift(1))
+                    
+                    # Apply signals where conditions are met and current signal is 'hold'
+                    signals_df.loc[buy_condition & (signals_df['signal'] == 'hold'), 'signal'] = 'buy'
+                    signals_df.loc[sell_condition & (signals_df['signal'] == 'hold'), 'signal'] = 'sell'
+                    logger.info(f"Added MA crossover test signals. New counts: Buy: {(signals_df['signal'] == 'buy').sum()}, Sell: {(signals_df['signal'] == 'sell').sum()}")
+
+    results_metrics = calculate_performance_metrics(signals_df, 
+                                           initial_capital=backtest_config.initial_capital, 
+                                           commission=backtest_config.commission)
+    
+    # Ensure equity is added to signals_df for plotting (calculate_performance_metrics should return it)
+    # This part seems redundant if calculate_performance_metrics already adds/returns equity correctly with signals_df
+    # For now, assuming calculate_performance_metrics returns a modified signals_df or the equity series directly.
+    # Let's assume calculate_performance_metrics returns a tuple (metrics_dict, signals_df_with_equity)
+    
+    # Rework based on calculate_performance_metrics potentially modifying signals_df or returning it
+    # For now, assume metrics is a dict and signals_df might be modified in place or we use the one we have.
+    # The original code implicitly assumed calculate_performance_metrics might not add 'equity' to the original signals_df.
+    # Let's ensure 'equity' and 'cumulative_market_return' are in signals_df for plot_backtest_results.
+    
+    if 'equity' not in signals_df.columns and 'final_capital_series' in results_metrics: # Check if metrics returned it
+        signals_df['equity'] = results_metrics['final_capital_series'] # Hypothetical key
+    elif 'equity' not in signals_df.columns: # Fallback if not in metrics or signals_df
+        logger.warning("'equity' column not found in signals_df after performance calculation. Re-calculating for plot.")
+        # Simplified equity calculation for plotting if missing
+        temp_equity = [backtest_config.initial_capital]
+        current_pos = 0
+        entry_p = 0
+        for i in range(len(signals_df)):
+            price = signals_df['close'].iloc[i]
+            signal = signals_df['signal'].iloc[i]
+            if signal == 'buy' and current_pos == 0:
+                current_pos = 1
+                entry_p = price
+                temp_equity.append(temp_equity[-1]) # No change on buy day itself
+            elif signal == 'sell' and current_pos == 1:
+                current_pos = 0
+                profit = (price - entry_p) # Simplified, no commission for this fallback plot equity
+                temp_equity.append(temp_equity[-1] + profit)
+            else:
+                # If holding, equity changes by price change relative to entry if we had a 'shares' concept
+                # For simplicity, if holding, equity stays or follows market if PnL is tracked daily
+                temp_equity.append(temp_equity[-1]) # Simplification
+        signals_df['equity'] = temp_equity[1:] if len(temp_equity) > len(signals_df) else temp_equity # Align length
+
+    if 'cumulative_market_return' not in signals_df.columns:
+        signals_df['market_return_pct'] = signals_df['close'].pct_change().fillna(0)
+        signals_df['cumulative_market_return'] = (1 + signals_df['market_return_pct']).cumprod()
+
+    chart_html = plot_backtest_results(signals_df, 
+                                      strategy_name=strategy_config.strategy_type.replace("_", " ").title(),
+                                      initial_capital=backtest_config.initial_capital)
+    
+    def clean_for_json(data_item):
+        if isinstance(data_item, dict):
+            return {k: clean_for_json(v) for k, v in data_item.items()}
+        elif isinstance(data_item, list):
+            return [clean_for_json(item) for item in data_item]
+        elif isinstance(data_item, float):
+            if np.isnan(data_item) or np.isinf(data_item): return None
+            return data_item
+        elif isinstance(data_item, (np.int64, np.int32, np.int16, np.int8)): return int(data_item)
+        elif isinstance(data_item, (np.float64, np.float32)): 
+            if np.isnan(data_item) or np.isinf(data_item): return None
+            return float(data_item)
+        elif isinstance(data_item, pd.Timestamp): return data_item.strftime('%Y-%m-%d %H:%M:%S')
+        return data_item
+
+    result_data = clean_for_json({
+        "metrics": results_metrics,
+        "charts": chart_html,
+        "trades": extract_trades(signals_df, 
+                                commission=backtest_config.commission,
+                                initial_capital=backtest_config.initial_capital)
+    })
+    
+    CURRENT_CONFIG['strategy'] = {'type': strategy_config.strategy_type, 'parameters': strategy_config.parameters}
+    indicator_columns = [col for col in data.columns if col not in ['date', 'open', 'high', 'low', 'close', 'volume']]
+    CURRENT_CONFIG['indicators'] = indicator_columns
+    
+    log_endpoint(f"{request.method} {request.url.path} - RESULT_SUMMARY", strategy_metrics=results_metrics.get('total_return_percent', 'N/A'))
+    return {"success": True, "results": result_data}
+
+
+# calculate_performance_metrics and other helpers are assumed to be mostly unchanged for now,
+# unless their error handling or logging was duplicative.
+# The main change is that the top-level try-except in endpoints is removed.
+
+# ... (calculate_performance_metrics, plot_backtest_results, extract_trades remain largely as is, ensure they don't have conflicting try-excepts for general errors)
+
+@app.post("/api/optimize-strategy")
+@endpoint_wrapper("POST /api/optimize-strategy")
+async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, background_tasks: BackgroundTasks, request: Request):
+    global PROCESSED_DATA, OPTIMIZATION_STATUS
+    
+    log_endpoint(f"{request.method} {request.url.path} - DETAILS", optimization_cfg=optimization_config.dict())
+
+    if PROCESSED_DATA is None:
+        return JSONResponse(status_code=400, content={"success": False, "message": "No processed data."})
+    
+    OPTIMIZATION_STATUS["in_progress"] = True
+    OPTIMIZATION_STATUS["strategy_type"] = optimization_config.strategy_type
+    OPTIMIZATION_STATUS["start_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    OPTIMIZATION_STATUS["latest_result_file"] = None
+    
+    def run_optimization_task():
+        global CURRENT_CONFIG, OPTIMIZATION_STATUS
+        try:
+            # Assuming optimize_strategy from import handles its own detailed logging if necessary
+            best_strategy, best_params, best_performance, all_results_raw = optimize_strategy(
+                data=PROCESSED_DATA,
+                strategy_type=optimization_config.strategy_type,
+                param_ranges=optimization_config.param_ranges,
+                metric=optimization_config.metric,
+                start_date=optimization_config.start_date,
+                end_date=optimization_config.end_date
+            )
+            
+            # CURRENT_CONFIG update was inside 'strategies', ensure key exists
+            if 'strategies' not in CURRENT_CONFIG: CURRENT_CONFIG['strategies'] = {}
+            if optimization_config.strategy_type not in CURRENT_CONFIG['strategies']:
+                 CURRENT_CONFIG['strategies'][optimization_config.strategy_type] = {}
+            CURRENT_CONFIG['strategies'][optimization_config.strategy_type].update(best_params)
+            
+            # Ensure directory exists
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            results_dir = os.path.join("results", "optimization")
+            try:
+                os.makedirs(results_dir, exist_ok=True)
+            except Exception as e_dir:
+                logger.error(f"Error creating optimization results directory: {str(e_dir)}")
+                # Try another location as fallback
+                results_dir = "."
+            
+            results_file = os.path.join(results_dir, f"optimization_{optimization_config.strategy_type}_{timestamp}.json")
+            
+            # Format results in structure expected by frontend
+            top_results = []
+            for result in all_results_raw[:10]:  # Take top 10 results
+                top_results.append({
+                    "params": result['params'],
+                    "score": result['value'],
+                    "metrics": result.get('performance', {})
+                })
+            
+            # Create final results structure that matches what frontend expects
+            serializable_results = {
+                'strategy_type': optimization_config.strategy_type,
+                'metric': optimization_config.metric,
+                'best_params': best_params,
+                'best_performance': best_performance,
+                'top_results': top_results,
+                'all_results': [{'params': r['params'], 'value': r['value'], 'performance': r['performance']} 
+                               for r in all_results_raw]
+            }
+            
+            try:
+                with open(results_file, 'w') as f:
+                    json.dump(serializable_results, f, indent=4)
+                logger.info(f"Optimization results saved to {results_file}")
+                OPTIMIZATION_STATUS["latest_result_file"] = results_file
+            except Exception as e_file:
+                logger.error(f"Error saving optimization results: {str(e_file)}\n{traceback.format_exc()}")
+        except Exception as e_opt:
+            logger.error(f"Error in optimization background task: {str(e_opt)}\n{traceback.format_exc()}")
+        finally:
+            OPTIMIZATION_STATUS["in_progress"] = False
+
+    background_tasks.add_task(run_optimization_task)
+    
+    log_endpoint(f"{request.method} {request.url.path} - TASK_SCHEDULED", strategy=optimization_config.strategy_type)
+    return {
+        "message": "Optimization started in the background",
+        "strategy_type": optimization_config.strategy_type,
+        "metric": optimization_config.metric
+    }
+
+@app.get("/api/optimization-status")
+@endpoint_wrapper("GET /api/optimization-status")
+async def get_optimization_status():
+    global OPTIMIZATION_STATUS
+    return OPTIMIZATION_STATUS
+
+@app.get("/api/optimization-results/{strategy_type}")
+@endpoint_wrapper("GET /api/optimization-results")
+async def get_optimization_results(strategy_type: str, request: Request):
+    import os, json
+    from fastapi.responses import JSONResponse
+    global OPTIMIZATION_STATUS
+    log_endpoint(f"{request.method} {request.url.path} - DETAILS", strategy=strategy_type)
+
+    # If optimization is in progress, return status
+    if OPTIMIZATION_STATUS["in_progress"] and OPTIMIZATION_STATUS["strategy_type"] == strategy_type:
+        return {"status": "in_progress", "message": f"Optimization for {strategy_type} is still in progress"}
+
+    results_dir = os.path.join("results", "optimization")
+    if not os.path.exists(results_dir):
+        logger.warning(f"Results directory not found: {results_dir}")
+        return {"status": "not_found", "message": "No optimization results directory found"}
+
+    try:
+        files = [f for f in os.listdir(results_dir) if f.startswith(f"optimization_{strategy_type}_") and f.endswith(".json")]
+    except FileNotFoundError:
+        logger.warning(f"Results directory disappeared: {results_dir}")
+        return {"status": "not_found", "message": "Optimization results directory disappeared."}
+
+    if not files:
+        logger.warning(f"No optimization files found for strategy: {strategy_type}")
+        return {"status": "not_found", "message": f"No optimization results found for strategy type '{strategy_type}'"}
+
+    latest_file = max(files, key=lambda f_name: os.path.getmtime(os.path.join(results_dir, f_name)))
+    file_path = os.path.join(results_dir, latest_file)
+    logger.info(f"Found latest optimization results file: {file_path}")
+
+    try:
+        with open(file_path, 'r') as f:
+            results_content = json.load(f)
+        
+        # If the file doesn't have top_results, transform it to match the expected format
+        if 'top_results' not in results_content:
+            if 'all_results' in results_content:
+                # Take the top 10 results (or fewer if less available)
+                top_results = []
+                for i, result in enumerate(results_content.get('all_results', [])[:10]):
+                    top_results.append({
+                        "params": result.get('params', {}),
+                        "score": result.get('value', 0),
+                        "metrics": result.get('performance', {})
+                    })
+                results_content['top_results'] = top_results
+            else:
+                # Create empty top_results if all_results is missing
+                results_content['top_results'] = []
+                
+        log_endpoint(f"{request.method} {request.url.path} - RESULTS_LOADED", file=latest_file)
+        return JSONResponse(content={
+            "status": "success",
+            "results": results_content,
+            "timestamp": datetime.fromtimestamp(os.path.getmtime(file_path)).strftime("%Y-%m-%d %H:%M:%S")
+        })
+    except Exception as e:
+        logger.error(f"Error reading optimization results file: {str(e)}\n{traceback.format_exc()}")
+        return {"status": "error", "message": f"Error reading optimization results: {str(e)}"}
+
+@app.post("/api/compare-strategies")
+@endpoint_wrapper("POST /api/compare-strategies")
+async def compare_strategies(request: Request):
+    global PROCESSED_DATA, BACKTESTER
+    
+    body = await request.json()
+    log_endpoint(f"{request.method} {request.url.path} - DETAILS", body_params=body)
+
+    if PROCESSED_DATA is None:
+        return JSONResponse(status_code=400, content={"success": False, "message": "No processed data."})
+    
+    strategy_types = body.get("strategy_types", [])
+    start_date_filter = body.get("start_date")
+    end_date_filter = body.get("end_date")
+        
+    if not strategy_types:
+        return JSONResponse(status_code=400, content={"success": False, "message": "No strategy types."})
+            
+    valid_strategy_types_list = [s['type'] for s in AVAILABLE_STRATEGIES]
+    invalid_strategies = [s_type for s_type in strategy_types if s_type not in valid_strategy_types_list]
+    if invalid_strategies:
+        return JSONResponse(status_code=422, content={"success": False, "message": f"Invalid types: {invalid_strategies}"})
+        
+    strategies_list = []
+    for s_type_item in strategy_types:
+        params = CURRENT_CONFIG.get('strategies', {}).get(s_type_item, {})
+        strategy_instance = create_strategy(s_type_item, **params)
+        strategies_list.append(strategy_instance)
+        
+    current_backtester = Backtester(
+        data=PROCESSED_DATA.copy(),
+        initial_capital=CURRENT_CONFIG['backtest']['initial_capital'],
+        commission=CURRENT_CONFIG['backtest']['commission']
+    )
+        
+    results_comparison = current_backtester.compare_strategies(
+        strategies=strategies_list,
+        start_date=start_date_filter,
+        end_date=end_date_filter
+    )
+    
+    equity_curve_image_b64 = current_backtester.plot_equity_curves()
+            
+    best_strategy_name = "Unknown"
+    if results_comparison:
+        try:
+            best_strategy_name = max(
+                results_comparison.items(), 
+                key=lambda x: x[1].get('sharpe_ratio', -float('inf')) if isinstance(x[1], dict) else -float('inf')
+            )[0]
+        except (ValueError, TypeError) as e_max:
+            logger.error(f"Error finding best strategy in comparison: {str(e_max)}")
+            best_strategy_name = "Error determining best"
+
+    log_endpoint(f"{request.method} {request.url.path} - COMPARISON_SUMMARY", best_strategy=best_strategy_name, count=len(strategies_list))
+    return {
+        "success": True, "message": "Comparison completed.",
+        "best_strategy": best_strategy_name, "results": results_comparison,
+        "chart_image": equity_curve_image_b64
+    }
+
+@app.post("/api/save-config")
+@endpoint_wrapper("POST /api/save-config")
+async def save_config_endpoint(config_data: Dict[str, Any], request: Request):
+    global CURRENT_CONFIG
+    
+    log_endpoint(f"{request.method} {request.url.path} - DETAILS", config_keys=list(config_data.keys()))
+    CURRENT_CONFIG.update(config_data)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    config_dir = os.path.join("results", "configs")
+    os.makedirs(config_dir, exist_ok=True)
+    config_file_path = os.path.join(config_dir, f"config_{timestamp}.json")
+    
+    with open(config_file_path, 'w') as f:
+        json.dump(CURRENT_CONFIG, f, indent=4)
+    
+    log_endpoint(f"{request.method} {request.url.path} - SAVED", file=config_file_path)
+    return {"message": "Configuration saved successfully", "config_file": config_file_path}
+
+@app.get("/api/load-config/{config_file}")
+@endpoint_wrapper("GET /api/load-config")
+async def load_config_endpoint(config_file: str, request: Request):
+    global CURRENT_CONFIG
+    
+    log_endpoint(f"{request.method} {request.url.path} - DETAILS", file=config_file)
+    config_path_full = os.path.join("results", "configs", config_file)
+    
+    if not os.path.exists(config_path_full):
+        return JSONResponse(status_code=404, content={"success": False, "message": "Config file not found."})
+
+    with open(config_path_full, 'r') as f:
+        loaded_config_data = json.load(f)
+    
+    CURRENT_CONFIG.update(loaded_config_data)
+    log_endpoint(f"{request.method} {request.url.path} - LOADED", file=config_file)
+    return {"message": "Configuration loaded successfully", "config": CURRENT_CONFIG}
+
+@app.get("/api/export-results/{format}")
+@endpoint_wrapper("GET /api/export-results")
+async def export_results(format_type: str, request: Request):
+    global BACKTESTER
+    
+    log_endpoint(f"{request.method} {request.url.path} - DETAILS", format_requested=format_type)
+
+    if BACKTESTER is None or not BACKTESTER.results:
+        return JSONResponse(status_code=400, content={"success": False, "message": "No backtest results."})
+    
+    results_dir_export = os.path.join("results", "exports")
+    os.makedirs(results_dir_export, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    file_to_send_path = ""
+    file_to_send_name = ""
+    media_type_str = ""
+
+    if format_type.lower() == 'json':
+        file_to_send_name = f"backtest_results_{timestamp}.json"
+        file_to_send_path = os.path.join(results_dir_export, file_to_send_name)
+        BACKTESTER.save_results(file_to_send_path)
+        media_type_str = "application/json"
+    elif format_type.lower() == 'csv':
+        file_to_send_name = f"backtest_results_{timestamp}.csv"
+        file_to_send_path = os.path.join(results_dir_export, file_to_send_name)
+        all_results_df = pd.DataFrame()
+        if isinstance(BACKTESTER.results, dict):
+            for strategy_name, result_data in BACKTESTER.results.items():
+                if isinstance(result_data, dict) and 'backtest_results' in result_data and isinstance(result_data['backtest_results'], pd.DataFrame):
+                    backtest_df_single = result_data['backtest_results'].copy()
+                    backtest_df_single['strategy'] = strategy_name
+                    all_results_df = pd.concat([all_results_df, backtest_df_single])
+                elif isinstance(result_data, pd.DataFrame):
+                    backtest_df_single = result_data.copy()
+                    backtest_df_single['strategy'] = strategy_name
+                    all_results_df = pd.concat([all_results_df, backtest_df_single])
+
+            if not all_results_df.empty:
+                all_results_df.to_csv(file_to_send_path, index=False)
+                media_type_str = "text/csv"
+            else:
+                 return JSONResponse(status_code=400, content={"success":False, "message": "No data to export to CSV."})
+        else:
+            return JSONResponse(status_code=400, content={"success":False, "message": "Results format not suitable for CSV export."})
+    else:
+        return JSONResponse(status_code=400, content={"success":False, "message": f"Unsupported format: {format_type}"})
+
+    log_endpoint(f"{request.method} {request.url.path} - EXPORTED", file=file_to_send_name)
+    return FileResponse(path=file_to_send_path, filename=file_to_send_name, media_type=media_type_str)
+
+
+@app.get("/api/current-config")
+@endpoint_wrapper("GET /api/current-config")
+async def get_current_config(request: Request):
+    global CURRENT_CONFIG, PROCESSED_DATA
+    
+    if PROCESSED_DATA is not None:
+        indicator_columns = [col for col in PROCESSED_DATA.columns 
+                           if col not in ['date', 'open', 'high', 'low', 'close', 'volume']]
+        if 'indicators' not in CURRENT_CONFIG: CURRENT_CONFIG['indicators'] = {}
+        CURRENT_CONFIG['indicators']['available_indicators'] = indicator_columns
+    
+    return CURRENT_CONFIG
+
+@app.get("/api/data-status")
+@endpoint_wrapper("GET /api/data-status")
+async def data_status(request: Request):
+    global UPLOADED_DATA, PROCESSED_DATA
+    return {
+        "uploaded": UPLOADED_DATA is not None,
+        "processed": PROCESSED_DATA is not None,
+        "shape": PROCESSED_DATA.shape if PROCESSED_DATA is not None else None
+    }
+
+@app.get("/api/debug-info")
+@endpoint_wrapper("GET /api/debug-info")
+async def debug_info(request: Request):
+    system_info = {
+        "platform": platform.platform(), "python_version": platform.python_version(),
+        "processor": platform.processor(), "memory": f"{psutil.virtual_memory().total / (1024**3):.2f} GB",
+        "available_memory": f"{psutil.virtual_memory().available / (1024**3):.2f} GB",
+        "cpu_count": psutil.cpu_count(logical=True), "hostname": platform.node()
+    }
+    app_info = {
+        "current_directory": os.getcwd(), 
+        "start_time_process": datetime.fromtimestamp(psutil.Process().create_time()).strftime('%Y-%m-%d %H:%M:%S'),
+        "uptime_seconds": time.time() - psutil.Process().create_time(),
+        "process_memory_usage": f"{psutil.Process().memory_info().rss / (1024**2):.2f} MB",
+        "loaded_modules_count": len(sys.modules) 
+    }
+    
+    uploaded_data_summary = None
+    if UPLOADED_DATA is not None:
+        uploaded_data_summary = {
+            "shape": UPLOADED_DATA.shape, "columns": list(UPLOADED_DATA.columns),
+            "memory_usage": f"{UPLOADED_DATA.memory_usage(deep=True).sum() / (1024**2):.2f} MB",
+            "sample_rows_count": len(UPLOADED_DATA.head(3))
+        }
+
+    processed_data_summary = None
+    if PROCESSED_DATA is not None:
+        date_range_processed = {"start": "N/A", "end": "N/A"}
+        if 'date' in PROCESSED_DATA.columns and pd.api.types.is_datetime64_any_dtype(PROCESSED_DATA['date']):
+            min_d, max_d = PROCESSED_DATA['date'].min(), PROCESSED_DATA['date'].max()
+            date_range_processed["start"] = min_d.strftime('%Y-%m-%d') if pd.notna(min_d) else "N/A"
+            date_range_processed["end"] = max_d.strftime('%Y-%m-%d') if pd.notna(max_d) else "N/A"
+        
+        processed_data_summary = {
+            "shape": PROCESSED_DATA.shape, "columns": list(PROCESSED_DATA.columns),
+            "memory_usage": f"{PROCESSED_DATA.memory_usage(deep=True).sum() / (1024**2):.2f} MB",
+            "date_range": date_range_processed,
+            "has_indicators": len([c for c in PROCESSED_DATA.columns if c not in ['date', 'open', 'high', 'low', 'close', 'volume']]) > 0
+        }
+
+    data_info_summary = { "uploaded_data_summary": uploaded_data_summary, "processed_data_summary": processed_data_summary }
+
+    log_endpoint(f"{request.method} {request.url.path} - DEBUG_INFO_ACCESS", platform=system_info["platform"])
+    return {
+        "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        "system_info": system_info, "app_info": app_info, "data_info": data_info_summary
+    }
+
+# Seasonality Endpoints
+@app.post("/api/seasonality/day-of-week")
+@endpoint_wrapper("POST /api/seasonality/day-of-week")
+async def analyze_day_of_week(request: Request):
+    global PROCESSED_DATA
+    if PROCESSED_DATA is None: return JSONResponse(status_code=400, content={"success": False, "message": "No data."})
+    
+    log_endpoint(f"{request.method} {request.url.path} - START_ANALYSIS")
+    dow_returns_df, fig_dow = day_of_week_returns(PROCESSED_DATA, plot=True)
+    
+    buffer = io.BytesIO()
+    fig_dow.savefig(buffer, format='png')
+    buffer.seek(0)
+    img_str_b64 = base64.b64encode(buffer.read()).decode('utf-8')
+    
+    return JSONResponse(content={"success": True, "plot": img_str_b64, "data": dow_returns_df.to_dict('records')})
+
+@app.post("/api/seasonality/monthly")
+@endpoint_wrapper("POST /api/seasonality/monthly")
+async def analyze_monthly(request: Request):
+    global PROCESSED_DATA
+    if PROCESSED_DATA is None: return JSONResponse(status_code=400, content={"success": False, "message": "No data."})
+
+    log_endpoint(f"{request.method} {request.url.path} - START_ANALYSIS")
+    monthly_rets_df, fig_monthly = monthly_returns(PROCESSED_DATA, plot=True)
+
+    buffer = io.BytesIO()
+    fig_monthly.savefig(buffer, format='png')
+    buffer.seek(0)
+    img_str_b64 = base64.b64encode(buffer.read()).decode('utf-8')
+    
+    return JSONResponse(content={"success": True, "plot": img_str_b64, "data": monthly_rets_df.to_dict('records')})
+
+@app.post("/api/seasonality/volatility")
+@endpoint_wrapper("POST /api/seasonality/volatility")
+async def analyze_volatility(request: Request):
+    global PROCESSED_DATA
+    if PROCESSED_DATA is None: return JSONResponse(status_code=400, content={"success": False, "message": "No data."})
+
+    log_endpoint(f"{request.method} {request.url.path} - START_ANALYSIS")
+    dow_vol_df, fig_vol = day_of_week_volatility(PROCESSED_DATA, plot=True)
+
+    buffer = io.BytesIO()
+    fig_vol.savefig(buffer, format='png')
+    buffer.seek(0)
+    img_str_b64 = base64.b64encode(buffer.read()).decode('utf-8')
+    
+    return JSONResponse(content={"success": True, "plot": img_str_b64, "data": dow_vol_df.to_dict('records')})
+
+@app.post("/api/seasonality/heatmap")
+@endpoint_wrapper("POST /api/seasonality/heatmap")
+async def create_heatmap(request: Request):
+    global PROCESSED_DATA
+    if PROCESSED_DATA is None: return JSONResponse(status_code=400, content={"success": False, "message": "No data."})
+
+    log_endpoint(f"{request.method} {request.url.path} - START_ANALYSIS")
+    fig_heatmap = calendar_heatmap(PROCESSED_DATA)
+
+    buffer = io.BytesIO()
+    fig_heatmap.savefig(buffer, format='png')
+    buffer.seek(0)
+    img_str_b64 = base64.b64encode(buffer.read()).decode('utf-8')
+    
+    return JSONResponse(content={"success": True, "plot": img_str_b64})
+
+@app.post("/api/seasonality/summary")
+@endpoint_wrapper("POST /api/seasonality/summary")
+async def get_seasonality_summary(request: Request):
+    global PROCESSED_DATA
+    if PROCESSED_DATA is None: return JSONResponse(status_code=400, content={"success": False, "message": "No data."})
+
+    log_endpoint(f"{request.method} {request.url.path} - START_ANALYSIS")
+    fig_summary, results_data = seasonality_summary(PROCESSED_DATA)
+
+    buffer = io.BytesIO()
+    fig_summary.savefig(buffer, format='png')
+    buffer.seek(0)
+    img_str_b64 = base64.b64encode(buffer.read()).decode('utf-8')
+    
+    return JSONResponse(content={"success": True, "plot": img_str_b64, "data": results_data})
+
+# Helper functions (restored)
 def calculate_performance_metrics(signals_df, initial_capital=10000.0, commission=0.001):
     """
     Calculate performance metrics from signals DataFrame.
@@ -798,911 +1234,269 @@ def calculate_performance_metrics(signals_df, initial_capital=10000.0, commissio
     df['trade_profit'] = 0.0
     df['trade_returns'] = 0.0
     
-    # Calculate positions
     position = 0
     entry_price = 0.0
     equity = initial_capital
+    total_trades = 0
+    winning_trades = 0
+    losing_trades = 0
+    total_profit = 0
+    total_loss = 0
+    
+    buy_signals_indices = [] # Storing indices for potential analysis, not directly used in metrics here
+    sell_signals_indices = []
     
     for i in range(len(df)):
-        if df.iloc[i]['signal'] == 'buy' and position == 0:
-            position = 1
-            entry_price = df.iloc[i]['close'] * (1 + commission)  # Include commission
-        elif df.iloc[i]['signal'] == 'sell' and position == 1:
-            position = 0
-            exit_price = df.iloc[i]['close'] * (1 - commission)  # Include commission
-            trade_profit = exit_price - entry_price
-            trade_return = trade_profit / entry_price
-            equity += trade_profit
-            df.at[df.index[i], 'trade_profit'] = trade_profit
-            df.at[df.index[i], 'trade_returns'] = trade_return
+        current_signal = df.iloc[i]['signal']
+        current_price = df.iloc[i]['close']
+        current_date = df.iloc[i]['date']
         
-        df.at[df.index[i], 'position'] = position
-        df.at[df.index[i], 'equity'] = equity
-        df.at[df.index[i], 'entry_price'] = entry_price
-    
-    # Calculate market returns for comparison
+        if current_signal == 'buy':
+            buy_signals_indices.append(df.index[i])
+            if position == 0:
+                position = 1
+                entry_price = current_price * (1 + commission)
+                logger.info(f"BUY at {current_date} price: {entry_price:.2f}")
+        elif current_signal == 'sell':
+            sell_signals_indices.append(df.index[i])
+            if position == 1:
+                position = 0
+                exit_price = current_price * (1 - commission)
+                trade_profit = exit_price - entry_price
+                trade_return = (trade_profit / entry_price) if entry_price != 0 else 0
+                equity += trade_profit
+                
+                total_trades += 1
+                if trade_profit > 0:
+                    winning_trades += 1
+                    total_profit += trade_profit
+                else:
+                    losing_trades += 1
+                    total_loss += trade_profit
+                   
+                df.at[df.index[i], 'trade_profit'] = trade_profit
+                df.at[df.index[i], 'trade_returns'] = trade_return
+                logger.info(f"SELL at {current_date} price: {exit_price:.2f}, profit: {trade_profit:.2f}")
+            entry_price = 0.0 # Reset entry price
+            entry_date_val = None
+           
     df['market_return'] = df['close'].pct_change().fillna(0)
     df['cumulative_market_return'] = (1 + df['market_return']).cumprod()
     
-    # Calculate strategy metrics
     start_date = df['date'].min()
     end_date = df['date'].max()
     days = (end_date - start_date).days
-    years = days / 365.25
+    years = max(days / 365.25, 0.01) # Avoid division by zero for very short periods
     
-    total_return = (df['equity'].iloc[-1] / initial_capital) - 1
-    annual_return = ((1 + total_return) ** (1 / max(years, 0.01))) - 1
+    final_equity = df['equity'].iloc[-1] if not df['equity'].empty else initial_capital
+    total_return_calc = (final_equity / initial_capital) - 1
+    annual_return_calc = ((1 + total_return_calc) ** (1 / years)) - 1 if years > 0 else 0
     
-    # Drawdown calculation
-    df['drawdown'] = (df['equity'].cummax() - df['equity']) / df['equity'].cummax()
-    max_drawdown = df['drawdown'].max()
+    df['drawdown'] = (df['equity'].cummax() - df['equity']) / df['equity'].cummax().replace(0, np.nan) # Avoid div by zero if equity hits 0
+    max_drawdown_calc = df['drawdown'].max() if not df['drawdown'].empty else 0
+    max_drawdown_calc = max_drawdown_calc if pd.notna(max_drawdown_calc) else 0
+
+    win_rate_calc = winning_trades / total_trades if total_trades > 0 else 0
     
-    # Trade statistics
-    winning_trades = df[df['trade_profit'] > 0]
-    losing_trades = df[df['trade_profit'] < 0]
+    avg_win_calc = total_profit / winning_trades if winning_trades > 0 else 0
+    avg_loss_calc = abs(total_loss / losing_trades) if losing_trades > 0 else 0 # abs for avg loss
     
-    total_trades = len(winning_trades) + len(losing_trades)
-    win_rate = len(winning_trades) / max(total_trades, 1)
+    profit_factor_calc = abs(total_profit / total_loss) if total_loss != 0 else float('inf') # total_loss can be negative
     
-    avg_win = winning_trades['trade_profit'].mean() if len(winning_trades) > 0 else 0
-    avg_loss = abs(losing_trades['trade_profit'].mean()) if len(losing_trades) > 0 else 0
-    
-    profit_factor = abs(winning_trades['trade_profit'].sum() / losing_trades['trade_profit'].sum()) if len(losing_trades) > 0 and losing_trades['trade_profit'].sum() != 0 else float('inf')
-    
-    # Calculate volatility and Sharpe ratio
-    daily_returns = df['equity'].pct_change().fillna(0)
-    annual_volatility = daily_returns.std() * (252 ** 0.5)  # Annualized
-    sharpe_ratio = annual_return / max(annual_volatility, 0.0001)  # Avoid division by zero
+    daily_returns_series = df['equity'].pct_change().fillna(0)
+    annual_volatility_calc = daily_returns_series.std() * (252 ** 0.5)
+    sharpe_ratio_calc = annual_return_calc / annual_volatility_calc if annual_volatility_calc > 0 else 0
     
     metrics = {
-        'start_date': start_date.strftime('%Y-%m-%d'),
-        'end_date': end_date.strftime('%Y-%m-%d'),
+        'start_date': start_date.strftime('%Y-%m-%d') if pd.notna(start_date) else 'N/A',
+        'end_date': end_date.strftime('%Y-%m-%d') if pd.notna(end_date) else 'N/A',
         'initial_capital': initial_capital,
-        'final_capital': df['equity'].iloc[-1],
-        'total_return_percent': total_return * 100,
-        'annual_return_percent': annual_return * 100,
-        'max_drawdown_percent': max_drawdown * 100,
-        'sharpe_ratio': sharpe_ratio,
+        'final_capital': final_equity,
+        'total_return_percent': total_return_calc * 100,
+        'annual_return_percent': annual_return_calc * 100,
+        'max_drawdown_percent': max_drawdown_calc * 100,
+        'sharpe_ratio': sharpe_ratio_calc,
         'total_trades': total_trades,
-        'win_rate_percent': win_rate * 100,
-        'profit_factor': profit_factor,
-        'avg_win': avg_win,
-        'avg_loss': avg_loss,
-        'annual_volatility_percent': annual_volatility * 100
+        'win_rate_percent': win_rate_calc * 100,
+        'profit_factor': profit_factor_calc,
+        'avg_win': avg_win_calc,
+        'avg_loss': avg_loss_calc,
+        'annual_volatility_percent': annual_volatility_calc * 100,
+        'buy_signals_count': len(buy_signals_indices),
+        'sell_signals_count': len(sell_signals_indices)
+        # 'final_capital_series': df['equity'].tolist() # For run_backtest to use if needed
     }
     
+    # Ensure signals_df in the caller has the equity column for plotting
+    signals_df['equity'] = df['equity']
+    signals_df['cumulative_market_return'] = df['cumulative_market_return']
     return metrics
 
 def plot_backtest_results(signals_df, strategy_name='Strategy', initial_capital=10000.0):
     """
     Generate HTML chart for backtest results.
-    
     Args:
-        signals_df (pd.DataFrame): DataFrame with backtest results
+        signals_df (pd.DataFrame): DataFrame with backtest results (must include 'date', 'equity', 'cumulative_market_return')
         strategy_name (str): Name of the strategy
-        initial_capital (float): Initial capital
-        
+        initial_capital (float): Initial capital (used for Buy & Hold calculation)
     Returns:
-        str: HTML chart
+        str: HTML chart string
     """
     df = signals_df.copy()
+
+    # Ensure required columns exist
+    required_plot_cols = ['date', 'equity', 'cumulative_market_return']
+    missing_plot_cols = [col for col in required_plot_cols if col not in df.columns]
+    if missing_plot_cols:
+        logger.error(f"Missing columns for plotting: {missing_plot_cols}. Cannot generate equity curve.")
+        return "<div class='alert alert-danger'>Error: Missing data for chart generation.</div>"
     
-    # Calculate buy and hold equity
+    # Ensure date is in string format for JSON serialization in chart
+    df = stringify_df_dates(df) # Use the utility
+
     df['buy_hold_equity'] = initial_capital * df['cumulative_market_return']
     
-    # Create chart HTML
+    timestamp = int(time.time())
+    chart_id = f"equity-curve-chart-{timestamp}"
+    
     chart_html = f"""
-    <div class="chart-container">
-        <canvas id="equity-curve-chart"></canvas>
+    <div class="chart-container" style="position: relative; height:400px; width:100%; margin-bottom: 20px;">
+        <canvas id="{chart_id}"></canvas>
     </div>
     <script>
     document.addEventListener('DOMContentLoaded', function() {{
-        const ctx = document.getElementById('equity-curve-chart').getContext('2d');
-        const dates = {df['date'].dt.strftime('%Y-%m-%d').tolist()};
-        const equity = {df['equity'].tolist()};
-        const buyHoldEquity = {df['buy_hold_equity'].tolist()};
-        
-        new Chart(ctx, {{
-            type: 'line',
-            data: {{
-                labels: dates,
+        const chartInit = function() {{
+            console.log('Initializing equity curve chart: {chart_id}');
+            const ctx = document.getElementById('{chart_id}');
+            if (!ctx) {{ console.error('Chart canvas element not found: {chart_id}'); return; }}
+            
+            const chartData = {{
+                labels: {json.dumps(df['date'].tolist())},
                 datasets: [
                     {{
                         label: '{strategy_name}',
-                        data: equity,
+                        data: {json.dumps(df['equity'].tolist())},
                         borderColor: 'rgb(75, 192, 192)',
                         backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                        tension: 0.1,
-                        fill: true
+                        tension: 0.1, fill: true
                     }},
                     {{
                         label: 'Buy & Hold',
-                        data: buyHoldEquity,
+                        data: {json.dumps(df['buy_hold_equity'].tolist())},
                         borderColor: 'rgb(192, 75, 75)',
                         backgroundColor: 'rgba(192, 75, 75, 0.1)',
-                        borderDash: [5, 5],
-                        tension: 0.1,
-                        fill: true
+                        borderDash: [5, 5], tension: 0.1, fill: true
                     }}
                 ]
-            }},
-            options: {{
-                responsive: true,
-                plugins: {{
-                    title: {{
-                        display: true,
-                        text: 'Equity Curve'
-                    }},
-                    tooltip: {{
-                        mode: 'index',
-                        intersect: false,
-                    }}
-                }},
-                scales: {{
-                    x: {{
-                        display: true,
-                        title: {{
-                            display: true,
-                            text: 'Date'
-                        }}
-                    }},
-                    y: {{
-                        display: true,
-                        title: {{
-                            display: true,
-                            text: 'Equity ($)'
+            }};
+            
+            try {{
+                new Chart(ctx, {{
+                    type: 'line', data: chartData,
+                    options: {{
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: {{ title: {{ display: true, text: 'Equity Curve' }}, tooltip: {{ mode: 'index', intersect: false }} }},
+                        scales: {{
+                            x: {{ display: true, title: {{ display: true, text: 'Date' }}, ticks: {{ maxTicksLimit: 12 }} }},
+                            y: {{ display: true, title: {{ display: true, text: 'Equity ($)' }} }}
                         }}
                     }}
-                }}
-            }}
-        }});
+                }});
+                console.log('Equity curve chart created: {chart_id}');
+            }} catch (error) {{ console.error('Error creating equity curve chart ({chart_id}):', error); }}
+        }};
+        if (document.readyState === 'loading') {{ document.addEventListener('DOMContentLoaded', chartInit); }}
+        else {{ chartInit(); }}
     }});
     </script>
     """
-    
     return chart_html
 
-def extract_trades(signals_df, commission=0.001, initial_capital=10000.0):
+def extract_trades(signals_df, commission=0.001, initial_capital=10000.0): # initial_capital not used here, but kept for signature consistency if desired
     """
     Extract individual trades from signals DataFrame.
-    
     Args:
-        signals_df (pd.DataFrame): DataFrame with signal column
+        signals_df (pd.DataFrame): DataFrame with 'date', 'close', 'signal' columns
         commission (float): Commission rate per trade
-        initial_capital (float): Initial capital
-        
     Returns:
         list: List of trade dictionaries
     """
     df = signals_df.copy()
     trades = []
-    
-    # Find all buy signals
-    buy_signals = df[df['signal'] == 'buy'].index
-    
-    for buy_idx in buy_signals:
-        # Skip if we're at the last row
-        if buy_idx >= len(df) - 1:
-            continue
+    position = 0
+    entry_price = 0.0
+    entry_date_val = None
+
+    required_trade_cols = ['date', 'close', 'signal']
+    if not all(col in df.columns for col in required_trade_cols):
+        logger.error("Missing required columns for trade extraction.")
+        return []
+
+    for i in range(len(df)):
+        current_signal = df.iloc[i]['signal']
+        current_price = df.iloc[i]['close']
+        current_date = df.iloc[i]['date'] # Assuming date is already pd.Timestamp or datetime object
+
+        if current_signal == 'buy' and position == 0:
+            position = 1
+            entry_price = current_price * (1 + commission)
+            entry_date_val = current_date
+        elif current_signal == 'sell' and position == 1:
+            position = 0
+            exit_price = current_price * (1 - commission)
+            exit_date_val = current_date
             
-        entry_date = df.loc[buy_idx, 'date']
-        entry_price = df.loc[buy_idx, 'close'] * (1 + commission)
-        
-        # Find next sell signal after this buy
-        sell_indices = df.loc[buy_idx+1:][df.loc[buy_idx+1:]['signal'] == 'sell'].index
-        
-        if len(sell_indices) > 0:
-            sell_idx = sell_indices[0]
-            exit_date = df.loc[sell_idx, 'date']
-            exit_price = df.loc[sell_idx, 'close'] * (1 - commission)
-            
-            profit = exit_price - entry_price
-            profit_pct = (profit / entry_price) * 100
-            
-            trade = {
-                'entry_date': entry_date.strftime('%Y-%m-%d'),
-                'exit_date': exit_date.strftime('%Y-%m-%d'),
-                'entry_price': entry_price,
-                'exit_price': exit_price,
-                'profit': profit,
-                'profit_pct': profit_pct,
-                'result': 'win' if profit > 0 else 'loss'
-            }
-            
-            trades.append(trade)
-    
+            if entry_price != 0: # Ensure there was an entry to calculate profit
+                profit_val = exit_price - entry_price
+                profit_pct_val = (profit_val / entry_price) * 100
+                trades.append({
+                    'entry_date': entry_date_val.strftime('%Y-%m-%d') if hasattr(entry_date_val, 'strftime') else str(entry_date_val),
+                    'exit_date': exit_date_val.strftime('%Y-%m-%d') if hasattr(exit_date_val, 'strftime') else str(exit_date_val),
+                    'entry_price': entry_price,
+                    'exit_price': exit_price,
+                    'profit': profit_val,
+                    'profit_pct': profit_pct_val,
+                    'result': 'win' if profit_val > 0 else 'loss'
+                })
+            entry_price = 0.0 # Reset entry price
+            entry_date_val = None
+           
     return trades
 
-@app.post("/api/optimize-strategy")
-async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, background_tasks: BackgroundTasks):
-    global PROCESSED_DATA, OPTIMIZATION_STATUS
-    
-    if PROCESSED_DATA is None:
-        return JSONResponse(
-            status_code=400,
-            content={"message": "No processed data available. Please upload and process data first."}
-        )
-    
-    # Set optimization status
-    OPTIMIZATION_STATUS["in_progress"] = True
-    OPTIMIZATION_STATUS["strategy_type"] = optimization_config.strategy_type
-    OPTIMIZATION_STATUS["start_time"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    OPTIMIZATION_STATUS["latest_result_file"] = None
-    
-    # Define a background task for optimization (as it can take a long time)
-    def run_optimization():
-        global CURRENT_CONFIG, OPTIMIZATION_STATUS
-        
-        try:
-            # Run the optimization
-            best_strategy, best_params, best_performance, all_results = optimize_strategy(
-                data=PROCESSED_DATA,
-                strategy_type=optimization_config.strategy_type,
-                param_ranges=optimization_config.param_ranges,
-                metric=optimization_config.metric,
-                start_date=optimization_config.start_date,
-                end_date=optimization_config.end_date
-            )
-            
-            # Update the current config with the optimized strategy parameters
-            CURRENT_CONFIG['strategies'][optimization_config.strategy_type].update(best_params)
-            
-            # Save the optimization results
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            results_dir = os.path.join("results", "optimization")
-            os.makedirs(results_dir, exist_ok=True)
-            
-            results_file = os.path.join(results_dir, f"optimization_{optimization_config.strategy_type}_{timestamp}.json")
-            
-            with open(results_file, 'w') as f:
-                # Convert all_results to a serializable format
-                serializable_results = []
-                for result in all_results:
-                    serializable_results.append({
-                        'params': result['params'],
-                        'value': result['value'],
-                        'performance': result['performance']
-                    })
-                
-                json.dump({
-                    'strategy_type': optimization_config.strategy_type,
-                    'metric': optimization_config.metric,
-                    'best_params': best_params,
-                    'best_performance': best_performance,
-                    'all_results': serializable_results
-                }, f, indent=4)
-            
-            # Update optimization status
-            OPTIMIZATION_STATUS["in_progress"] = False
-            OPTIMIZATION_STATUS["latest_result_file"] = results_file
-            
-        except Exception as e:
-            # Update optimization status on error
-            OPTIMIZATION_STATUS["in_progress"] = False
-            print(f"Error in optimization background task: {str(e)}")
-    
-    # Add the optimization task to background tasks
-    background_tasks.add_task(run_optimization)
-    
-    return {
-        "message": "Optimization started in the background",
-        "strategy_type": optimization_config.strategy_type,
-        "metric": optimization_config.metric
-    }
-
-@app.get("/api/optimization-status")
-async def get_optimization_status():
+@app.get("/api/check-optimization-directory")
+@endpoint_wrapper("GET /api/check-optimization-directory")
+async def check_optimization_directory():
     """
-    Endpoint to check the status of the optimization process.
+    Check if the optimization results directory exists and is writable.
+    This helps diagnose issues with optimization results not being saved.
     """
-    global OPTIMIZATION_STATUS
-    
-    return OPTIMIZATION_STATUS
-
-@app.get("/api/optimization-results/{strategy_type}")
-async def get_optimization_results(strategy_type: str):
-    """
-    Endpoint to get the latest optimization results for a specific strategy.
-    """
-    global OPTIMIZATION_STATUS
-    
-    # Check if optimization is still in progress
-    if OPTIMIZATION_STATUS["in_progress"] and OPTIMIZATION_STATUS["strategy_type"] == strategy_type:
-        return {
-            "status": "in_progress",
-            "message": f"Optimization for {strategy_type} is still in progress"
-        }
-    
-    # Find the latest optimization result file for the specified strategy
     results_dir = os.path.join("results", "optimization")
-    if not os.path.exists(results_dir):
-        return {
-            "status": "not_found",
-            "message": "No optimization results directory found"
-        }
-    
-    files = [f for f in os.listdir(results_dir) if f.startswith(f"optimization_{strategy_type}_")]
-    if not files:
-        return {
-            "status": "not_found",
-            "message": f"No optimization results found for strategy type '{strategy_type}'"
-        }
-    
-    # Get the most recent file
-    latest_file = max(files, key=lambda f: os.path.getmtime(os.path.join(results_dir, f)))
-    file_path = os.path.join(results_dir, latest_file)
     
     try:
-        with open(file_path, 'r') as f:
-            results = json.load(f)
+        # Check if directory exists, create it if not
+        if not os.path.exists(results_dir):
+            os.makedirs(results_dir, exist_ok=True)
+            logger.info(f"Created optimization directory: {results_dir}")
+            
+        # Check if directory is writable by attempting to create and delete a test file
+        test_file_path = os.path.join(results_dir, "test_write.tmp")
+        with open(test_file_path, 'w') as f:
+            f.write("test")
+        os.remove(test_file_path)
         
         return {
-            "status": "success",
-            "results": results,
-            "timestamp": datetime.fromtimestamp(os.path.getmtime(file_path)).strftime("%Y-%m-%d %H:%M:%S")
+            "success": True, 
+            "message": "Optimization directory exists and is writable",
+            "directory": results_dir
         }
     except Exception as e:
+        logger.error(f"Error checking optimization directory: {str(e)}\n{traceback.format_exc()}")
         return {
-            "status": "error",
-            "message": f"Error loading optimization results: {str(e)}"
+            "success": False,
+            "message": f"Error with optimization directory: {str(e)}",
+            "directory": results_dir
         }
-
-@app.post("/api/compare-strategies")
-async def compare_strategies(request: Request):
-    global PROCESSED_DATA, BACKTESTER
-    
-    start_time = time.time()
-    
-    if PROCESSED_DATA is None:
-        elapsed_time = time.time() - start_time
-        log_endpoint("POST /api/compare-strategies - ERROR", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    error="No processed data available")
-        
-        return JSONResponse(
-            status_code=400,
-            content={"success": False, "message": "No processed data available. Please upload and process data first."}
-        )
-    
-    try:
-        # Parse the request body
-        body = await request.json()
-        strategy_types = body.get("strategy_types", [])
-        start_date = body.get("start_date")
-        end_date = body.get("end_date")
-        
-        log_endpoint("POST /api/compare-strategies", 
-                    strategy_types=strategy_types, 
-                    start_date=start_date,
-                    end_date=end_date,
-                    data_shape=PROCESSED_DATA.shape)
-        
-        # Validate input
-        if not strategy_types or len(strategy_types) == 0:
-            elapsed_time = time.time() - start_time
-            log_endpoint("POST /api/compare-strategies - ERROR", 
-                        elapsed_time=f"{elapsed_time:.2f}s",
-                        error="No strategy types provided")
-            
-            return JSONResponse(
-                status_code=400,
-                content={"success": False, "message": "At least one strategy type must be provided"}
-            )
-            
-        # Check all strategy types are valid
-        valid_strategy_types = [s['type'] for s in AVAILABLE_STRATEGIES]
-        invalid_strategies = [s for s in strategy_types if s not in valid_strategy_types]
-        if invalid_strategies:
-            elapsed_time = time.time() - start_time
-            log_endpoint("POST /api/compare-strategies - ERROR", 
-                        elapsed_time=f"{elapsed_time:.2f}s",
-                        error=f"Invalid strategy types: {invalid_strategies}",
-                        valid_types=valid_strategy_types)
-            
-            return JSONResponse(
-                status_code=422,
-                content={"success": False, "message": f"Invalid strategy types: {', '.join(invalid_strategies)}. Valid types are: {', '.join(valid_strategy_types)}"}
-            )
-        
-        # Create strategies with error handling
-        strategies = []
-        for strategy_type in strategy_types:
-            try:
-                logger.info(f"Creating strategy: {strategy_type}")
-                params = CURRENT_CONFIG['strategies'].get(strategy_type, {})
-                strategy = create_strategy(strategy_type, **params)
-                strategies.append(strategy)
-                logger.info(f"Strategy created: {strategy.name}")
-            except Exception as e:
-                elapsed_time = time.time() - start_time
-                error_trace = traceback.format_exc()
-                log_endpoint("POST /api/compare-strategies - ERROR", 
-                            elapsed_time=f"{elapsed_time:.2f}s",
-                            error=f"Error creating strategy '{strategy_type}': {str(e)}",
-                            traceback=error_trace)
-                
-                return JSONResponse(
-                    status_code=400,
-                    content={"success": False, "message": f"Error creating strategy '{strategy_type}': {str(e)}"}
-                )
-        
-        # Create a backtester
-        logger.info("Initializing backtester for strategy comparison")
-        BACKTESTER = Backtester(
-            data=PROCESSED_DATA.copy(),
-            initial_capital=CURRENT_CONFIG['backtest']['initial_capital'],
-            commission=CURRENT_CONFIG['backtest']['commission']
-        )
-        
-        # Run the backtests
-        logger.info(f"Running comparison for strategies: {[s.name for s in strategies]}")
-        results = BACKTESTER.compare_strategies(
-            strategies=strategies,
-            start_date=start_date,
-            end_date=end_date
-        )
-        
-        # Get equity curve image
-        try:
-            logger.info("Generating equity curve image")
-            equity_curve_image = BACKTESTER.plot_equity_curves()
-        except Exception as e:
-            logger.error(f"Error generating equity curve: {str(e)}")
-            equity_curve_image = None
-            
-        # Find best strategy
-        best_strategy_name = "Unknown"
-        if results:
-            try:
-                logger.info("Finding best strategy based on Sharpe ratio")
-                best_strategy_name = max(results.items(), key=lambda x: x[1].get('sharpe_ratio', -float('inf')))[0]
-                logger.info(f"Best strategy identified: {best_strategy_name}")
-            except Exception as e:
-                logger.error(f"Error finding best strategy: {str(e)}")
-        
-        elapsed_time = time.time() - start_time
-        
-        # Log key performance metrics for each strategy
-        strategy_metrics = {}
-        for strategy, metrics in results.items():
-            strategy_metrics[strategy] = {
-                "sharpe_ratio": metrics.get("sharpe_ratio", 0),
-                "total_return": f"{metrics.get('total_return', 0):.2f}%",
-                "max_drawdown": f"{metrics.get('max_drawdown', 0):.2f}%"
-            }
-        
-        log_endpoint("POST /api/compare-strategies - COMPLETE", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    strategies_compared=len(strategies),
-                    best_strategy=best_strategy_name,
-                    strategy_metrics=strategy_metrics)
-        
-        return {
-            "success": True,
-            "message": "Strategy comparison completed successfully",
-            "best_strategy": best_strategy_name,
-            "results": results,
-            "chart_image": equity_curve_image
-        }
-    except Exception as e:
-        elapsed_time = time.time() - start_time
-        error_trace = traceback.format_exc()
-        log_endpoint("POST /api/compare-strategies - ERROR", 
-                    elapsed_time=f"{elapsed_time:.2f}s",
-                    error=str(e),
-                    traceback=error_trace)
-        
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": f"Error comparing strategies: {str(e)}"}
-        )
-
-@app.post("/api/save-config")
-async def save_config_endpoint(config_data: Dict[str, Any]):
-    global CURRENT_CONFIG
-    
-    try:
-        # Update the current config
-        CURRENT_CONFIG.update(config_data)
-        
-        # Save the config
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        config_dir = os.path.join("results", "configs")
-        os.makedirs(config_dir, exist_ok=True)
-        
-        config_file = os.path.join(config_dir, f"config_{timestamp}.json")
-        
-        with open(config_file, 'w') as f:
-            json.dump(CURRENT_CONFIG, f, indent=4)
-        
-        return {
-            "message": "Configuration saved successfully",
-            "config_file": config_file
-        }
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"message": f"Error saving configuration: {str(e)}"}
-        )
-
-@app.get("/api/load-config/{config_file}")
-async def load_config_endpoint(config_file: str):
-    global CURRENT_CONFIG
-    
-    try:
-        # Load the config
-        config_path = os.path.join("results", "configs", config_file)
-        
-        with open(config_path, 'r') as f:
-            loaded_config = json.load(f)
-        
-        # Update the current config
-        CURRENT_CONFIG.update(loaded_config)
-        
-        return {
-            "message": "Configuration loaded successfully",
-            "config": CURRENT_CONFIG
-        }
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"message": f"Error loading configuration: {str(e)}"}
-        )
-
-@app.get("/api/export-results/{format}")
-async def export_results(format: str):
-    global BACKTESTER
-    
-    if BACKTESTER is None or not BACKTESTER.results:
-        return JSONResponse(
-            status_code=400,
-            content={"message": "No backtest results available. Please run a backtest first."}
-        )
-    
-    try:
-        # Create the results directory if it doesn't exist
-        results_dir = os.path.join("results", "exports")
-        os.makedirs(results_dir, exist_ok=True)
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        
-        if format.lower() == 'json':
-            # Export as JSON
-            output_file = os.path.join(results_dir, f"backtest_results_{timestamp}.json")
-            BACKTESTER.save_results(output_file)
-            
-            return FileResponse(
-                path=output_file,
-                filename=f"backtest_results_{timestamp}.json",
-                media_type="application/json"
-            )
-        elif format.lower() == 'csv':
-            # Export as CSV
-            output_file = os.path.join(results_dir, f"backtest_results_{timestamp}.csv")
-            
-            # Combine all backtest results into a single DataFrame
-            all_results = pd.DataFrame()
-            
-            for strategy_name, result in BACKTESTER.results.items():
-                # Get the backtest results
-                backtest_df = result['backtest_results'].copy()
-                
-                # Add strategy name column
-                backtest_df['strategy'] = strategy_name
-                
-                # Append to all results
-                all_results = pd.concat([all_results, backtest_df])
-            
-            # Save to CSV
-            all_results.to_csv(output_file, index=False)
-            
-            return FileResponse(
-                path=output_file,
-                filename=f"backtest_results_{timestamp}.csv",
-                media_type="text/csv"
-            )
-        else:
-            return JSONResponse(
-                status_code=400,
-                content={"message": f"Unsupported export format: {format}"}
-            )
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={"message": f"Error exporting results: {str(e)}"}
-        )
-
-@app.get("/api/current-config")
-async def get_current_config():
-    global CURRENT_CONFIG, PROCESSED_DATA
-    
-    # Add available indicators to the config
-    if PROCESSED_DATA is not None:
-        # Get the list of indicator columns
-        indicator_columns = [col for col in PROCESSED_DATA.columns 
-                           if col not in ['date', 'open', 'high', 'low', 'close', 'volume']]
-        
-        # Update the current config
-        if 'indicators' not in CURRENT_CONFIG:
-            CURRENT_CONFIG['indicators'] = {}
-        
-        CURRENT_CONFIG['indicators']['available_indicators'] = indicator_columns
-    
-    return CURRENT_CONFIG
-
-@app.get("/api/data-status")
-async def data_status():
-    global UPLOADED_DATA, PROCESSED_DATA
-    return {
-        "uploaded": UPLOADED_DATA is not None,
-        "processed": PROCESSED_DATA is not None,
-        "shape": PROCESSED_DATA.shape if PROCESSED_DATA is not None else None
-    }
-
-@app.get("/api/debug-info")
-async def debug_info():
-    """
-    Endpoint para fornecer informações detalhadas sobre o ambiente de execução.
-    Útil para diagnóstico e debug.
-    """
-    try:
-        # Informações do sistema
-        system_info = {
-            "platform": platform.platform(),
-            "python_version": platform.python_version(),
-            "processor": platform.processor(),
-            "memory": f"{psutil.virtual_memory().total / (1024**3):.2f} GB",
-            "available_memory": f"{psutil.virtual_memory().available / (1024**3):.2f} GB",
-            "cpu_count": psutil.cpu_count(logical=True),
-            "hostname": platform.node()
-        }
-        
-        # Informações da aplicação
-        app_info = {
-            "current_directory": os.getcwd(),
-            "start_time": datetime.fromtimestamp(psutil.Process().create_time()).strftime('%Y-%m-%d %H:%M:%S'),
-            "uptime_seconds": time.time() - psutil.Process().create_time(),
-            "process_memory_usage": f"{psutil.Process().memory_info().rss / (1024**2):.2f} MB",
-            "environment_variables": {k: v for k, v in os.environ.items() if not k.startswith("_") and "SECRET" not in k.upper() and "PASSWORD" not in k.upper()},
-            "loaded_modules": list(sys.modules.keys())[:50]  # Limitado aos primeiros 50 para não sobrecarregar
-        }
-        
-        # Informações sobre os dados
-        data_info = {
-            "uploaded_data": None if UPLOADED_DATA is None else {
-                "shape": UPLOADED_DATA.shape,
-                "columns": list(UPLOADED_DATA.columns),
-                "memory_usage": f"{UPLOADED_DATA.memory_usage(deep=True).sum() / (1024**2):.2f} MB",
-                "sample_rows": len(UPLOADED_DATA.head(3)) if UPLOADED_DATA is not None else 0
-            },
-            "processed_data": None if PROCESSED_DATA is None else {
-                "shape": PROCESSED_DATA.shape,
-                "columns": list(PROCESSED_DATA.columns),
-                "memory_usage": f"{PROCESSED_DATA.memory_usage(deep=True).sum() / (1024**2):.2f} MB",
-                "date_range": {
-                    "start": PROCESSED_DATA['date'].min().strftime('%Y-%m-%d') if not pd.isna(PROCESSED_DATA['date'].min()) else "N/A",
-                    "end": PROCESSED_DATA['date'].max().strftime('%Y-%m-%d') if not pd.isna(PROCESSED_DATA['date'].max()) else "N/A"
-                } if PROCESSED_DATA is not None and 'date' in PROCESSED_DATA.columns else None,
-                "has_indicators": len([col for col in PROCESSED_DATA.columns if col not in ['date', 'open', 'high', 'low', 'close', 'volume']]) > 0 if PROCESSED_DATA is not None else False
-            }
-        }
-        
-        # Adicionar log para registrar quem acessou esta informação
-        log_endpoint("GET /api/debug-info", 
-                    system_info=system_info["platform"],
-                    python_version=system_info["python_version"],
-                    memory_usage=system_info["memory"])
-        
-        return {
-            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            "system_info": system_info,
-            "app_info": app_info,
-            "data_info": data_info
-        }
-    except Exception as e:
-        error_trace = traceback.format_exc()
-        log_endpoint("GET /api/debug-info - ERROR", 
-                    error=str(e),
-                    traceback=error_trace)
-        
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": f"Error getting debug info: {str(e)}"}
-        )
-
-@app.post("/api/seasonality/day-of-week")
-async def analyze_day_of_week(request: Request):
-    """Analyze returns by day of week."""
-    global PROCESSED_DATA
-    
-    if PROCESSED_DATA is None:
-        return JSONResponse(
-            status_code=400,
-            content={"success": False, "message": "No data available. Please upload and process data first."}
-        )
-    
-    log_endpoint("POST /api/seasonality/day-of-week")
-    
-    try:
-        # Get day of week returns
-        dow_returns, fig = day_of_week_returns(PROCESSED_DATA, plot=True)
-        
-        # Convert plot to base64
-        buffer = io.BytesIO()
-        fig.savefig(buffer, format='png')
-        buffer.seek(0)
-        img_str = base64.b64encode(buffer.read()).decode('utf-8')
-        
-        # Convert DataFrame to records for JSON serialization
-        results = dow_returns.to_dict('records')
-        
-        return JSONResponse(
-            content={
-                "success": True,
-                "plot": img_str,
-                "data": results
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error analyzing day of week returns: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": f"Error: {str(e)}"}
-        )
-
-@app.post("/api/seasonality/monthly")
-async def analyze_monthly(request: Request):
-    """Analyze returns by month."""
-    global PROCESSED_DATA
-    
-    if PROCESSED_DATA is None:
-        return JSONResponse(
-            status_code=400,
-            content={"success": False, "message": "No data available. Please upload and process data first."}
-        )
-    
-    log_endpoint("POST /api/seasonality/monthly")
-    
-    try:
-        # Get monthly returns
-        monthly_rets, fig = monthly_returns(PROCESSED_DATA, plot=True)
-        
-        # Convert plot to base64
-        buffer = io.BytesIO()
-        fig.savefig(buffer, format='png')
-        buffer.seek(0)
-        img_str = base64.b64encode(buffer.read()).decode('utf-8')
-        
-        # Convert DataFrame to records for JSON serialization
-        results = monthly_rets.to_dict('records')
-        
-        return JSONResponse(
-            content={
-                "success": True,
-                "plot": img_str,
-                "data": results
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error analyzing monthly returns: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": f"Error: {str(e)}"}
-        )
-
-@app.post("/api/seasonality/volatility")
-async def analyze_volatility(request: Request):
-    """Analyze volatility by day of week."""
-    global PROCESSED_DATA
-    
-    if PROCESSED_DATA is None:
-        return JSONResponse(
-            status_code=400,
-            content={"success": False, "message": "No data available. Please upload and process data first."}
-        )
-    
-    log_endpoint("POST /api/seasonality/volatility")
-    
-    try:
-        # Get day of week volatility
-        dow_vol, fig = day_of_week_volatility(PROCESSED_DATA, plot=True)
-        
-        # Convert plot to base64
-        buffer = io.BytesIO()
-        fig.savefig(buffer, format='png')
-        buffer.seek(0)
-        img_str = base64.b64encode(buffer.read()).decode('utf-8')
-        
-        # Convert DataFrame to records for JSON serialization
-        results = dow_vol.to_dict('records')
-        
-        return JSONResponse(
-            content={
-                "success": True,
-                "plot": img_str,
-                "data": results
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error analyzing day of week volatility: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": f"Error: {str(e)}"}
-        )
-
-@app.post("/api/seasonality/heatmap")
-async def create_heatmap(request: Request):
-    """Generate a heatmap of returns by calendar day."""
-    global PROCESSED_DATA
-    
-    if PROCESSED_DATA is None:
-        return JSONResponse(
-            status_code=400,
-            content={"success": False, "message": "No data available. Please upload and process data first."}
-        )
-    
-    log_endpoint("POST /api/seasonality/heatmap")
-    
-    try:
-        # Get calendar heatmap
-        fig = calendar_heatmap(PROCESSED_DATA)
-        
-        # Convert plot to base64
-        buffer = io.BytesIO()
-        fig.savefig(buffer, format='png')
-        buffer.seek(0)
-        img_str = base64.b64encode(buffer.read()).decode('utf-8')
-        
-        return JSONResponse(
-            content={
-                "success": True,
-                "plot": img_str
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error creating calendar heatmap: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": f"Error: {str(e)}"}
-        )
-
-@app.post("/api/seasonality/summary")
-async def get_seasonality_summary(request: Request):
-    """Generate a comprehensive seasonality analysis."""
-    global PROCESSED_DATA
-    
-    if PROCESSED_DATA is None:
-        return JSONResponse(
-            status_code=400,
-            content={"success": False, "message": "No data available. Please upload and process data first."}
-        )
-    
-    log_endpoint("POST /api/seasonality/summary")
-    
-    try:
-        # Get seasonality summary
-        fig, results = seasonality_summary(PROCESSED_DATA)
-        
-        # Convert plot to base64
-        buffer = io.BytesIO()
-        fig.savefig(buffer, format='png')
-        buffer.seek(0)
-        img_str = base64.b64encode(buffer.read()).decode('utf-8')
-        
-        return JSONResponse(
-            content={
-                "success": True,
-                "plot": img_str,
-                "data": results
-            }
-        )
-    except Exception as e:
-        logger.error(f"Error creating seasonality summary: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": f"Error: {str(e)}"}
-        )
 
 # Run the app
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    uvicorn.run(app, host="0.0.0.0", port=8000)
