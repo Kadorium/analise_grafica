@@ -420,47 +420,66 @@ function displayOptimizationResults(results) {
                             ${results.comparison_chart_html}
                         </div>
                         <script>
-                            // Add chart type toggle functionality
-                            document.querySelectorAll('.chart-type-toggle button').forEach(btn => {
-                                btn.addEventListener('click', function() {
-                                    // Remove active class from all buttons
-                                    document.querySelectorAll('.chart-type-toggle button').forEach(b => b.classList.remove('active'));
-                                    // Add active class to clicked button
-                                    this.classList.add('active');
-                                    
-                                    // Get the chart instance
-                                    const chartId = document.querySelector('.comparison-chart-container canvas').id;
-                                    const chartInstance = Chart.getChart(chartId);
-                                    if (!chartInstance) return;
-                                    
-                                    // Update chart type
-                                    const chartType = this.getAttribute('data-chart-type');
-                                    chartInstance.config.type = chartType === 'area' ? 'line' : chartType;
-                                    
-                                    // For area charts, set fill to true
-                                    chartInstance.data.datasets.forEach(dataset => {
-                                        dataset.fill = chartType === 'area';
+                            try {
+                                // Add chart type toggle functionality
+                                document.querySelectorAll('.chart-type-toggle button').forEach(btn => {
+                                    btn.addEventListener('click', function() {
+                                        try {
+                                            // Remove active class from all buttons
+                                            document.querySelectorAll('.chart-type-toggle button').forEach(b => b.classList.remove('active'));
+                                            // Add active class to clicked button
+                                            this.classList.add('active');
+                                            
+                                            // Get the chart instance
+                                            const chartId = document.querySelector('.comparison-chart-container canvas').id;
+                                            const chartInstance = Chart.getChart(chartId);
+                                            if (!chartInstance) {
+                                                console.error('Chart instance not found:', chartId);
+                                                return;
+                                            }
+                                            
+                                            // Update chart type
+                                            const chartType = this.getAttribute('data-chart-type');
+                                            chartInstance.config.type = chartType === 'area' ? 'line' : chartType;
+                                            
+                                            // For area charts, set fill to true
+                                            chartInstance.data.datasets.forEach(dataset => {
+                                                dataset.fill = chartType === 'area';
+                                            });
+                                            
+                                            // Update the chart
+                                            chartInstance.update();
+                                        } catch (error) {
+                                            console.error('Error updating chart type:', error);
+                                        }
                                     });
-                                    
-                                    // Update the chart
-                                    chartInstance.update();
                                 });
-                            });
-                            
-                            // Add download chart functionality
-                            document.querySelector('.download-chart-btn').addEventListener('click', function() {
-                                const chartId = document.querySelector('.comparison-chart-container canvas').id;
-                                const chartInstance = Chart.getChart(chartId);
-                                if (!chartInstance) return;
                                 
-                                // Create a temporary link element
-                                const link = document.createElement('a');
-                                link.download = 'strategy_comparison_chart.png';
-                                link.href = chartInstance.toBase64Image();
-                                document.body.appendChild(link);
-                                link.click();
-                                document.body.removeChild(link);
-                            });
+                                // Add download chart functionality
+                                document.querySelector('.download-chart-btn').addEventListener('click', function() {
+                                    try {
+                                        const chartId = document.querySelector('.comparison-chart-container canvas').id;
+                                        const chartInstance = Chart.getChart(chartId);
+                                        if (!chartInstance) {
+                                            console.error('Chart instance not found for download');
+                                            return;
+                                        }
+                                        
+                                        // Create a temporary link element
+                                        const link = document.createElement('a');
+                                        link.download = 'strategy_comparison_chart.png';
+                                        link.href = chartInstance.toBase64Image();
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                    } catch (error) {
+                                        console.error('Error downloading chart:', error);
+                                        alert('Error downloading chart: ' + error.message);
+                                    }
+                                });
+                            } catch (error) {
+                                console.error('Error setting up chart controls:', error);
+                            }
                         </script>
                     ` : '<div class="alert alert-warning mt-4">No comparison chart available</div>'}
                 </div>

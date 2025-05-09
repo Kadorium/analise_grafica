@@ -930,106 +930,117 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
             # 4. Generate comparison chart (equity curve)
             chart_html = None
             if default_signals is not None and optimized_signals is not None:
-                # Make sure both dataframes have the necessary columns for plotting
-                for df in [default_signals, optimized_signals]:
-                    if 'equity' not in df.columns:
-                        logger.warning("Missing 'equity' column in signals dataframe for chart generation")
-                        df['equity'] = initial_capital  # Default fallback
-                    if 'date' not in df.columns:
-                        logger.warning("Missing 'date' column in signals dataframe for chart generation")
-                        continue
-                
                 try:
-                    # Generate interactive chart using Chart.js
+                    # Make sure both dataframes have dates in the right format
+                    for df in [default_signals, optimized_signals]:
+                        if 'date' in df.columns and pd.api.types.is_datetime64_any_dtype(df['date']):
+                            df['date_str'] = df['date'].dt.strftime('%Y-%m-%d')
+                        else:
+                            logger.warning("Date column is missing or not in datetime format")
+                            if 'date' not in df.columns:
+                                # Create a dummy date range
+                                df['date_str'] = [f"Day {i+1}" for i in range(len(df))]
+                    
+                    # Generate the Chart.js chart
                     timestamp = int(time.time())
                     chart_id = f"equity-comparison-chart-{timestamp}"
                     
-                    # Convert dates to string format for JSON
-                    default_signals_dates = stringify_df_dates(default_signals)['date'].tolist()
-                    optimized_signals_dates = stringify_df_dates(optimized_signals)['date'].tolist()
+                    # Prepare data for JSON serialization
+                    default_dates = default_signals['date_str'].tolist() if 'date_str' in default_signals.columns else []
+                    default_equity = default_signals['equity'].tolist() if 'equity' in default_signals.columns else []
+                    optimized_equity = optimized_signals['equity'].tolist() if 'equity' in optimized_signals.columns else []
                     
-                    chart_html = f"""
-                    <div class="chart-container" style="position: relative; height:400px; width:100%; margin-bottom: 20px;">
-                        <canvas id="{chart_id}"></canvas>
-                    </div>
-                    <script>
-                    document.addEventListener('DOMContentLoaded', function() {{
-                        const ctx = document.getElementById('{chart_id}');
-                        if (!ctx) {{ console.error('Chart canvas element not found: {chart_id}'); return; }}
+                    # Make sure equity arrays are the same length as dates
+                    if len(default_dates) > 0:
+                        if len(default_equity) == 0:
+                            default_equity = [10000.0] * len(default_dates)
+                        if len(optimized_equity) == 0:
+                            optimized_equity = [10000.0] * len(default_dates)
+                            
+                        # Trim arrays to the same length
+                        min_length = min(len(default_dates), len(default_equity), len(optimized_equity))
+                        default_dates = default_dates[:min_length]
+                        default_equity = default_equity[:min_length]
+                        optimized_equity = optimized_equity[:min_length]
                         
-                        const chartData = {{
-                            labels: {json.dumps(default_signals_dates)},
-                            datasets: [
-                                {{
-                                    label: 'Default Strategy',
-                                    data: {json.dumps(default_signals['equity'].tolist())},
-                                    borderColor: 'rgb(255, 99, 132)',
-                                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                                    tension: 0.1,
-                                    fill: false
-                                }},
-                                {{
-                                    label: 'Optimized Strategy',
-                                    data: {json.dumps(optimized_signals['equity'].tolist())},
-                                    borderColor: 'rgb(54, 162, 235)',
-                                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                                    tension: 0.1,
-                                    fill: false
+                        # Generate chart HTML with proper data
+                        chart_html = f"""
+                        <div class="chart-container" style="position: relative; height:400px; width:100%; margin-bottom: 20px;">
+                            <canvas id="{chart_id}"></canvas>
+                        </div>
+                        <script>
+                        document.addEventListener('DOMContentLoaded', function() {{
+                            const ctx = document.getElementById('{chart_id}');
+                            if (!ctx) {{ console.error('Chart canvas element not found: {chart_id}'); return; }}
+                            
+                            const chartData = {{
+                                labels: {json.dumps(default_dates)},
+                                datasets: [
+                                    {{
+                                        label: 'Default Strategy',
+                                        data: {json.dumps(default_equity)},
+                                        borderColor: 'rgb(255, 99, 132)',
+                                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                                        tension: 0.1,
+                                        fill: false
+                                    }},
+                                    {{
+                                        label: 'Optimized Strategy',
+                                        data: {json.dumps(optimized_equity)},
+                                        borderColor: 'rgb(54, 162, 235)',
+                                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                                        tension: 0.1,
+                                        fill: false
+                                    }}
+                                ]
+                            }};
+                            
+                            new Chart(ctx, {{
+                                type: 'line',
+                                data: chartData,
+                                options: {{
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: {{ 
+                                        title: {{ display: true, text: 'Default vs. Optimized Strategy Performance' }},
+                                        tooltip: {{ mode: 'index', intersect: false }}
+                                    }},
+                                    scales: {{
+                                        x: {{ display: true, title: {{ display: true, text: 'Date' }} }},
+                                        y: {{ display: true, title: {{ display: true, text: 'Equity' }} }}
+                                    }}
                                 }}
-                            ]
-                        }};
-                        
-                        new Chart(ctx, {{
-                            type: 'line',
-                            data: chartData,
-                            options: {{
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {{ 
-                                    title: {{ display: true, text: 'Default vs. Optimized Strategy Performance' }},
-                                    tooltip: {{ mode: 'index', intersect: false }}
-                                }},
-                                scales: {{
-                                    x: {{ display: true, title: {{ display: true, text: 'Date' }}, ticks: {{ maxTicksLimit: 12 }} }},
-                                    y: {{ display: true, title: {{ display: true, text: 'Equity' }} }}
-                                }}
-                            }}
+                            }});
                         }});
-                    }});
-                    </script>
-                    """
+                        </script>
+                        """
+                    else:
+                        logger.warning("No date data available for chart generation")
+                        chart_html = "<div class='alert alert-warning'>No date data available for chart generation</div>"
+                        
                 except Exception as e:
-                    logger.error(f"Error generating comparison chart: {str(e)}")
-                    # Fallback to matplotlib chart if Chart.js generation fails
-                    try:
-                        import matplotlib.pyplot as plt
-                        import io, base64
-                        plt.figure(figsize=(10, 5))
-                        plt.plot(default_signals['date'], default_signals['equity'], label='Default', color='red')
-                        plt.plot(optimized_signals['date'], optimized_signals['equity'], label='Optimized', color='green')
-                        plt.xlabel('Date')
-                        plt.ylabel('Equity')
-                        plt.title('Equity Curve Comparison')
-                        plt.legend()
-                        buf = io.BytesIO()
-                        plt.tight_layout()
-                        plt.savefig(buf, format='png')
-                        buf.seek(0)
-                        chart_html = f"<img src='data:image/png;base64,{base64.b64encode(buf.read()).decode()}' style='max-width:100%;'/>"
-                        plt.close()
-                    except Exception as e2:
-                        logger.error(f"Error generating fallback chart: {str(e2)}")
-                        chart_html = "<div class='alert alert-warning'>Error generating comparison chart</div>"
+                    logger.error(f"Error generating Chart.js chart: {str(e)}\n{traceback.format_exc()}")
+                    chart_html = f"<div class='alert alert-danger'>Error generating chart: {str(e)}</div>"
 
             # Make sure all required metrics are present in default_performance and optimized_performance
             def ensure_metrics_present(perf_dict):
                 required_metrics = [
                     'total_return_percent', 'annual_return_percent', 'max_drawdown_percent',
-                    'win_rate_percent', 'profit_factor', 'sharpe_ratio'
+                    'win_rate_percent', 'profit_factor', 'sharpe_ratio', 'sortino_ratio',
+                    'calmar_ratio', 'percent_profitable_days', 'max_consecutive_wins',
+                    'max_consecutive_losses', 'risk_adjusted_return'
                 ]
                 for metric in required_metrics:
                     if metric not in perf_dict or pd.isna(perf_dict[metric]):
                         perf_dict[metric] = 0.0
+                        
+                # Convert any NumPy types to standard Python types to avoid JSON serialization issues
+                for key, value in perf_dict.items():
+                    if isinstance(value, (np.int64, np.int32, np.int16, np.int8)):
+                        perf_dict[key] = int(value)
+                    elif isinstance(value, (np.float64, np.float32, np.float16)):
+                        perf_dict[key] = float(value)
+                
                 return perf_dict
             
             default_performance = ensure_metrics_present(default_performance)
@@ -1815,68 +1826,87 @@ def calculate_advanced_metrics(signals_df, initial_capital=10000.0):
     df = signals_df.copy()
     metrics = {}
     
+    # Initialize all metrics to prevent N/A
+    metrics['percent_profitable_days'] = 0.0
+    metrics['sortino_ratio'] = 0.0
+    metrics['calmar_ratio'] = 0.0
+    metrics['risk_adjusted_return'] = 0.0
+    metrics['max_consecutive_wins'] = 0
+    metrics['max_consecutive_losses'] = 0
+    
     try:
         # Calculate daily returns
-        df['daily_return'] = df['equity'].pct_change().fillna(0)
-        
-        # Percent profitable days
-        profitable_days = (df['daily_return'] > 0).sum()
-        total_days = len(df)
-        metrics['percent_profitable_days'] = (profitable_days / total_days) * 100 if total_days > 0 else 0
-        
-        # Sortino ratio (downside risk only)
-        negative_returns = df['daily_return'][df['daily_return'] < 0]
-        downside_std = negative_returns.std() * np.sqrt(252) if len(negative_returns) > 0 else 0.001  # Avoid division by zero
-        avg_return = df['daily_return'].mean() * 252  # Annualized
-        metrics['sortino_ratio'] = avg_return / downside_std if downside_std > 0 else 0
-        
-        # Calmar ratio (return / max drawdown)
-        if 'drawdown' in df.columns and df['drawdown'].max() > 0:
-            metrics['calmar_ratio'] = avg_return / df['drawdown'].max()
-        else:
-            metrics['calmar_ratio'] = 0
+        if 'equity' in df.columns:
+            df['daily_return'] = df['equity'].pct_change().fillna(0)
             
-        # Risk-adjusted return ratio
-        if 'annual_volatility_percent' in metrics and metrics['annual_volatility_percent'] > 0:
-            metrics['risk_adjusted_return'] = metrics.get('annual_return_percent', 0) / metrics['annual_volatility_percent']
-        else:
-            metrics['risk_adjusted_return'] = 0
+            # Percent profitable days
+            profitable_days = (df['daily_return'] > 0).sum()
+            total_days = len(df)
+            metrics['percent_profitable_days'] = (profitable_days / total_days) * 100 if total_days > 0 else 0
             
-        # Consecutive wins/losses
+            # Sortino ratio (downside risk only)
+            negative_returns = df['daily_return'][df['daily_return'] < 0]
+            downside_std = negative_returns.std() * np.sqrt(252) if len(negative_returns) > 0 else 0.001  # Avoid division by zero
+            avg_return = df['daily_return'].mean() * 252  # Annualized
+            metrics['sortino_ratio'] = avg_return / downside_std if downside_std > 0 else 0
+            
+            # Calmar ratio (return / max drawdown)
+            max_dd = df['equity'].cummax() - df['equity']
+            max_dd_pct = max_dd / df['equity'].cummax().replace(0, np.nan).fillna(1)
+            max_drawdown = max_dd_pct.max()
+            metrics['calmar_ratio'] = avg_return / max_drawdown if max_drawdown > 0 else 0
+    except Exception as e:
+        logger.error(f"Error calculating returns-based metrics: {str(e)}")
+        
+    try:
+        # Consecutive wins/losses from trade_profit
         if 'trade_profit' in df.columns:
-            wins = df['trade_profit'] > 0
-            win_streaks = []
-            current_streak = 0
-            for win in wins:
-                if win:
-                    current_streak += 1
-                else:
-                    if current_streak > 0:
+            profits = df['trade_profit'].dropna()
+            if len(profits) > 0:
+                # Convert to numpy array for faster processing
+                profit_arr = profits.values
+                
+                # Create arrays for wins and losses
+                wins = profit_arr > 0
+                losses = profit_arr < 0
+                
+                # Calculate win streaks
+                win_streaks = []
+                current_streak = 0
+                for win in wins:
+                    if win:
+                        current_streak += 1
+                    elif current_streak > 0:
                         win_streaks.append(current_streak)
                         current_streak = 0
-            if current_streak > 0:
-                win_streaks.append(current_streak)
+                if current_streak > 0:
+                    win_streaks.append(current_streak)
+                    
+                metrics['max_consecutive_wins'] = max(win_streaks) if win_streaks else 0
                 
-            metrics['max_consecutive_wins'] = max(win_streaks) if win_streaks else 0
-            
-            # Same for losses
-            losses = df['trade_profit'] < 0
-            loss_streaks = []
-            current_streak = 0
-            for loss in losses:
-                if loss:
-                    current_streak += 1
-                else:
-                    if current_streak > 0:
+                # Calculate loss streaks
+                loss_streaks = []
+                current_streak = 0
+                for loss in losses:
+                    if loss:
+                        current_streak += 1
+                    elif current_streak > 0:
                         loss_streaks.append(current_streak)
                         current_streak = 0
-            if current_streak > 0:
-                loss_streaks.append(current_streak)
-                
-            metrics['max_consecutive_losses'] = max(loss_streaks) if loss_streaks else 0
+                if current_streak > 0:
+                    loss_streaks.append(current_streak)
+                    
+                metrics['max_consecutive_losses'] = max(loss_streaks) if loss_streaks else 0
     except Exception as e:
-        logger.error(f"Error calculating advanced metrics: {str(e)}")
+        logger.error(f"Error calculating trade streak metrics: {str(e)}")
         
+    # Make sure all metrics are floats or ints to avoid JSON serialization issues
+    for key, value in metrics.items():
+        if isinstance(value, np.float64) or isinstance(value, np.float32):
+            metrics[key] = float(value)
+        elif isinstance(value, np.int64) or isinstance(value, np.int32):
+            metrics[key] = int(value)
+    
     return metrics
 
 # Run the app
