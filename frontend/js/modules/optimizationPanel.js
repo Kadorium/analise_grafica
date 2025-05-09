@@ -386,7 +386,7 @@ function displayOptimizationResults(results) {
                         <div class="comparison-chart-container">
                             ${results.comparison_chart_html}
                         </div>
-                    ` : ''}
+                    ` : '<div class="alert alert-warning mt-4">No comparison chart available</div>'}
                 </div>
             </div>
         `;

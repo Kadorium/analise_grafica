@@ -920,22 +920,111 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
             # 4. Generate comparison chart (equity curve)
             chart_html = None
             if default_signals is not None and optimized_signals is not None:
-                import matplotlib.pyplot as plt
-                import io, base64
-                plt.figure(figsize=(10, 5))
-                plt.plot(default_signals['date'], default_signals['equity'], label='Default', color='red')
-                plt.plot(optimized_signals['date'], optimized_signals['equity'], label='Optimized', color='green')
-                plt.xlabel('Date')
-                plt.ylabel('Equity')
-                plt.title('Equity Curve Comparison')
-                plt.legend()
-                buf = io.BytesIO()
-                plt.tight_layout()
-                plt.savefig(buf, format='png')
-                buf.seek(0)
-                chart_html = f"<img src='data:image/png;base64,{base64.b64encode(buf.read()).decode()}' style='max-width:100%;'/>"
-                plt.close()
+                # Make sure both dataframes have the necessary columns for plotting
+                for df in [default_signals, optimized_signals]:
+                    if 'equity' not in df.columns:
+                        logger.warning("Missing 'equity' column in signals dataframe for chart generation")
+                        df['equity'] = initial_capital  # Default fallback
+                    if 'date' not in df.columns:
+                        logger.warning("Missing 'date' column in signals dataframe for chart generation")
+                        continue
+                
+                try:
+                    # Generate interactive chart using Chart.js
+                    timestamp = int(time.time())
+                    chart_id = f"equity-comparison-chart-{timestamp}"
+                    
+                    # Convert dates to string format for JSON
+                    default_signals_dates = stringify_df_dates(default_signals)['date'].tolist()
+                    optimized_signals_dates = stringify_df_dates(optimized_signals)['date'].tolist()
+                    
+                    chart_html = f"""
+                    <div class="chart-container" style="position: relative; height:400px; width:100%; margin-bottom: 20px;">
+                        <canvas id="{chart_id}"></canvas>
+                    </div>
+                    <script>
+                    document.addEventListener('DOMContentLoaded', function() {{
+                        const ctx = document.getElementById('{chart_id}');
+                        if (!ctx) {{ console.error('Chart canvas element not found: {chart_id}'); return; }}
+                        
+                        const chartData = {{
+                            labels: {json.dumps(default_signals_dates)},
+                            datasets: [
+                                {{
+                                    label: 'Default Strategy',
+                                    data: {json.dumps(default_signals['equity'].tolist())},
+                                    borderColor: 'rgb(255, 99, 132)',
+                                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                                    tension: 0.1,
+                                    fill: false
+                                }},
+                                {{
+                                    label: 'Optimized Strategy',
+                                    data: {json.dumps(optimized_signals['equity'].tolist())},
+                                    borderColor: 'rgb(54, 162, 235)',
+                                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                                    tension: 0.1,
+                                    fill: false
+                                }}
+                            ]
+                        }};
+                        
+                        new Chart(ctx, {{
+                            type: 'line',
+                            data: chartData,
+                            options: {{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {{ 
+                                    title: {{ display: true, text: 'Default vs. Optimized Strategy Performance' }},
+                                    tooltip: {{ mode: 'index', intersect: false }}
+                                }},
+                                scales: {{
+                                    x: {{ display: true, title: {{ display: true, text: 'Date' }}, ticks: {{ maxTicksLimit: 12 }} }},
+                                    y: {{ display: true, title: {{ display: true, text: 'Equity' }} }}
+                                }}
+                            }}
+                        }});
+                    }});
+                    </script>
+                    """
+                except Exception as e:
+                    logger.error(f"Error generating comparison chart: {str(e)}")
+                    # Fallback to matplotlib chart if Chart.js generation fails
+                    try:
+                        import matplotlib.pyplot as plt
+                        import io, base64
+                        plt.figure(figsize=(10, 5))
+                        plt.plot(default_signals['date'], default_signals['equity'], label='Default', color='red')
+                        plt.plot(optimized_signals['date'], optimized_signals['equity'], label='Optimized', color='green')
+                        plt.xlabel('Date')
+                        plt.ylabel('Equity')
+                        plt.title('Equity Curve Comparison')
+                        plt.legend()
+                        buf = io.BytesIO()
+                        plt.tight_layout()
+                        plt.savefig(buf, format='png')
+                        buf.seek(0)
+                        chart_html = f"<img src='data:image/png;base64,{base64.b64encode(buf.read()).decode()}' style='max-width:100%;'/>"
+                        plt.close()
+                    except Exception as e2:
+                        logger.error(f"Error generating fallback chart: {str(e2)}")
+                        chart_html = "<div class='alert alert-warning'>Error generating comparison chart</div>"
 
+            # Make sure all required metrics are present in default_performance and optimized_performance
+            def ensure_metrics_present(perf_dict):
+                required_metrics = [
+                    'total_return_percent', 'annual_return_percent', 'max_drawdown_percent',
+                    'win_rate_percent', 'profit_factor', 'sharpe_ratio'
+                ]
+                for metric in required_metrics:
+                    if metric not in perf_dict or pd.isna(perf_dict[metric]):
+                        perf_dict[metric] = 0.0
+                return perf_dict
+            
+            default_performance = ensure_metrics_present(default_performance)
+            optimized_performance = ensure_metrics_present(optimized_performance)
+            
             # 5. Update comparison result
             comparison_result.update({
                 "status": "completed",
