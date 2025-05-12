@@ -372,6 +372,16 @@ function displayOptimizationResults(results) {
         let chartSection = '';
         if (results.comparison_chart_html) {
             console.log("Comparison chart HTML is present");
+            
+            // Create a unique ID for this chart container
+            const chartContainerId = `chart-container-${Date.now()}`;
+            
+            // Extract the chart ID from the HTML if possible
+            const canvasIdMatch = results.comparison_chart_html.match(/id="([^"]+)"/);
+            const canvasId = canvasIdMatch ? canvasIdMatch[1] : 'unknown-chart-id';
+            
+            console.log(`Detected chart canvas ID: ${canvasId}`);
+            
             chartSection = `
                 <h6 class="mt-4">Equity Curve Comparison</h6>
                 <div class="d-flex mb-2">
@@ -384,68 +394,166 @@ function displayOptimizationResults(results) {
                         <i class="bi bi-download"></i> Download Chart
                     </button>
                 </div>
-                <div class="comparison-chart-container" id="chart-container-${Date.now()}">
+                <div class="alert alert-info chart-loading">
+                    Loading chart... <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                </div>
+                <div id="${chartContainerId}" class="comparison-chart-container">
                     ${results.comparison_chart_html}
                 </div>
             `;
             
-            // Set up observer to detect when chart is added to DOM
+            // Use setTimeout to ensure DOM is updated before we try to access the chart container
             setTimeout(() => {
-                console.log("Setting up DOM observer for chart container");
-                const container = document.getElementById('optimization-results');
-                if (!container) {
-                    console.error("Optimization results container not found");
+                console.log("Setting up chart controls...");
+                
+                // Remove the loading indicator once chart is loaded (or after 5 seconds)
+                const removeLoading = () => {
+                    const loadingEl = document.querySelector('.chart-loading');
+                    if (loadingEl) loadingEl.remove();
+                };
+                
+                // Set a max timeout for loading indicator
+                setTimeout(removeLoading, 5000);
+                
+                // Check if we have Chart.js available
+                if (typeof Chart === 'undefined') {
+                    console.error("Chart.js library not available - charts won't render correctly");
+                    const container = document.getElementById(chartContainerId);
+                    if (container) {
+                        // Check if we can find timestamp in canvas ID to build fallback image path
+                        let strategyType = 'trend_following';
+                        if (document.getElementById('optimization-strategy')) {
+                            strategyType = document.getElementById('optimization-strategy').value;
+                        }
+                        
+                        const timestampMatch = canvasId.match(/equity-comparison-chart-(\d+)/);
+                        if (timestampMatch && timestampMatch[1]) {
+                            const timestamp = timestampMatch[1];
+                            // Try to display the fallback image that should have been saved by the server
+                            container.innerHTML = `
+                                <div class="alert alert-warning">Chart.js not available. Using static image fallback.</div>
+                                <img src="/api/optimization-chart/${strategyType}/${timestamp}" 
+                                     class="img-fluid" alt="Chart could not be loaded">
+                            `;
+                            removeLoading();
+                        } else {
+                            container.innerHTML = `
+                                <div class="alert alert-danger">Chart.js not loaded and fallback image not available.</div>
+                            `;
+                            removeLoading();
+                        }
+                    }
                     return;
                 }
                 
-                // Add a mutation observer to detect when the chart is added
-                const observer = new MutationObserver((mutations, obs) => {
-                    // Look for the chart container
-                    const chartContainer = document.querySelector('.comparison-chart-container');
-                    if (chartContainer) {
-                        console.log("Chart container found in DOM:", chartContainer.id);
-                        
-                        // Find the canvas element
-                        const canvasElement = chartContainer.querySelector('canvas');
-                        if (canvasElement) {
-                            console.log("Canvas element found:", canvasElement.id);
-                            
-                            // Now we can initialize the chart
-                            if (typeof Chart !== 'undefined') {
-                                console.log("Chart.js is available - initializing chart");
-                                initChartToggleHandlers();
-                            } else {
-                                console.log("Chart.js not loaded yet - waiting");
-                                // Wait for Chart.js to load
-                                const chartWaiter = setInterval(() => {
-                                    if (typeof Chart !== 'undefined') {
-                                        console.log("Chart.js now available - initializing");
-                                        clearInterval(chartWaiter);
-                                        initChartToggleHandlers();
-                                    }
-                                }, 300);
-                                
-                                // Stop waiting after 5 seconds
-                                setTimeout(() => {
-                                    clearInterval(chartWaiter);
-                                    console.warn("Timed out waiting for Chart.js");
-                                }, 5000);
-                            }
-                        } else {
-                            console.error("Canvas element not found in chart container");
-                        }
-                        
-                        // Disconnect observer once we've found the chart
-                        obs.disconnect();
-                    }
-                });
+                // Look for the chart container that should now be in the DOM
+                const chartContainer = document.getElementById(chartContainerId);
+                if (!chartContainer) {
+                    console.error(`Chart container #${chartContainerId} not found in DOM`);
+                    return;
+                }
                 
-                // Start observing
-                observer.observe(container, {
-                    childList: true,
-                    subtree: true
-                });
-            }, 100);
+                console.log(`Chart container found: ${chartContainerId}`);
+                
+                // Find the canvas element
+                const canvasElement = chartContainer.querySelector('canvas');
+                if (!canvasElement) {
+                    console.error("Canvas element not found in chart container");
+                    return;
+                }
+                
+                console.log(`Canvas element found: ${canvasElement.id}`);
+                
+                // Try to initialize the chart controls
+                try {
+                    // Wait a moment for the chart to initialize
+                    setTimeout(() => {
+                        // Get chart instance
+                        let chartInstance;
+                        try {
+                            chartInstance = Chart.getChart(canvasElement.id);
+                            if (!chartInstance) {
+                                throw new Error(`No chart instance found for canvas ID: ${canvasElement.id}`);
+                            }
+                            
+                            console.log("Successfully got chart instance");
+                            removeLoading();
+                            
+                            // Set up chart type toggle buttons
+                            const toggleButtons = document.querySelectorAll('.chart-type-toggle button');
+                            if (toggleButtons && toggleButtons.length > 0) {
+                                toggleButtons.forEach(btn => {
+                                    btn.addEventListener('click', function() {
+                                        const chartType = this.getAttribute('data-chart-type');
+                                        console.log(`Changing chart type to: ${chartType}`);
+                                        
+                                        // Remove active class from all buttons
+                                        toggleButtons.forEach(b => b.classList.remove('active'));
+                                        
+                                        // Add active class to clicked button
+                                        this.classList.add('active');
+                                        
+                                        // Update chart type
+                                        chartInstance.config.type = chartType === 'area' ? 'line' : chartType;
+                                        
+                                        // For area charts, set fill to true
+                                        chartInstance.data.datasets.forEach(dataset => {
+                                            dataset.fill = chartType === 'area';
+                                        });
+                                        
+                                        // Update the chart
+                                        chartInstance.update();
+                                    });
+                                });
+                            }
+                            
+                            // Set up download button
+                            const downloadBtn = document.querySelector('.download-chart-btn');
+                            if (downloadBtn) {
+                                downloadBtn.addEventListener('click', function() {
+                                    try {
+                                        const link = document.createElement('a');
+                                        link.download = 'strategy_comparison_chart.png';
+                                        link.href = chartInstance.toBase64Image();
+                                        document.body.appendChild(link);
+                                        link.click();
+                                        document.body.removeChild(link);
+                                    } catch (e) {
+                                        console.error('Error downloading chart:', e);
+                                        alert('Error downloading chart. See console for details.');
+                                    }
+                                });
+                            }
+                        } catch (e) {
+                            console.error("Error getting chart instance:", e);
+                            removeLoading();
+                            
+                            // Try to display the fallback image
+                            let strategyType = 'trend_following';
+                            if (document.getElementById('optimization-strategy')) {
+                                strategyType = document.getElementById('optimization-strategy').value;
+                            }
+                            
+                            const timestampMatch = canvasElement.id.match(/equity-comparison-chart-(\d+)/);
+                            if (timestampMatch && timestampMatch[1]) {
+                                const timestamp = timestampMatch[1];
+                                // Try to display the fallback image that should have been saved by the server
+                                chartContainer.innerHTML = `
+                                    <div class="alert alert-warning">Chart.js rendering failed. Using static image fallback.</div>
+                                    <img src="/api/optimization-chart/${strategyType}/${timestamp}" 
+                                        class="img-fluid" alt="Chart could not be loaded">
+                                `;
+                            } else {
+                                chartContainer.innerHTML = `
+                                    <div class="alert alert-danger">Chart rendering failed and fallback image not available.</div>
+                                `;
+                            }
+                        }
+                    }, 1000); // Allow 1 second for chart to initialize
+                } catch (e) {
+                    console.error("Error initializing chart controls:", e);
+                }
+            }, 200); // Wait 200ms for DOM to update
         } else {
             console.warn("No comparison chart HTML found in results");
             chartSection = '<div class="alert alert-warning mt-4">No comparison chart available</div>';

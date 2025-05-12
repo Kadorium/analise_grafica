@@ -963,6 +963,44 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
                     logger.info(f"Sample date: {default_signals_dates[0]} to {default_signals_dates[-1]}")
                     logger.info(f"Sample equity range: {min(default_equity)} to {max(default_equity)}")
                     
+                    # Save a backup PNG chart image to the optimization folder for verification
+                    try:
+                        import matplotlib.pyplot as plt
+                        import io, base64, os
+                        
+                        # Create a backup matplotlib chart
+                        plt.figure(figsize=(10, 5))
+                        plt.plot(default_signals['date'], default_signals['equity'], label='Default', color='red')
+                        plt.plot(optimized_signals['date'], optimized_signals['equity'], label='Optimized', color='green')
+                        plt.xlabel('Date')
+                        plt.ylabel('Equity')
+                        plt.title('Equity Curve Comparison')
+                        plt.legend()
+                        
+                        # Save to optimization folder
+                        backup_chart_path = os.path.join("results", "optimization", f"chart_backup_{optimization_config.strategy_type}_{timestamp}.png")
+                        plt.tight_layout()
+                        plt.savefig(backup_chart_path)
+                        plt.close()
+                        
+                        logger.info(f"Saved backup chart image to {backup_chart_path}")
+                        
+                        # Also save a text file with the chart data for debugging
+                        debug_data_path = os.path.join("results", "optimization", f"chart_data_{optimization_config.strategy_type}_{timestamp}.json")
+                        with open(debug_data_path, 'w') as f:
+                            json.dump({
+                                "chart_id": chart_id,
+                                "dates": default_signals_dates[:10] + ["..."] + default_signals_dates[-10:],
+                                "default_equity_sample": default_equity[:10] + ["..."] + default_equity[-10:],
+                                "optimized_equity_sample": optimized_equity[:10] + ["..."] + optimized_equity[-10:],
+                                "date_count": len(default_signals_dates),
+                                "equity_count": len(default_equity)
+                            }, f, indent=2)
+                        
+                        logger.info(f"Saved chart debug data to {debug_data_path}")
+                    except Exception as e_backup:
+                        logger.error(f"Error creating backup chart: {str(e_backup)}")
+                    
                     # Generate the Chart.js HTML with more robust initialization
                     chart_html = f"""
                     <div class="chart-container" style="position: relative; height:400px; width:100%; margin-bottom: 20px;">
@@ -2097,3 +2135,20 @@ def calculate_advanced_metrics(signals_df, initial_capital=10000.0):
 # Run the app
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+# Add a route to serve optimization chart images directly
+@app.get("/api/optimization-chart/{strategy_type}/{timestamp}")
+@endpoint_wrapper("GET /api/optimization-chart")
+async def get_optimization_chart(strategy_type: str, timestamp: str):
+    """Serve the backup chart image directly"""
+    chart_path = os.path.join("results", "optimization", f"chart_backup_{strategy_type}_{timestamp}.png")
+    
+    if os.path.exists(chart_path):
+        logger.info(f"Serving backup chart: {chart_path}")
+        return FileResponse(chart_path, media_type="image/png")
+    else:
+        logger.warning(f"Backup chart not found: {chart_path}")
+        return JSONResponse(
+            status_code=404,
+            content={"message": "Backup chart not found"}
+        )
