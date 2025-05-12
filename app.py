@@ -940,7 +940,7 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
                         continue
                 
                 try:
-                    # Generate interactive chart using Chart.js
+                    # Generate the Chart.js HTML
                     timestamp = int(time.time())
                     chart_id = f"equity-comparison-chart-{timestamp}"
                     
@@ -958,55 +958,75 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
                         <canvas id="{chart_id}"></canvas>
                     </div>
                     <script>
-                    document.addEventListener('DOMContentLoaded', function() {{
-                        const ctx = document.getElementById('{chart_id}');
-                        if (!ctx) {{ console.error('Chart canvas element not found: {chart_id}'); return; }}
-                        
-                        const chartData = {{
-                            labels: {json.dumps(default_signals_dates)},
-                            datasets: [
-                                {{
-                                    label: 'Default Strategy',
-                                    data: {json.dumps(default_equity)},
-                                    borderColor: 'rgb(255, 99, 132)',
-                                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                                    tension: 0.1,
-                                    fill: false
-                                }},
-                                {{
-                                    label: 'Optimized Strategy',
-                                    data: {json.dumps(optimized_equity)},
-                                    borderColor: 'rgb(54, 162, 235)',
-                                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
-                                    tension: 0.1,
-                                    fill: false
-                                }}
-                            ]
-                        }};
-                        
-                        try {{
-                            new Chart(ctx, {{
-                                type: 'line',
-                                data: chartData,
-                                options: {{
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    plugins: {{ 
-                                        title: {{ display: true, text: 'Default vs. Optimized Strategy Performance' }},
-                                        tooltip: {{ mode: 'index', intersect: false }}
+                    (function() {{
+                        // Function to initialize chart - will retry if canvas not ready
+                        function initChart() {{
+                            const ctx = document.getElementById('{chart_id}');
+                            if (!ctx) {{ 
+                                console.warn('Chart canvas element not found: {chart_id}, will retry in 200ms');
+                                setTimeout(initChart, 200);
+                                return;
+                            }}
+                            
+                            const chartData = {{
+                                labels: {json.dumps(default_signals_dates)},
+                                datasets: [
+                                    {{
+                                        label: 'Default Strategy',
+                                        data: {json.dumps(default_equity)},
+                                        borderColor: 'rgb(255, 99, 132)',
+                                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                                        tension: 0.1,
+                                        fill: false
                                     }},
-                                    scales: {{
-                                        x: {{ display: true, title: {{ display: true, text: 'Date' }}, ticks: {{ maxTicksLimit: 12 }} }},
-                                        y: {{ display: true, title: {{ display: true, text: 'Equity' }} }}
+                                    {{
+                                        label: 'Optimized Strategy',
+                                        data: {json.dumps(optimized_equity)},
+                                        borderColor: 'rgb(54, 162, 235)',
+                                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                                        tension: 0.1,
+                                        fill: false
                                     }}
+                                ]
+                            }};
+                            
+                            try {{
+                                if(window.Chart) {{
+                                    new Chart(ctx, {{
+                                        type: 'line',
+                                        data: chartData,
+                                        options: {{
+                                            responsive: true,
+                                            maintainAspectRatio: false,
+                                            plugins: {{ 
+                                                title: {{ display: true, text: 'Default vs. Optimized Strategy Performance' }},
+                                                tooltip: {{ mode: 'index', intersect: false }}
+                                            }},
+                                            scales: {{
+                                                x: {{ display: true, title: {{ display: true, text: 'Date' }}, ticks: {{ maxTicksLimit: 12 }} }},
+                                                y: {{ display: true, title: {{ display: true, text: 'Equity' }} }}
+                                            }}
+                                        }}
+                                    }});
+                                    console.log('Chart created successfully: {chart_id}');
+                                }} else {{
+                                    console.error('Chart.js library not loaded');
+                                    document.querySelector('.comparison-chart-container').innerHTML = '<div class="alert alert-danger">Chart.js library not loaded</div>';
                                 }}
-                            }});
-                            console.log('Chart created successfully');
-                        }} catch (e) {{
-                            console.error('Error creating chart:', e);
-                            document.querySelector('.comparison-chart-container').innerHTML = '<div class="alert alert-warning">Error creating chart</div>';
+                            }} catch (e) {{
+                                console.error('Error creating chart:', e);
+                                document.querySelector('.comparison-chart-container').innerHTML = '<div class="alert alert-warning">Error creating chart: ' + e.message + '</div>';
+                            }}
                         }}
-                    }});
+                        
+                        // Wait for DOM content to be loaded
+                        if (document.readyState === 'loading') {{
+                            document.addEventListener('DOMContentLoaded', initChart);
+                        }} else {{
+                            // DOMContentLoaded already fired
+                            setTimeout(initChart, 100);
+                        }}
+                    }})();
                     </script>
                     """
                     
