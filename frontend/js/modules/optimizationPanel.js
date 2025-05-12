@@ -274,10 +274,12 @@ function displayOptimizationResults(results) {
     const hasComparison = results.default_params && results.optimized_params && 
                          results.default_performance && results.optimized_performance;
                          
-    console.log("Has comparison data:", hasComparison);
+    // --- DEBUG LOGGING: Output the actual values used for the table ---
     if (hasComparison) {
-        console.log("Default params:", results.default_params);
-        console.log("Optimized params:", results.optimized_params);
+        console.log("[DEBUG] Default Performance:", results.default_performance);
+        console.log("[DEBUG] Optimized Performance:", results.optimized_performance);
+        console.log("[DEBUG] Default Params:", results.default_params);
+        console.log("[DEBUG] Optimized Params:", results.optimized_params);
     }
 
     // Create the comparison section if it exists
@@ -310,12 +312,12 @@ function displayOptimizationResults(results) {
             {key: 'sharpe_ratio', label: 'Sharpe Ratio', higherBetter: true},
             {key: 'sortino_ratio', label: 'Sortino Ratio', higherBetter: true},
             {key: 'calmar_ratio', label: 'Calmar Ratio', higherBetter: true},
-            {key: 'total_return_percent', label: 'Total Return (%)', higherBetter: true},
-            {key: 'annual_return_percent', label: 'Annual Return (%)', higherBetter: true},
-            {key: 'max_drawdown_percent', label: 'Max Drawdown (%)', higherBetter: false},
-            {key: 'win_rate_percent', label: 'Win Rate (%)', higherBetter: true},
+            {key: 'total_return', label: 'Total Return (%)', higherBetter: true, isPercent: true},
+            {key: 'annual_return', label: 'Annual Return (%)', higherBetter: true, isPercent: true},
+            {key: 'max_drawdown', label: 'Max Drawdown (%)', higherBetter: false, isPercent: true},
+            {key: 'win_rate', label: 'Win Rate (%)', higherBetter: true, isPercent: true},
             {key: 'profit_factor', label: 'Profit Factor', higherBetter: true},
-            {key: 'percent_profitable_days', label: 'Profitable Days (%)', higherBetter: true},
+            {key: 'percent_profitable_days', label: 'Profitable Days (%)', higherBetter: true, isPercent: true},
             {key: 'max_consecutive_wins', label: 'Max Consecutive Wins', higherBetter: true},
             {key: 'max_consecutive_losses', label: 'Max Consecutive Losses', higherBetter: false}
         ];
@@ -328,36 +330,34 @@ function displayOptimizationResults(results) {
                 });
                 continue;
             }
-            
-            const defaultValue = results.default_performance[metric.key] !== undefined ? 
-                                formatNumber(results.default_performance[metric.key]) : 'N/A';
-            const optimizedValue = results.optimized_performance[metric.key] !== undefined ? 
-                                  formatNumber(results.optimized_performance[metric.key]) : 'N/A';
-            
+            let defaultValue = results.default_performance[metric.key];
+            let optimizedValue = results.optimized_performance[metric.key];
+            if (metric.isPercent) {
+                defaultValue = defaultValue !== undefined ? formatNumber(defaultValue * 100, 2) + '%' : 'N/A';
+                optimizedValue = optimizedValue !== undefined ? formatNumber(optimizedValue * 100, 2) + '%' : 'N/A';
+            } else {
+                defaultValue = defaultValue !== undefined ? formatNumber(defaultValue) : 'N/A';
+                optimizedValue = optimizedValue !== undefined ? formatNumber(optimizedValue) : 'N/A';
+            }
             let isImproved = false;
             let improvementPercent = '';
-            
             if (results.default_performance[metric.key] !== undefined && 
                 results.optimized_performance[metric.key] !== undefined &&
                 results.default_performance[metric.key] !== 0) {
-                
                 const defaultVal = results.default_performance[metric.key];
                 const optimizedVal = results.optimized_performance[metric.key];
-                
-                // For metrics where lower is better (like drawdown), reverse the calculation
                 if (metric.higherBetter) {
                     isImproved = optimizedVal > defaultVal;
                     if (defaultVal !== 0) {
-                        improvementPercent = `${((optimizedVal - defaultVal) / Math.abs(defaultVal) * 100).toFixed(2)}%`;
+                        improvementPercent = ((optimizedVal - defaultVal) / Math.abs(defaultVal) * 100).toFixed(2) + '%';
                     }
                 } else {
                     isImproved = optimizedVal < defaultVal;
                     if (defaultVal !== 0) {
-                        improvementPercent = `${((defaultVal - optimizedVal) / Math.abs(defaultVal) * 100).toFixed(2)}%`;
+                        improvementPercent = ((defaultVal - optimizedVal) / Math.abs(defaultVal) * 100).toFixed(2) + '%';
                     }
                 }
             }
-            
             metricComparisonRows += `
                 <tr ${isImproved ? 'class="table-success"' : ''}>
                     <td>${metric.label}</td>

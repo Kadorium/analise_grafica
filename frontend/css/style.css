@@ -74,6 +74,67 @@ main {
     overflow-y: auto;
 }
 
+/* Optimization Parameter Table */
+.table-bordered.table-sm {
+    width: 100%;
+    table-layout: fixed; /* Use fixed layout for more control */
+}
+
+.table-bordered.table-sm th,
+.table-bordered.table-sm td {
+    padding: 0.5rem;
+    vertical-align: middle;
+    word-wrap: break-word; /* Allow text to wrap */
+}
+
+.table-bordered.table-sm input[type="number"],
+.table-bordered.table-sm input[type="text"] {
+    width: 100%;
+    padding: 0.25rem;
+    min-height: 31px;
+}
+
+/* Column widths for the optimization table */
+.table-bordered.table-sm th:nth-child(1),
+.table-bordered.table-sm td:nth-child(1) {
+    width: 10%; /* Optimize checkbox */
+}
+
+.table-bordered.table-sm th:nth-child(2),
+.table-bordered.table-sm td:nth-child(2) {
+    width: 15%; /* Parameter name */
+}
+
+.table-bordered.table-sm th:nth-child(3),
+.table-bordered.table-sm td:nth-child(3) {
+    width: 10%; /* Type */
+}
+
+.table-bordered.table-sm th:nth-child(4),
+.table-bordered.table-sm td:nth-child(4),
+.table-bordered.table-sm th:nth-child(5),
+.table-bordered.table-sm td:nth-child(5),
+.table-bordered.table-sm th:nth-child(6),
+.table-bordered.table-sm td:nth-child(6) {
+    width: 12%; /* Min, Max, Step inputs */
+}
+
+.table-bordered.table-sm th:nth-child(7),
+.table-bordered.table-sm td:nth-child(7) {
+    width: 15%; /* Options */
+}
+
+.table-bordered.table-sm th:nth-child(8),
+.table-bordered.table-sm td:nth-child(8) {
+    width: 14%; /* Default value */
+}
+
+/* Improve the optimization parameters container */
+#optimization-parameters {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
 /* Forms */
 .form-label {
     font-weight: 500;
@@ -133,6 +194,30 @@ main {
     }
     main {
         padding-top: 1rem;
+    }
+    
+    /* Make optimization table scrollable on small screens */
+    .table-bordered.table-sm {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        table-layout: auto;
+    }
+    
+    /* Adjust column widths for smaller screens */
+    .table-bordered.table-sm th,
+    .table-bordered.table-sm td {
+        padding: 0.3rem;
+    }
+    
+    .table-bordered.table-sm th:nth-child(1),
+    .table-bordered.table-sm td:nth-child(1) {
+        width: auto;
+    }
+    
+    .table-bordered.table-sm input[type="number"],
+    .table-bordered.table-sm input[type="text"] {
+        width: 70px;
     }
 }
 
