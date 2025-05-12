@@ -1,0 +1,35 @@
+=== Optimization Test Started at 2025-05-12 11:08:53.279556 ===
+
+Strategy: rsi
+Default Parameters: {'period': 14, 'buy_level': 30, 'sell_level': 70}
+Data Shape: (3163, 8)
+Optimization Config: {
+  "strategy_type": "rsi",
+  "param_ranges": {
+    "rsi_length": [
+      14,
+      21
+    ],
+    "overbought": [
+      70,
+      75
+    ],
+    "oversold": [
+      30,
+      25
+    ]
+  },
+  "initial_capital": 10000,
+  "position_size": 100,
+  "num_cores": 2,
+  "metric": "sharpe_ratio"
+}
+
+=== Optimization Results ===
+
+Default Performance Metrics:
+{}
+
+Best Performance Metrics:
+{}
+

@@ -5,9 +5,6 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing
 from strategies import create_strategy, get_default_parameters, STRATEGY_REGISTRY
 from backtesting.backtester import Backtester
-import logging
-
-logger = logging.getLogger(__name__)
 
 # Define parameter ranges for optimization for all strategies
 PARAM_RANGES = {
@@ -141,8 +138,6 @@ def grid_search(data, strategy_type, param_grid, initial_capital=10000.0, commis
             best_value (float): The best value of the metric.
             all_results (list): List of all results, sorted by the metric.
     """
-    logger.info(f"[grid_search] Received param_grid: {param_grid}, metric: {metric}, start_date: {start_date}, end_date: {end_date}")
-    
     # Create parameter combinations
     param_names = list(param_grid.keys())
     param_values = [param_grid[name] for name in param_names]
@@ -308,17 +303,14 @@ def optimize_strategy(data, strategy_type, param_ranges=None, initial_capital=10
             best_performance (dict): Dictionary containing the performance metrics of the best strategy.
             all_results (list): List of all results, sorted by the metric.
     """
-    logger.info(f"[optimize_strategy] Received strategy_type: {strategy_type}, param_ranges: {param_ranges}, metric: {metric}, start_date: {start_date}, end_date: {end_date}")
-    
     # Use predefined parameter ranges if none provided
-    if param_ranges is None or not param_ranges:
+    if param_ranges is None:
         if strategy_type in PARAM_RANGES:
             param_ranges = PARAM_RANGES[strategy_type]
         else:
             raise ValueError(f"No default parameter ranges for strategy type: {strategy_type}. Please provide param_ranges.")
     
     # Run the grid search
-    logger.info(f"[optimize_strategy] Calling grid_search with param_grid: {param_ranges}")
     best_params, best_value, all_results = grid_search(
         data=data,
         strategy_type=strategy_type,

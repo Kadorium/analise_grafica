@@ -103,6 +103,9 @@ export async function runOptimization(params = {}) {
     try {
         showGlobalLoader('Submitting optimization job...');
         
+        // Log the params object just before the API call
+        console.log('[DEBUG] Params object right before runOptimizationApi:', JSON.stringify(params));
+
         // Run optimization
         const response = await runOptimizationApi(params);
         
@@ -923,8 +926,12 @@ export function initializeOptimizationPanel() {
             const params = {
                 strategy_type: document.getElementById('optimization-strategy').value,
                 param_ranges: paramRanges,
-                optimization_metric: document.getElementById('optimization-metric').value
+                optimization_metric: document.getElementById('optimization-metric').value,
+                start_date: document.getElementById('optimization-start-date').value || null,
+                end_date: document.getElementById('optimization-end-date').value || null
             };
+            // Log the params object right before runOptimization, including new dates
+            console.log('[DEBUG] Params object right before runOptimization, from optimizationPanel.js event listener:', JSON.stringify(params));
             await runOptimization(params);
         });
     }

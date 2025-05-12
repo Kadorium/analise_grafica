@@ -1,0 +1,270 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart.js Verification</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .chart-container { width: 800px; height: 400px; margin: 20px auto; position: relative; }
+        .log-container { margin: 20px auto; width: 800px; border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: auto; background-color: #f9f9f9; font-family: monospace; }
+        .verification-passed { color: green; font-weight: bold; }
+        .verification-failed { color: red; font-weight: bold; }
+        .controls { margin: 20px auto; width: 800px; text-align: center; }
+        button { padding: 8px 15px; margin: 0 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1 style="text-align:center;">Chart.js Rendering Verification</h1>
+    
+    <div class="controls">
+        <button id="verifyBtn">Run Verification Tests</button>
+        <button id="toggleChartBtn">Show/Hide Chart</button>
+        <button id="recreateChartBtn">Recreate Chart</button>
+        <select id="chartTypeSelect">
+            <option value="line">Line Chart</option>
+            <option value="area">Area Chart</option>
+            <option value="bar">Bar Chart</option>
+        </select>
+    </div>
+    
+    <div class="chart-container">
+        <canvas id="verificationChart"></canvas>
+    </div>
+    
+    <div class="log-container" id="logOutput"></div>
+    
+    <script>
+    // Logging function that writes to the log container
+    function log(message, isError = false) {
+        const logContainer = document.getElementById('logOutput');
+        const logEntry = document.createElement('div');
+        logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+        if (isError) {
+            logEntry.style.color = 'red';
+        }
+        logContainer.appendChild(logEntry);
+        logContainer.scrollTop = logContainer.scrollHeight;
+        console.log(message);
+    }
+    
+    // Chart data
+    const chartData = {
+        labels: ["2025-01-29", "2025-01-30", "2025-01-31", "2025-02-01", "2025-02-02", "2025-02-03", "2025-02-04", "2025-02-05", "2025-02-06", "2025-02-07", "2025-02-08", "2025-02-09", "2025-02-10", "2025-02-11", "2025-02-12", "2025-02-13", "2025-02-14", "2025-02-15", "2025-02-16", "2025-02-17", "2025-02-18", "2025-02-19", "2025-02-20", "2025-02-21", "2025-02-22", "2025-02-23", "2025-02-24", "2025-02-25", "2025-02-26", "2025-02-27", "2025-02-28", "2025-03-01", "2025-03-02", "2025-03-03", "2025-03-04", "2025-03-05", "2025-03-06", "2025-03-07", "2025-03-08", "2025-03-09", "2025-03-10", "2025-03-11", "2025-03-12", "2025-03-13", "2025-03-14", "2025-03-15", "2025-03-16", "2025-03-17", "2025-03-18", "2025-03-19", "2025-03-20", "2025-03-21", "2025-03-22", "2025-03-23", "2025-03-24", "2025-03-25", "2025-03-26", "2025-03-27", "2025-03-28", "2025-03-29", "2025-03-30", "2025-03-31", "2025-04-01", "2025-04-02", "2025-04-03", "2025-04-04", "2025-04-05", "2025-04-06", "2025-04-07", "2025-04-08", "2025-04-09", "2025-04-10", "2025-04-11", "2025-04-12", "2025-04-13", "2025-04-14", "2025-04-15", "2025-04-16", "2025-04-17", "2025-04-18", "2025-04-19", "2025-04-20", "2025-04-21", "2025-04-22", "2025-04-23", "2025-04-24", "2025-04-25", "2025-04-26", "2025-04-27", "2025-04-28", "2025-04-29", "2025-04-30", "2025-05-01", "2025-05-02", "2025-05-03", "2025-05-04", "2025-05-05", "2025-05-06", "2025-05-07", "2025-05-08"],
+        datasets: [
+            {
+                label: 'Default Strategy',
+                data: [10000, 9985.95617110067, 9867.406658699963, 9785.33686802932, 9819.12945902505, 9902.492341540228, 9852.900452911821, 9650.347912138875, 9475.077575024796, 9500.252964037603, 9293.753325165124, 9305.966195701369, 9267.048185571583, 9247.980506093918, 9083.718803932989, 9041.167261717646, 9088.933989999545, 9247.182590937078, 9280.640758909978, 9164.375779937409, 9214.251417796944, 9363.737597427007, 9429.01890983965, 9576.2643368177, 9483.688573177275, 9359.261536862674, 9393.621604048769, 9309.87333354838, 9376.525286395277, 9413.589795406864, 9438.795947370027, 9499.732822524335, 9383.275538931885, 9466.973219471043, 9527.421117648199, 9507.660763010741, 9501.57520159275, 9400.741667908926, 9379.880135696734, 9452.29294030834, 9486.910763680751, 9601.257741793159, 9489.973772786712, 9323.10801017044, 9365.002294201075, 9282.789139492936, 9347.990773033687, 9419.057369598642, 9317.214080995547, 9231.450200859683, 9218.763865067725, 9275.120300218983, 9343.415795909126, 9195.55722602619, 9216.644918584701, 9161.657713535493, 9208.687133544398, 9081.3457632616, 9202.35858323492, 9230.36512228723, 9150.543657309969, 9192.520065022503, 9183.97368216773, 9008.88633775671, 8884.47302364852, 9000.04229357181, 8949.621806345669, 8828.407121491118, 8756.243097847784, 8903.567516062674, 8818.522561928337, 8940.988669430399, 9072.72831577362, 9036.974293271724, 8888.907957716989, 8863.124436695629, 8867.382204001877, 8874.427356629763, 8992.45494274848, 8932.747187297515, 8814.221657083506, 8734.260798390002, 8611.33444976553, 8730.807208911354, 8711.317515033967, 8807.603500884596, 8817.842131082001, 8996.156615578977, 8878.1429350661, 8917.467785974588, 8851.529576733825, 8942.604463915628, 9059.494415369341, 9143.688034640405, 9097.378664393209, 9170.115949946388, 9183.29520339821, 9150.68194051435, 8916.695334385055, 9043.242902178537],
+                borderColor: 'rgb(54, 162, 235)',
+                backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                borderWidth: 2,
+                tension: 0.1,
+                fill: false
+            },
+            {
+                label: 'Optimized Strategy',
+                data: [10000, 10004.725167878112, 9933.092493342006, 10183.053547625996, 10082.672267155047, 10122.831197659842, 10166.817452800951, 10106.38849444365, 10089.780663438074, 10047.5991759135, 10093.543259643806, 10052.351075901968, 10009.805895762749, 10217.804539223094, 10410.105714983789, 10660.779273434939, 10501.282354181672, 10455.070009590276, 10650.767077878334, 10564.480449284621, 10536.036312358587, 10584.46726994973, 10593.117619544824, 10677.700674646156, 10553.580800862295, 10506.450744139482, 10571.628132674346, 10309.637771746611, 10423.301823457294, 10483.1890919444, 10494.447392903028, 10619.074156060251, 10700.414806342815, 10857.644938524703, 10708.702684331673, 10853.579035465658, 10872.797388746, 10929.23045015842, 10844.581614240746, 10946.343154865088, 11174.69374327337, 11215.48325838011, 11154.615015884512, 11097.269138184862, 11002.906238966409, 10777.374400687973, 10869.038979585124, 10829.388823241468, 10809.53681462844, 10683.919531247722, 10611.945374920339, 10829.984787142015, 10821.608535635327, 10930.521975571563, 10951.657228439159, 10994.340987557167, 11202.72400383806, 11210.129976546357, 11240.512834216932, 11316.13131604404, 11373.671987512034, 11413.307799847935, 11349.198427917814, 11335.176188635009, 11346.742295278835, 11261.272185997652, 11342.95130659936, 11410.404862377516, 11497.00607641917, 11422.716183589342, 11438.087398252475, 11439.451157872118, 11495.69476987615, 11546.719772531977, 11651.30562180267, 11772.853337855377, 11627.828699383455, 11798.863639783684, 11683.880269898644, 11859.496747799094, 11963.16452218046, 11944.491516571572, 11896.103601181088, 11923.99083083543, 11951.183083100628, 11776.261642054553, 11756.64704416342, 11785.923318230398, 11995.594420923626, 12105.920314508192, 12165.407407544124, 12073.009829792136, 12134.216360970062, 12030.427681662262, 12052.895979473535, 11994.62712772039, 12144.24987400654, 12085.775302124477, 12116.946209805848, 12164.593607370876],
+                borderColor: 'rgb(255, 99, 132)',
+                backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                borderWidth: 2,
+                tension: 0.1,
+                fill: false
+            }
+        ]
+    };
+    
+    // Chart instance
+    let chart = null;
+    
+    // Create the chart
+    function createChart() {
+        try {
+            log('Creating chart...');
+            
+            // Get the canvas
+            const canvas = document.getElementById('verificationChart');
+            if (!canvas) {
+                log('Canvas element not found!', true);
+                return null;
+            }
+            
+            // Check if Chart.js is loaded
+            if (typeof Chart === 'undefined') {
+                log('Chart.js not loaded!', true);
+                return null;
+            }
+            
+            // Create chart configuration
+            const config = {
+                type: 'line',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuad'
+                    },
+                    plugins: { 
+                        title: { display: true, text: 'Strategy Performance Comparison' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        x: { display: true, title: { display: true, text: 'Date' }, ticks: { maxTicksLimit: 12 } },
+                        y: { display: true, title: { display: true, text: 'Equity' } }
+                    }
+                }
+            };
+            
+            // Check if chart exists and destroy it
+            if (chart) {
+                log('Destroying existing chart...');
+                chart.destroy();
+            }
+            
+            // Create new chart
+            chart = new Chart(canvas, config);
+            log('Chart created successfully!');
+            
+            return chart;
+        } catch (error) {
+            log(`Error creating chart: ${error.message}`, true);
+            return null;
+        }
+    }
+    
+    // Run verification tests
+    function runVerification() {
+        log('Starting chart verification tests...');
+        let passed = true;
+        
+        // Test 1: Canvas exists
+        const canvas = document.getElementById('verificationChart');
+        if (canvas) {
+            log('[PASS] Canvas element found');
+        } else {
+            log('[FAIL] Canvas element not found', true);
+            passed = false;
+        }
+        
+        // Test 2: Chart.js is loaded
+        if (typeof Chart !== 'undefined') {
+            log('[PASS] Chart.js library loaded');
+        } else {
+            log('[FAIL] Chart.js library not loaded', true);
+            passed = false;
+        }
+        
+        // Test 3: Chart instance exists
+        if (chart) {
+            log('[PASS] Chart instance exists');
+        } else {
+            log('[FAIL] Chart instance does not exist', true);
+            passed = false;
+        }
+        
+        // Test 4: Chart data
+        if (chart && chart.data.datasets.length === 2) {
+            log(`[PASS] Chart has correct dataset count (${chart.data.datasets.length})`);
+        } else if (chart) {
+            log(`[FAIL] Chart has incorrect dataset count: ${chart.data.datasets.length}`, true);
+            passed = false;
+        }
+        
+        // Test 5: Chart dimensions
+        if (canvas) {
+            const rect = canvas.getBoundingClientRect();
+            log(`Canvas dimensions: ${rect.width}px x ${rect.height}px`);
+            if (rect.width > 0 && rect.height > 0) {
+                log('[PASS] Canvas has proper dimensions');
+            } else {
+                log('[FAIL] Canvas has zero width or height', true);
+                passed = false;
+            }
+        }
+        
+        // Test 6: Chart rendering context
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                log('[PASS] Canvas 2D context available');
+            } else {
+                log('[FAIL] Failed to get canvas 2D context', true);
+                passed = false;
+            }
+        }
+        
+        // Final result
+        if (passed) {
+            log('ALL VERIFICATION TESTS PASSED', false);
+            const resultElement = document.createElement('div');
+            resultElement.textContent = 'VERIFICATION PASSED';
+            resultElement.className = 'verification-passed';
+            document.getElementById('logOutput').appendChild(resultElement);
+        } else {
+            log('VERIFICATION FAILED', true);
+            const resultElement = document.createElement('div');
+            resultElement.textContent = 'VERIFICATION FAILED';
+            resultElement.className = 'verification-failed';
+            document.getElementById('logOutput').appendChild(resultElement);
+        }
+    }
+    
+    // Toggle chart visibility
+    function toggleChartVisibility() {
+        const container = document.querySelector('.chart-container');
+        if (container.style.display === 'none') {
+            container.style.display = 'block';
+            log('Chart shown');
+        } else {
+            container.style.display = 'none';
+            log('Chart hidden');
+        }
+    }
+    
+    // Change chart type
+    function changeChartType(type) {
+        if (!chart) {
+            log('No chart instance to update', true);
+            return;
+        }
+        
+        log(`Changing chart type to: ${type}`);
+        
+        // Update chart type
+        chart.config.type = type === 'area' ? 'line' : type;
+        
+        // For area charts, set fill to true
+        chart.data.datasets.forEach(dataset => {
+            dataset.fill = type === 'area';
+        });
+        
+        // Update the chart
+        chart.update();
+        log(`Chart updated to ${type} type`);
+    }
+    
+    // Initialize when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        log('Page loaded, initializing verification...');
+        
+        // Create initial chart
+        createChart();
+        
+        // Setup event listeners
+        document.getElementById('verifyBtn').addEventListener('click', runVerification);
+        document.getElementById('toggleChartBtn').addEventListener('click', toggleChartVisibility);
+        document.getElementById('recreateChartBtn').addEventListener('click', createChart);
+        
+        document.getElementById('chartTypeSelect').addEventListener('change', function() {
+            changeChartType(this.value);
+        });
+        
+        // Run verification after a short delay
+        setTimeout(runVerification, 500);
+    });
+    </script>
+</body>
+</html>

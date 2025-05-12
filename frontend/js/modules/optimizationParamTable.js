@@ -109,9 +109,12 @@ export class OptimizationParamTable {
     }
 
     updateState() {
+        console.log('[DEBUG] updateState called');
         this.state = {};
         this.parameters.forEach(param => {
+            console.log(`[DEBUG] Processing param: ${param.id}`); // Log param ID
             const checkboxEl = this.container.querySelector(`.opt-checkbox[data-id="${param.id}"]`);
+            console.log(`[DEBUG] Checkbox for ${param.id}:`, checkboxEl ? checkboxEl.checked : 'Not found'); // Log checkbox status
             if (!checkboxEl || !checkboxEl.checked) return;
             
             if (param.type === 'number') {
@@ -122,6 +125,9 @@ export class OptimizationParamTable {
                 let min = parseFloat(minEl.value);
                 let max = parseFloat(maxEl.value);
                 let step = parseFloat(stepEl.value);
+                
+                // Log values read for this param
+                console.log(`[DEBUG] Values read for ${param.id}: min=${min}, max=${max}, step=${step}`);
                 
                 // Validate values
                 if (isNaN(min) || isNaN(max) || isNaN(step)) {
@@ -143,12 +149,15 @@ export class OptimizationParamTable {
                 this.state[param.id] = [true, false];
             }
         });
+        console.log('[DEBUG] Final state object:', this.state); // Log final state object
     }
 
     // Returns param_ranges in the backend-expected format
     getParamRanges() {
+        console.log('[DEBUG] getParamRanges called');
         const paramRanges = {};
         for (const [paramId, val] of Object.entries(this.state)) {
+            console.log(`[DEBUG] Processing state entry: paramId=${paramId}, val=`, val); // Log state entry being processed
             if (Array.isArray(val) && val.length > 0) {
                 paramRanges[paramId] = val;
             } else if (
@@ -167,6 +176,7 @@ export class OptimizationParamTable {
                 paramRanges[paramId] = [true, false];
             }
         }
+        console.log('[DEBUG] Final paramRanges object:', paramRanges); // Log final paramRanges object
         return paramRanges;
     }
 } 

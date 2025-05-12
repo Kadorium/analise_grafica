@@ -1,0 +1,9 @@
+{
+  "status": "failed",
+  "error": "'metric'",
+  "comparison": {
+    "status": "failed",
+    "message": "Optimization for rsi is running in the background.",
+    "error": "'metric'"
+  }
+}

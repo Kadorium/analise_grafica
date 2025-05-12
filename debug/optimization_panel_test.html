@@ -1,0 +1,222 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimization Panel Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>Optimization Results</h2>
+        <div id="optimization-results">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Default vs. Optimized Comparison</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Parameter Comparison</h6>
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Default Value</th>
+                                <th>Optimized Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="table-success">
+                                <td>Period</td>
+                                <td>14</td>
+                                <td>21</td>
+                            </tr>
+                            <tr class="table-success">
+                                <td>Overbought</td>
+                                <td>70</td>
+                                <td>75</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <h6 class="mt-4">Performance Comparison</h6>
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>Default</th>
+                                <th>Optimized</th>
+                                <th>Improvement</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="table-success">
+                                <td>Sharpe Ratio</td>
+                                <td>0.8</td>
+                                <td>1.2</td>
+                                <td>50.00%</td>
+                            </tr>
+                            <tr class="table-success">
+                                <td>Total Return (%)</td>
+                                <td>15.5</td>
+                                <td>22.3</td>
+                                <td>43.87%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <h6 class="mt-4">Equity Curve Comparison</h6>
+                    <div class="d-flex mb-2">
+                        <div class="btn-group chart-type-toggle">
+                            <button class="btn btn-sm btn-outline-primary active" data-chart-type="line">Line</button>
+                            <button class="btn btn-sm btn-outline-primary" data-chart-type="area">Area</button>
+                            <button class="btn btn-sm btn-outline-primary" data-chart-type="bar">Bar</button>
+                        </div>
+                        <button class="btn btn-sm btn-outline-success ms-2 download-chart-btn">
+                            <i class="bi bi-download"></i> Download Chart
+                        </button>
+                    </div>
+                    <div class="comparison-chart-container">
+                        
+<div style="width: 100%; height: 400px;">
+    <canvas id="comparisonChart"></canvas>
+</div>
+<script>
+(function() {
+    try {
+        console.log("Creating comparison chart");
+        const ctx = document.getElementById('comparisonChart').getContext('2d');
+        
+        // Data
+        const labels = ["2025-01-29", "2025-01-30", "2025-01-31", "2025-02-01", "2025-02-02", "2025-02-03", "2025-02-04", "2025-02-05", "2025-02-06", "2025-02-07", "2025-02-08", "2025-02-09", "2025-02-10", "2025-02-11", "2025-02-12", "2025-02-13", "2025-02-14", "2025-02-15", "2025-02-16", "2025-02-17", "2025-02-18", "2025-02-19", "2025-02-20", "2025-02-21", "2025-02-22", "2025-02-23", "2025-02-24", "2025-02-25", "2025-02-26", "2025-02-27", "2025-02-28", "2025-03-01", "2025-03-02", "2025-03-03", "2025-03-04", "2025-03-05", "2025-03-06", "2025-03-07", "2025-03-08", "2025-03-09", "2025-03-10", "2025-03-11", "2025-03-12", "2025-03-13", "2025-03-14", "2025-03-15", "2025-03-16", "2025-03-17", "2025-03-18", "2025-03-19", "2025-03-20", "2025-03-21", "2025-03-22", "2025-03-23", "2025-03-24", "2025-03-25", "2025-03-26", "2025-03-27", "2025-03-28", "2025-03-29", "2025-03-30", "2025-03-31", "2025-04-01", "2025-04-02", "2025-04-03", "2025-04-04", "2025-04-05", "2025-04-06", "2025-04-07", "2025-04-08", "2025-04-09", "2025-04-10", "2025-04-11", "2025-04-12", "2025-04-13", "2025-04-14", "2025-04-15", "2025-04-16", "2025-04-17", "2025-04-18", "2025-04-19", "2025-04-20", "2025-04-21", "2025-04-22", "2025-04-23", "2025-04-24", "2025-04-25", "2025-04-26", "2025-04-27", "2025-04-28", "2025-04-29", "2025-04-30", "2025-05-01", "2025-05-02", "2025-05-03", "2025-05-04", "2025-05-05", "2025-05-06", "2025-05-07", "2025-05-08"];
+        const baselineData = [10000, 9753.418174006185, 9890.207065935942, 9927.768644076437, 9955.492947502189, 10017.683419141356, 10061.652664870464, 10038.295794680034, 9968.805391366986, 10014.25981131256, 9842.9351901215, 9684.781019275997, 9555.764775373285, 9572.081342988255, 9663.458255842723, 9663.513150850746, 9660.227783087252, 9710.368889862433, 9606.949932191264, 9706.509580278476, 9724.685840878105, 9704.03616937218, 9746.634941278186, 9646.937012591176, 9472.847209433165, 9553.399905160466, 9420.044347666802, 9403.704857408387, 9337.976449261248, 9424.463499663385, 9427.072780449313, 9474.811773362231, 9425.936006576478, 9312.174967921435, 9270.725694984589, 9292.096133076904, 9141.903060031776, 9073.080170220504, 8916.718308485957, 8984.168863108698, 9038.587351055656, 9095.202236321067, 9226.826925611236, 9059.18411691681, 8986.684561749938, 8938.626393278208, 8894.224737670136, 8972.62362771652, 8907.351192004788, 8794.972264124257, 8661.738158375894, 8588.405974111996, 8529.530182053077, 8521.306185736918, 8697.927858840365, 8859.088169363333, 8699.656349762254, 8762.03308519821, 8544.350082723404, 8542.433839960006, 8560.019629397824, 8610.950271691867, 8655.160828796987, 8504.955302816617, 8401.419919114165, 8345.598676556498, 8316.399634850804, 8386.079680902278, 8347.300153350252, 8217.373524443396, 8278.144473552247, 8197.570624334758, 8186.637384347383, 8019.536323977078, 8034.702323501141, 7942.35147359535, 7806.360191414979, 7735.298439159477, 7732.878078742225, 7765.06628011484, 7717.480213610166, 7596.705454776918, 7472.811763198705, 7509.497749728015, 7458.134111849441, 7412.423811195489, 7370.151056397636, 7226.793428537751, 7157.121821482403, 7120.046782198028, 7030.450458166844, 6907.984296721718, 6894.245862124782, 6844.432677065983, 6793.717438946456, 6730.4611349634615, 6763.294159386249, 6712.857474461728, 6695.876389951214, 6625.23680928777];
+        const optimizedData = [10000, 9977.752292468722, 9932.32228810403, 9878.321031014066, 9799.716653658705, 9792.01844432537, 9846.997467673697, 9605.349837411457, 9669.320437694001, 9592.980740156809, 9684.009074347285, 9579.87779302764, 9495.657239281985, 9444.092374765427, 9407.29571299162, 9210.326304991531, 9226.12509529721, 9264.638091559988, 9140.947843365313, 9007.324125864568, 9138.410131780247, 9282.080133378158, 9360.94623983183, 9450.409285986516, 9487.86253754913, 9404.928776659528, 9460.176975404187, 9467.074259457548, 9369.192902379276, 9498.047373993573, 9496.329962354965, 9592.481586841559, 9366.903230197511, 9458.310054798709, 9552.537957212118, 9612.577058644489, 9665.37956422863, 9683.036719249825, 9756.139215661866, 9861.108533631137, 9996.432874339558, 10028.860023177824, 10143.282183016405, 10229.750404185266, 10257.632830376975, 10289.55284252581, 10431.085629982654, 10345.83248659394, 10269.1292630455, 10184.895565298513, 10269.673751186867, 10294.976312009796, 10274.342138193615, 10368.00412994508, 10285.779083689027, 10231.014420535768, 10223.262518075277, 10264.518433183295, 10245.76839514696, 10299.663024390924, 10345.842134726776, 10271.913917861502, 10217.05987233389, 10226.312436528455, 10126.783072706648, 10160.803814876163, 10288.9151903115, 10242.963649402573, 10168.118822663731, 10283.915078738164, 10269.885325248651, 10387.255190509728, 10504.187562863312, 10526.042941535843, 10430.69768538498, 10520.818808325745, 10526.183591325465, 10585.01998148721, 10648.777052398766, 10632.107829814486, 10692.943485213038, 10676.044813956401, 10733.79500680217, 10937.122059771922, 10977.489420496477, 11031.048971283697, 11035.808464639607, 11103.07859183675, 11116.821187004938, 11170.560157199918, 11101.263322406174, 11070.043087841192, 11075.238508110877, 11084.577294153054, 11194.443723990797, 11472.24118163215, 11318.590732851637, 11415.683253890262, 11395.588282884584, 11546.50609765539];
+        
+        // Log data in console
+        console.log("Chart labels length:", labels.length);
+        console.log("Baseline data length:", baselineData.length);
+        console.log("Optimized data length:", optimizedData.length);
+        
+        const chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Default Parameters',
+                        data: baselineData,
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: false
+                    },
+                    {
+                        label: 'Optimized Parameters',
+                        data: optimizedData,
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Equity Curve Comparison',
+                        font: { size: 16 }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y.toFixed(2);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        }
+                    },
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: 'Equity'
+                        }
+                    }
+                }
+            }
+        });
+        
+        console.log("Chart created successfully");
+        
+        // Export chart instance for later access
+        window.comparisonChart = chart;
+    } catch(error) {
+        console.error("Error creating chart:", error);
+    }
+})();
+</script>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log("DOM content loaded, checking for chart toggle buttons");
+        document.querySelectorAll('.chart-type-toggle button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                console.log("Chart type toggle clicked:", this.getAttribute('data-chart-type'));
+                // Remove active class from all buttons
+                document.querySelectorAll('.chart-type-toggle button').forEach(b => b.classList.remove('active'));
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                // Get the chart instance - check if it exists first
+                const chartContainer = document.querySelector('.comparison-chart-container canvas');
+                if (!chartContainer) {
+                    console.error('Chart canvas element not found');
+                    return;
+                }
+                
+                const chartId = chartContainer.id;
+                console.log("Chart ID:", chartId);
+                
+                if (window.comparisonChart) {
+                    const chartType = this.getAttribute('data-chart-type');
+                    window.comparisonChart.config.type = chartType === 'area' ? 'line' : chartType;
+                    
+                    // For area charts, set fill to true
+                    window.comparisonChart.data.datasets.forEach(dataset => {
+                        dataset.fill = chartType === 'area';
+                    });
+                    
+                    // Update the chart
+                    window.comparisonChart.update();
+                    console.log("Chart updated to type:", chartType);
+                } else {
+                    console.error("Chart instance not found");
+                }
+            });
+        });
+    });
+    </script>
+</body>
+</html>
