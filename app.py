@@ -312,7 +312,7 @@ class PlotConfig(BaseModel):
 
 # Update log_optimization_request to accept extra info and errors
 
-def log_optimization_request(request_data, extra_info=None, error=None, traceback_info=None):
+def log_optimization_request(request_data, extra_info=None, error=None, traceback_info=None, params_to_optimizer=None, final_params_backtest=None):
     """
     Appends optimization request data, extra info, and errors to a log file for debugging and traceability.
     """
@@ -336,14 +336,22 @@ def log_optimization_request(request_data, extra_info=None, error=None, tracebac
                 formatted_params[param_name] = f"{len(param_values)} values from {min(param_values)} to {max(param_values)}"
             else:
                 formatted_params[param_name] = param_values
-        log_entry['param_ranges'] = formatted_params
+        log_entry['param_ranges_request'] = formatted_params # Renamed for clarity
     
     # Add other request fields
     for key, value in request_data.items():
         if key != 'param_ranges' and key != 'strategy_type':
             log_entry[key] = value
-    
-    # Add extra info if provided
+            
+    # Add parameters actually sent to the optimizer
+    if params_to_optimizer is not None:
+        log_entry['params_sent_to_optimizer'] = params_to_optimizer
+
+    # Add parameters used for the final optimized backtest
+    if final_params_backtest is not None:
+        log_entry['final_params_for_optimized_backtest'] = final_params_backtest
+            
+    # Add extra info if provided (Performance, Parameter Changes, Top Results)
     if extra_info is not None:
         # Format optimization results for better readability
         if 'default_performance' in extra_info and 'optimized_performance' in extra_info:
@@ -856,7 +864,8 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
 
     # Log the incoming optimization request
     log_optimization_request(optimization_config.dict())
-    
+    logger.info(f"[ENDPOINT app.py] Received optimization config: {optimization_config.dict()}") 
+
     log_endpoint(f"{request.method} {request.url.path} - DETAILS", optimization_cfg=optimization_config.dict())
 
     if PROCESSED_DATA is None:
@@ -880,10 +889,13 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
     
     def run_optimization_task():
         global CURRENT_CONFIG, OPTIMIZATION_STATUS
+        import os # <<< IMPORT OS HERE >>>
         error_message = None
 
         try:
             # 1. Run optimization
+            params_for_optimizer = optimization_config.param_ranges
+            logger.info(f"[TASK app.py] Calling optimize_strategy with param_ranges: {params_for_optimizer}") # Log params sent
             best_params, best_performance, all_results_raw = optimize_strategy(
                 data=PROCESSED_DATA,
                 strategy_type=optimization_config.strategy_type,
@@ -892,6 +904,8 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
                 start_date=optimization_config.start_date,
                 end_date=optimization_config.end_date
             )
+            
+            logger.info(f"[TASK app.py] optimize_strategy returned - best_params: {best_params}, best_performance (snippet): {{ 'sharpe_ratio': {best_performance.get('sharpe_ratio', 'N/A')} }}")
             
             # Create the best strategy object using the best parameters
             best_strategy = create_strategy(optimization_config.strategy_type, **best_params)
@@ -916,8 +930,17 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
                 default_performance.update(additional_metrics)
 
             # 3. Run backtest for optimized parameters
-            combined_params = {**default_params, **best_params}
-            optimized_strategy = create_strategy(optimization_config.strategy_type, **combined_params)
+            # <<< FIX HERE: Merge best_params with defaults >>>
+            # Start with default parameters
+            final_optimized_params = default_params.copy()
+            # Update with the parameters found by the optimization
+            final_optimized_params.update(best_params) 
+
+            # <<< ADD LOGGING HERE >>>
+            logger.info(f"[TASK app.py] Merged optimized params for backtest: {final_optimized_params}")
+
+            # Now use the correctly merged parameters
+            optimized_strategy = create_strategy(optimization_config.strategy_type, **final_optimized_params)
             optimized_result = backtester.run_backtest(optimized_strategy, optimization_config.start_date, optimization_config.end_date)
             optimized_performance = optimized_result['performance_metrics']
             optimized_signals = optimized_result['signals'] if 'signals' in optimized_result else None
@@ -1171,6 +1194,7 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
 
             # Make sure all required metrics are present in default_performance and optimized_performance
             def ensure_metrics_present(perf_dict):
+                import pandas as pd # Explicit import for safety in this scope
                 required_metrics = [
                     'total_return_percent', 'annual_return_percent', 'max_drawdown_percent',
                     'win_rate_percent', 'profit_factor', 'sharpe_ratio', 'sortino_ratio',
@@ -1206,7 +1230,8 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
                 "status": "completed",
                 "default_params": default_params,
                 "default_performance": default_performance,
-                "optimized_params": combined_params,
+                # <<< FIX HERE: Use the merged params >>>
+                "optimized_params": final_optimized_params, 
                 "optimized_performance": optimized_performance,
                 "comparison_chart_html": chart_html
             })
@@ -1215,7 +1240,8 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
             OPTIMIZATION_STATUS["comparison_data"] = {
                 "default_params": default_params,
                 "default_performance": default_performance,
-                "optimized_params": combined_params,
+                # <<< FIX HERE: Use the merged params >>>
+                "optimized_params": final_optimized_params, 
                 "optimized_performance": optimized_performance,
                 "comparison_chart_html": chart_html
             }
@@ -1224,12 +1250,15 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
             log_optimization_request(
                 optimization_config.dict(),
                 extra_info={
+                    'raw_best_params_from_optimizer': best_params, # Log the direct output from optimizer
                     'default_params': default_params,
                     'default_performance': default_performance,
-                    'optimized_params': combined_params,
+                    'optimized_params': final_optimized_params, # Log the final merged params here
                     'optimized_performance': optimized_performance,
                     'all_results': all_results_raw[:10]  # log top 10
-                }
+                },
+                params_to_optimizer=params_for_optimizer, # Log params sent to optimizer
+                final_params_backtest=final_optimized_params # Log final params used for backtest
             )
 
             # 7. Save results as before
@@ -1246,9 +1275,10 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
             # Format results in structure expected by frontend
             formatted_results = {
                 "top_results": [],
-                "best_params": best_params,
+                "best_params": best_params, # Keep original best_params here (only optimized ones)
                 "default_params": default_params,
-                "optimized_params": combined_params,
+                # <<< FIX HERE: Use the merged params >>>
+                "optimized_params": final_optimized_params, 
                 "default_performance": default_performance,
                 "optimized_performance": optimized_performance,
                 "comparison_chart_html": chart_html
@@ -1279,7 +1309,9 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
             log_optimization_request(
                 optimization_config.dict(), 
                 error=error_msg,
-                traceback_info=traceback_str
+                traceback_info=traceback_str,
+                params_to_optimizer=params_for_optimizer if 'params_for_optimizer' in locals() else optimization_config.param_ranges, # Log params even on error
+                final_params_backtest=final_optimized_params if 'final_optimized_params' in locals() else None # Log final params if available
             )
             
             # Mark optimization as complete but failed
@@ -1528,9 +1560,6 @@ async def export_results(format_type: str, request: Request):
             return JSONResponse(status_code=400, content={"success":False, "message": "Results format not suitable for CSV export."})
     else:
         return JSONResponse(status_code=400, content={"success":False, "message": f"Unsupported format: {format_type}"})
-
-    log_endpoint(f"{request.method} {request.url.path} - EXPORTED", file=file_to_send_name)
-    return FileResponse(path=file_to_send_path, filename=file_to_send_name, media_type=media_type_str)
 
 
 @app.get("/api/current-config")
