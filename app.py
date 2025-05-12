@@ -930,49 +930,53 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
             # 4. Generate comparison chart (equity curve)
             chart_html = None
             if default_signals is not None and optimized_signals is not None:
+                # Check if signal arrays have data
+                logger.info(f"Generating chart with default signals shape {default_signals.shape} and optimized signals shape {optimized_signals.shape}")
+                
                 # Make sure both dataframes have the necessary columns for plotting
-                for df in [default_signals, optimized_signals]:
+                for df_name, df in [("default", default_signals), ("optimized", optimized_signals)]:
                     if 'equity' not in df.columns:
-                        logger.warning("Missing 'equity' column in signals dataframe for chart generation")
+                        logger.warning(f"Missing 'equity' column in {df_name} signals dataframe for chart generation")
                         df['equity'] = initial_capital  # Default fallback
                     if 'date' not in df.columns:
-                        logger.warning("Missing 'date' column in signals dataframe for chart generation")
+                        logger.warning(f"Missing 'date' column in {df_name} signals dataframe for chart generation")
                         continue
                 
                 try:
-                    # Generate the Chart.js HTML
+                    # Generate interactive chart using Chart.js
                     timestamp = int(time.time())
                     chart_id = f"equity-comparison-chart-{timestamp}"
                     
+                    # Make sure dates are in the right format and we have valid equity values
+                    logger.info("Preparing chart data...")
+                    
                     # Convert dates to string format for JSON
-                    default_signals_dates = stringify_df_dates(default_signals)['date'].tolist()
-                    optimized_signals_dates = stringify_df_dates(optimized_signals)['date'].tolist()
+                    default_signals_dates = default_signals['date'].dt.strftime('%Y-%m-%d').tolist()
+                    optimized_signals_dates = optimized_signals['date'].dt.strftime('%Y-%m-%d').tolist()
                     
                     # Ensure we have valid equity values for plotting
                     default_equity = default_signals['equity'].tolist()
                     optimized_equity = optimized_signals['equity'].tolist()
                     
-                    # Generate the Chart.js HTML
+                    # Log sample of the data for debugging
+                    logger.info(f"Chart data prepared - dates: {len(default_signals_dates)} points, equity: {len(default_equity)} points")
+                    logger.info(f"Sample date: {default_signals_dates[0]} to {default_signals_dates[-1]}")
+                    logger.info(f"Sample equity range: {min(default_equity)} to {max(default_equity)}")
+                    
+                    # Generate the Chart.js HTML with more robust initialization
                     chart_html = f"""
                     <div class="chart-container" style="position: relative; height:400px; width:100%; margin-bottom: 20px;">
-                        <canvas id="{chart_id}"></canvas>
+                        <canvas id="{chart_id}" width="800" height="400"></canvas>
                     </div>
                     <script>
                     console.log("Chart script for {chart_id} loaded and executing");
+                    
+                    // Create a safer wrapper to avoid global conflicts
                     (function() {{
-                        // Function to initialize chart - will retry if canvas not ready
-                        function initChart() {{
-                            console.log("Attempting to initialize chart {chart_id}");
-                            const ctx = document.getElementById('{chart_id}');
-                            if (!ctx) {{ 
-                                console.warn('Chart canvas element not found: {chart_id}, will retry in 300ms');
-                                setTimeout(initChart, 300);
-                                return;
-                            }}
-                            
-                            console.log("Canvas element found for {chart_id}, dimensions:", ctx.width, "x", ctx.height);
-                            
-                            const chartData = {{
+                        // Store chart config for later use if needed
+                        window.chartConfig_{chart_id} = {{
+                            type: 'line',
+                            data: {{
                                 labels: {json.dumps(default_signals_dates)},
                                 datasets: [
                                     {{
@@ -992,56 +996,113 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
                                         fill: false
                                     }}
                                 ]
-                            }};
+                            }},
+                            options: {{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {{ 
+                                    title: {{ display: true, text: 'Default vs. Optimized Strategy Performance' }},
+                                    tooltip: {{ mode: 'index', intersect: false }}
+                                }},
+                                scales: {{
+                                    x: {{ display: true, title: {{ display: true, text: 'Date' }}, ticks: {{ maxTicksLimit: 12 }} }},
+                                    y: {{ display: true, title: {{ display: true, text: 'Equity' }} }}
+                                }}
+                            }}
+                        }};
+                        
+                        // Create a more robust initialization function with retries
+                        var maxRetries = 10;
+                        var retryCount = 0;
+                        var retryInterval = 300;
+                        
+                        function createChart() {{
+                            console.log(`Attempt #${{retryCount+1}} to create chart {chart_id}`);
+                            
+                            // Check if chart element exists
+                            var canvas = document.getElementById('{chart_id}');
+                            if (!canvas) {{
+                                console.warn(`Canvas element not found: {chart_id}`);
+                                if (retryCount < maxRetries) {{
+                                    retryCount++;
+                                    console.log(`Will retry in ${{retryInterval}}ms...`);
+                                    setTimeout(createChart, retryInterval);
+                                }} else {{
+                                    console.error(`Failed to find canvas after ${{maxRetries}} attempts`);
+                                    var container = document.querySelector('.comparison-chart-container');
+                                    if (container) {{
+                                        container.innerHTML = '<div class="alert alert-danger">Failed to initialize chart: Canvas element not found</div>';
+                                    }}
+                                }}
+                                return;
+                            }}
+                            
+                            // Check if Chart.js is available
+                            if (typeof Chart === 'undefined') {{
+                                console.warn('Chart.js not available');
+                                if (retryCount < maxRetries) {{
+                                    retryCount++;
+                                    console.log(`Will retry in ${{retryInterval}}ms...`);
+                                    setTimeout(createChart, retryInterval);
+                                }} else {{
+                                    console.error(`Failed to find Chart.js after ${{maxRetries}} attempts`);
+                                    var container = document.querySelector('.comparison-chart-container');
+                                    if (container) {{
+                                        container.innerHTML = '<div class="alert alert-danger">Failed to initialize chart: Chart.js not loaded</div>';
+                                    }}
+                                }}
+                                return;
+                            }}
                             
                             try {{
-                                if(!window.Chart) {{
-                                    console.error('Chart.js library not loaded. Will retry in 500ms');
-                                    setTimeout(initChart, 500);
-                                    return;
+                                // Check if chart already exists and destroy it
+                                var existingChart = Chart.getChart('{chart_id}');
+                                if (existingChart) {{
+                                    console.log('Destroying existing chart instance');
+                                    existingChart.destroy();
                                 }}
                                 
-                                console.log("Creating new Chart instance with id {chart_id}");
+                                // Create new chart
+                                console.log('Creating new chart instance');
+                                window.comparisonChart_{chart_id} = new Chart(
+                                    canvas.getContext('2d'),
+                                    window.chartConfig_{chart_id}
+                                );
                                 
-                                // Create chart with a specific ID that can be referenced
-                                window.comparisonChartInstance = new Chart(ctx, {{
-                                    type: 'line',
-                                    data: chartData,
-                                    options: {{
-                                        responsive: true,
-                                        maintainAspectRatio: false,
-                                        plugins: {{ 
-                                            title: {{ display: true, text: 'Default vs. Optimized Strategy Performance' }},
-                                            tooltip: {{ mode: 'index', intersect: false }}
-                                        }},
-                                        scales: {{
-                                            x: {{ display: true, title: {{ display: true, text: 'Date' }}, ticks: {{ maxTicksLimit: 12 }} }},
-                                            y: {{ display: true, title: {{ display: true, text: 'Equity' }} }}
-                                        }}
-                                    }}
-                                }});
+                                console.log('Chart created successfully!');
                                 
-                                console.log('Chart created successfully: {chart_id}');
-                            }} catch (e) {{
-                                console.error('Error creating chart:', e);
-                                document.querySelector('.comparison-chart-container').innerHTML = '<div class="alert alert-warning">Error creating chart: ' + e.message + '</div>';
+                                // Add global reference for debugging
+                                if (!window.chartInstances) window.chartInstances = {{}};
+                                window.chartInstances['{chart_id}'] = window.comparisonChart_{chart_id};
+                                
+                            }} catch (error) {{
+                                console.error('Error creating chart:', error);
+                                var container = document.querySelector('.comparison-chart-container');
+                                if (container) {{
+                                    container.innerHTML = '<div class="alert alert-danger">Error creating chart: ' + error.message + '</div>';
+                                }}
                             }}
                         }}
                         
-                        // Handle various document states
-                        if (document.readyState === 'loading') {{
-                            console.log("Document still loading, adding DOMContentLoaded listener");
-                            document.addEventListener('DOMContentLoaded', initChart);
+                        // Start the initialization process
+                        if (document.readyState === 'complete' || document.readyState === 'interactive') {{
+                            console.log('Document already loaded, scheduling chart initialization');
+                            setTimeout(createChart, 100);
                         }} else {{
-                            console.log("Document already loaded, scheduling chart init");
-                            setTimeout(initChart, 100);
+                            console.log('Document still loading, waiting for DOMContentLoaded');
+                            document.addEventListener('DOMContentLoaded', function() {{
+                                setTimeout(createChart, 100);
+                            }});
                         }}
+                        
+                        // Ensure chart is initialized even if the event didn't fire
+                        setTimeout(createChart, 500);
                     }})();
                     </script>
                     """
                     
                     # Log that we generated the chart HTML
-                    logger.info(f"Successfully generated comparison chart HTML with {len(default_signals_dates)} data points")
+                    logger.info(f"Successfully generated comparison chart HTML with {len(default_signals_dates)} data points and canvas ID {chart_id}")
                     
                 except Exception as e:
                     logger.error(f"Error generating comparison chart: {str(e)}\n{traceback.format_exc()}")

@@ -388,6 +388,64 @@ function displayOptimizationResults(results) {
                     ${results.comparison_chart_html}
                 </div>
             `;
+            
+            // Set up observer to detect when chart is added to DOM
+            setTimeout(() => {
+                console.log("Setting up DOM observer for chart container");
+                const container = document.getElementById('optimization-results');
+                if (!container) {
+                    console.error("Optimization results container not found");
+                    return;
+                }
+                
+                // Add a mutation observer to detect when the chart is added
+                const observer = new MutationObserver((mutations, obs) => {
+                    // Look for the chart container
+                    const chartContainer = document.querySelector('.comparison-chart-container');
+                    if (chartContainer) {
+                        console.log("Chart container found in DOM:", chartContainer.id);
+                        
+                        // Find the canvas element
+                        const canvasElement = chartContainer.querySelector('canvas');
+                        if (canvasElement) {
+                            console.log("Canvas element found:", canvasElement.id);
+                            
+                            // Now we can initialize the chart
+                            if (typeof Chart !== 'undefined') {
+                                console.log("Chart.js is available - initializing chart");
+                                initChartToggleHandlers();
+                            } else {
+                                console.log("Chart.js not loaded yet - waiting");
+                                // Wait for Chart.js to load
+                                const chartWaiter = setInterval(() => {
+                                    if (typeof Chart !== 'undefined') {
+                                        console.log("Chart.js now available - initializing");
+                                        clearInterval(chartWaiter);
+                                        initChartToggleHandlers();
+                                    }
+                                }, 300);
+                                
+                                // Stop waiting after 5 seconds
+                                setTimeout(() => {
+                                    clearInterval(chartWaiter);
+                                    console.warn("Timed out waiting for Chart.js");
+                                }, 5000);
+                            }
+                        } else {
+                            console.error("Canvas element not found in chart container");
+                        }
+                        
+                        // Disconnect observer once we've found the chart
+                        obs.disconnect();
+                    }
+                });
+                
+                // Start observing
+                observer.observe(container, {
+                    childList: true,
+                    subtree: true
+                });
+            }, 100);
         } else {
             console.warn("No comparison chart HTML found in results");
             chartSection = '<div class="alert alert-warning mt-4">No comparison chart available</div>';
@@ -485,52 +543,6 @@ function displayOptimizationResults(results) {
             }
         };
         document.querySelector('#optimization-results .d-flex').appendChild(useParamsBtn);
-    }
-    
-    // Activate chart toggles and download button
-    if (results.comparison_chart_html) {
-        // Attempt to find the canvas element with a retry mechanism
-        const findCanvasAndInitializeChart = () => {
-            console.log("Looking for chart canvas element...");
-            // First check if chart container exists
-            const chartContainer = document.querySelector('.comparison-chart-container');
-            if (!chartContainer) {
-                console.error('Chart container element not found. Will retry shortly.');
-                setTimeout(findCanvasAndInitializeChart, 300);
-                return;
-            }
-
-            // Now extract the canvas ID from the chart HTML
-            const canvasIdMatch = results.comparison_chart_html.match(/id="([^"]+)"/);
-            if (!canvasIdMatch || !canvasIdMatch[1]) {
-                console.error('Could not find canvas ID in chart HTML');
-                return;
-            }
-            
-            const expectedCanvasId = canvasIdMatch[1];
-            console.log(`Looking for canvas with ID: ${expectedCanvasId}`);
-            
-            // Now look for the canvas element
-            const canvasElement = document.getElementById(expectedCanvasId);
-            if (!canvasElement) {
-                console.warn(`Canvas element with ID ${expectedCanvasId} not found yet. Will retry shortly.`);
-                setTimeout(findCanvasAndInitializeChart, 300);
-                return;
-            }
-            
-            console.log(`Canvas element found: ${expectedCanvasId}. Ensuring Chart.js is loaded...`);
-            
-            // Now ensure Chart.js is loaded and initialize the chart handlers
-            ensureChartJsLoaded(() => {
-                console.log("Chart.js loaded. Initializing chart handlers...");
-                initChartToggleHandlers();
-            });
-        };
-        
-        // Start the process with a small delay to allow DOM to update
-        setTimeout(findCanvasAndInitializeChart, 300);
-    } else {
-        console.warn('No chart HTML found in results, skipping chart initialization');
     }
 }
 
