@@ -958,15 +958,19 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
                         <canvas id="{chart_id}"></canvas>
                     </div>
                     <script>
+                    console.log("Chart script for {chart_id} loaded and executing");
                     (function() {{
                         // Function to initialize chart - will retry if canvas not ready
                         function initChart() {{
+                            console.log("Attempting to initialize chart {chart_id}");
                             const ctx = document.getElementById('{chart_id}');
                             if (!ctx) {{ 
-                                console.warn('Chart canvas element not found: {chart_id}, will retry in 200ms');
-                                setTimeout(initChart, 200);
+                                console.warn('Chart canvas element not found: {chart_id}, will retry in 300ms');
+                                setTimeout(initChart, 300);
                                 return;
                             }}
+                            
+                            console.log("Canvas element found for {chart_id}, dimensions:", ctx.width, "x", ctx.height);
                             
                             const chartData = {{
                                 labels: {json.dumps(default_signals_dates)},
@@ -991,39 +995,45 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
                             }};
                             
                             try {{
-                                if(window.Chart) {{
-                                    new Chart(ctx, {{
-                                        type: 'line',
-                                        data: chartData,
-                                        options: {{
-                                            responsive: true,
-                                            maintainAspectRatio: false,
-                                            plugins: {{ 
-                                                title: {{ display: true, text: 'Default vs. Optimized Strategy Performance' }},
-                                                tooltip: {{ mode: 'index', intersect: false }}
-                                            }},
-                                            scales: {{
-                                                x: {{ display: true, title: {{ display: true, text: 'Date' }}, ticks: {{ maxTicksLimit: 12 }} }},
-                                                y: {{ display: true, title: {{ display: true, text: 'Equity' }} }}
-                                            }}
-                                        }}
-                                    }});
-                                    console.log('Chart created successfully: {chart_id}');
-                                }} else {{
-                                    console.error('Chart.js library not loaded');
-                                    document.querySelector('.comparison-chart-container').innerHTML = '<div class="alert alert-danger">Chart.js library not loaded</div>';
+                                if(!window.Chart) {{
+                                    console.error('Chart.js library not loaded. Will retry in 500ms');
+                                    setTimeout(initChart, 500);
+                                    return;
                                 }}
+                                
+                                console.log("Creating new Chart instance with id {chart_id}");
+                                
+                                // Create chart with a specific ID that can be referenced
+                                window.comparisonChartInstance = new Chart(ctx, {{
+                                    type: 'line',
+                                    data: chartData,
+                                    options: {{
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        plugins: {{ 
+                                            title: {{ display: true, text: 'Default vs. Optimized Strategy Performance' }},
+                                            tooltip: {{ mode: 'index', intersect: false }}
+                                        }},
+                                        scales: {{
+                                            x: {{ display: true, title: {{ display: true, text: 'Date' }}, ticks: {{ maxTicksLimit: 12 }} }},
+                                            y: {{ display: true, title: {{ display: true, text: 'Equity' }} }}
+                                        }}
+                                    }}
+                                }});
+                                
+                                console.log('Chart created successfully: {chart_id}');
                             }} catch (e) {{
                                 console.error('Error creating chart:', e);
                                 document.querySelector('.comparison-chart-container').innerHTML = '<div class="alert alert-warning">Error creating chart: ' + e.message + '</div>';
                             }}
                         }}
                         
-                        // Wait for DOM content to be loaded
+                        // Handle various document states
                         if (document.readyState === 'loading') {{
+                            console.log("Document still loading, adding DOMContentLoaded listener");
                             document.addEventListener('DOMContentLoaded', initChart);
                         }} else {{
-                            // DOMContentLoaded already fired
+                            console.log("Document already loaded, scheduling chart init");
                             setTimeout(initChart, 100);
                         }}
                     }})();

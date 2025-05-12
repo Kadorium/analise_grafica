@@ -384,7 +384,7 @@ function displayOptimizationResults(results) {
                         <i class="bi bi-download"></i> Download Chart
                     </button>
                 </div>
-                <div class="comparison-chart-container">
+                <div class="comparison-chart-container" id="chart-container-${Date.now()}">
                     ${results.comparison_chart_html}
                 </div>
             `;
@@ -488,16 +488,49 @@ function displayOptimizationResults(results) {
     }
     
     // Activate chart toggles and download button
-    if (results.comparison_chart_html && results.comparison_chart_html.includes('<canvas')) {
-        // Ensure Chart.js is loaded before trying to initialize chart handlers
-        ensureChartJsLoaded(() => {
-            // Give the browser time to render the chart before attaching events
-            setTimeout(() => {
+    if (results.comparison_chart_html) {
+        // Attempt to find the canvas element with a retry mechanism
+        const findCanvasAndInitializeChart = () => {
+            console.log("Looking for chart canvas element...");
+            // First check if chart container exists
+            const chartContainer = document.querySelector('.comparison-chart-container');
+            if (!chartContainer) {
+                console.error('Chart container element not found. Will retry shortly.');
+                setTimeout(findCanvasAndInitializeChart, 300);
+                return;
+            }
+
+            // Now extract the canvas ID from the chart HTML
+            const canvasIdMatch = results.comparison_chart_html.match(/id="([^"]+)"/);
+            if (!canvasIdMatch || !canvasIdMatch[1]) {
+                console.error('Could not find canvas ID in chart HTML');
+                return;
+            }
+            
+            const expectedCanvasId = canvasIdMatch[1];
+            console.log(`Looking for canvas with ID: ${expectedCanvasId}`);
+            
+            // Now look for the canvas element
+            const canvasElement = document.getElementById(expectedCanvasId);
+            if (!canvasElement) {
+                console.warn(`Canvas element with ID ${expectedCanvasId} not found yet. Will retry shortly.`);
+                setTimeout(findCanvasAndInitializeChart, 300);
+                return;
+            }
+            
+            console.log(`Canvas element found: ${expectedCanvasId}. Ensuring Chart.js is loaded...`);
+            
+            // Now ensure Chart.js is loaded and initialize the chart handlers
+            ensureChartJsLoaded(() => {
+                console.log("Chart.js loaded. Initializing chart handlers...");
                 initChartToggleHandlers();
-            }, 500);
-        });
+            });
+        };
+        
+        // Start the process with a small delay to allow DOM to update
+        setTimeout(findCanvasAndInitializeChart, 300);
     } else {
-        console.warn('No chart canvas found in results, skipping chart initialization');
+        console.warn('No chart HTML found in results, skipping chart initialization');
     }
 }
 
@@ -526,104 +559,130 @@ function ensureChartJsLoaded(callback, maxRetries = 5, retryDelay = 300, current
 
 // Helper function to initialize chart toggle handlers
 function initChartToggleHandlers() {
+    console.log("Initializing chart toggle handlers...");
     try {
-        // First check if chart container exists
-        const chartContainer = document.querySelector('.comparison-chart-container');
-        if (!chartContainer) {
-            console.error('Chart container element not found');
+        // First find all chart containers
+        const chartContainers = document.querySelectorAll('.comparison-chart-container');
+        if (chartContainers.length === 0) {
+            console.error('No chart containers found in the DOM');
             return;
         }
         
-        // Setup retry mechanism to wait for Canvas to be properly loaded
-        function setupChartHandlers(attempt = 0) {
-            const canvasElement = chartContainer.querySelector('canvas');
+        console.log(`Found ${chartContainers.length} chart container(s)`);
+        
+        // Process each container
+        chartContainers.forEach((container, index) => {
+            const canvasElement = container.querySelector('canvas');
             if (!canvasElement) {
-                if (attempt < 5) {
-                    console.warn(`Canvas element not found (attempt ${attempt+1}/5), retrying in 300ms`);
-                    setTimeout(() => setupChartHandlers(attempt + 1), 300);
-                } else {
-                    console.error('Canvas element not found after multiple attempts');
-                }
+                console.error(`No canvas element found in chart container #${index+1}`);
                 return;
             }
             
             const chartId = canvasElement.id;
             if (!chartId) {
-                console.error('Canvas element has no ID');
+                console.error('Canvas element has no ID attribute');
                 return;
             }
             
-            console.log(`Setting up chart handlers for canvas #${chartId}`);
+            console.log(`Setting up handlers for chart #${index+1} with ID: ${chartId}`);
             
-            // Add chart type toggle functionality
-            document.querySelectorAll('.chart-type-toggle button').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    // Remove active class from all buttons
-                    document.querySelectorAll('.chart-type-toggle button').forEach(b => b.classList.remove('active'));
-                    // Add active class to clicked button
-                    this.classList.add('active');
-                    
-                    // Try to get the chart instance
-                    let chartInstance;
-                    try {
-                        chartInstance = Chart.getChart(chartId);
-                    } catch (e) {
-                        console.error('Error getting chart instance:', e);
-                        return;
-                    }
-                    
-                    if (!chartInstance) {
-                        console.error('Chart instance not found for id:', chartId);
-                        return;
-                    }
-                    
-                    // Update chart type
-                    const chartType = this.getAttribute('data-chart-type');
-                    chartInstance.config.type = chartType === 'area' ? 'line' : chartType;
-                    
-                    // For area charts, set fill to true
-                    chartInstance.data.datasets.forEach(dataset => {
-                        dataset.fill = chartType === 'area';
+            // Set up the chart type toggle buttons
+            const toggleButtons = document.querySelectorAll('.chart-type-toggle button');
+            if (toggleButtons.length === 0) {
+                console.warn('No chart type toggle buttons found');
+            } else {
+                console.log(`Found ${toggleButtons.length} toggle buttons`);
+                
+                toggleButtons.forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        console.log(`Chart type button clicked: ${this.getAttribute('data-chart-type')}`);
+                        
+                        // Remove active class from all buttons
+                        toggleButtons.forEach(b => b.classList.remove('active'));
+                        
+                        // Add active class to clicked button
+                        this.classList.add('active');
+                        
+                        // Get chart instance
+                        let chartInstance;
+                        try {
+                            chartInstance = Chart.getChart(chartId);
+                            if (!chartInstance) {
+                                throw new Error(`No chart instance found for ID: ${chartId}`);
+                            }
+                        } catch (e) {
+                            console.error('Error getting chart instance:', e);
+                            alert('Error updating chart: Chart instance not found. Try refreshing the page.');
+                            return;
+                        }
+                        
+                        // Update chart type
+                        const chartType = this.getAttribute('data-chart-type');
+                        console.log(`Changing chart type to: ${chartType}`);
+                        
+                        try {
+                            chartInstance.config.type = chartType === 'area' ? 'line' : chartType;
+                            
+                            // For area charts, set fill to true
+                            chartInstance.data.datasets.forEach(dataset => {
+                                dataset.fill = chartType === 'area';
+                            });
+                            
+                            // Update the chart
+                            chartInstance.update();
+                            console.log('Chart updated successfully');
+                        } catch (e) {
+                            console.error('Error updating chart type:', e);
+                            alert('Error updating chart. See console for details.');
+                        }
                     });
-                    
-                    // Update the chart
-                    chartInstance.update();
-                });
-            });
-            
-            // Add download chart functionality
-            const downloadBtn = document.querySelector('.download-chart-btn');
-            if (downloadBtn) {
-                downloadBtn.addEventListener('click', function() {
-                    // Try to get the chart instance
-                    let chartInstance;
-                    try {
-                        chartInstance = Chart.getChart(chartId);
-                    } catch (e) {
-                        console.error('Error getting chart instance for download:', e);
-                        return;
-                    }
-                    
-                    if (!chartInstance) {
-                        console.error('Chart instance not found for download:', chartId);
-                        return;
-                    }
-                    
-                    // Create a temporary link element
-                    const link = document.createElement('a');
-                    link.download = 'strategy_comparison_chart.png';
-                    link.href = chartInstance.toBase64Image();
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
                 });
             }
-        }
+            
+            // Set up the download button
+            const downloadBtn = document.querySelector('.download-chart-btn');
+            if (!downloadBtn) {
+                console.warn('Download chart button not found');
+            } else {
+                console.log('Setting up download button handler');
+                
+                downloadBtn.addEventListener('click', function() {
+                    console.log('Download chart button clicked');
+                    
+                    // Get chart instance
+                    let chartInstance;
+                    try {
+                        chartInstance = Chart.getChart(chartId);
+                        if (!chartInstance) {
+                            throw new Error(`No chart instance found for ID: ${chartId}`);
+                        }
+                    } catch (e) {
+                        console.error('Error getting chart instance for download:', e);
+                        alert('Error downloading chart: Chart instance not found. Try refreshing the page.');
+                        return;
+                    }
+                    
+                    try {
+                        // Create a temporary link element
+                        const link = document.createElement('a');
+                        link.download = 'strategy_comparison_chart.png';
+                        link.href = chartInstance.toBase64Image();
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        console.log('Chart download initiated');
+                    } catch (e) {
+                        console.error('Error downloading chart:', e);
+                        alert('Error downloading chart. See console for details.');
+                    }
+                });
+            }
+        });
         
-        // Start the setup process with a small delay to allow chart to initialize
-        setTimeout(() => setupChartHandlers(), 500);
+        console.log('Chart handlers initialization complete');
     } catch (e) {
         console.error('Error initializing chart toggle handlers:', e);
+        alert('Error initializing chart controls. Try refreshing the page.');
     }
 }
 
