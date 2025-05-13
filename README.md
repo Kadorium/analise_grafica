@@ -46,6 +46,10 @@ A modular trading analysis system with a Python backend and HTML frontend that a
 
 1. Start the application:
    ```
+   # Using the provided script
+   python start.py
+   
+   # Or directly with uvicorn
    python -m uvicorn app:app --reload
    ```
 
@@ -96,10 +100,24 @@ A modular trading analysis system with a Python backend and HTML frontend that a
 - **indicators/**: Technical indicator implementations
 - **strategies/**: Trading strategy modules
 - **backtesting/**: Backtesting engine
-- **optimization/**: Strategy optimization modules
+- **optimization/**: Strategy optimization modules (see [Optimization README](optimization/README.md))
 - **frontend/**: HTML, CSS, and JavaScript files
 - **app.py**: FastAPI backend server
 - **config.py**: Configuration management
+
+## 🔧 Recent Improvements
+
+### Modularized Optimization System
+
+The optimization functionality has been refactored into a modular package structure:
+
+- **Clean Separation of Concerns**: Optimization code is now organized in the `optimization/` directory
+- **API Router**: All optimization endpoints are defined in a separate router
+- **Background Processing**: Asynchronous optimization tasks run without blocking the main application
+- **Status Tracking**: Improved status monitoring and error handling
+- **Visualization**: Enhanced visualization capabilities for optimization results
+
+See the [Optimization README](optimization/README.md) for detailed documentation.
 
 ## 🔧 Advanced Configuration
 
