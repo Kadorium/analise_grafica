@@ -154,46 +154,96 @@ class MeanReversionStrategy:
             backtest_results (pandas.DataFrame): DataFrame with backtest results.
             
         Returns:
-            dict: Dictionary containing performance metrics.
+            dict: Dictionary containing performance metrics as ratios.
         """
-        # Basic metrics
-        total_return = backtest_results['cumulative_strategy_return'].iloc[-1] - 1.0
-        market_return = backtest_results['cumulative_market_return'].iloc[-1] - 1.0
+        metrics = {}
+        metrics['strategy_name'] = self.name
+
+        # Ensure 'strategy_return' and 'cumulative_strategy_return' exist
+        if 'strategy_return' not in backtest_results.columns or \
+           'cumulative_strategy_return' not in backtest_results.columns:
+            # Minimal placeholder if critical columns are missing
+            metrics.update({
+                'total_return': 0.0, 'market_return': 0.0, 'annual_return': 0.0,
+                'volatility': 0.0, 'sharpe_ratio': 0.0, 'max_drawdown': 0.0,
+                'trades': 0, 'win_rate': 0.0, 'profit_factor': 0.0
+            })
+            return metrics
+
+        # Basic metrics - ensure these are ratios
+        metrics['total_return'] = backtest_results['cumulative_strategy_return'].iloc[-1] - 1.0
+        if 'cumulative_market_return' in backtest_results.columns:
+            metrics['market_return'] = backtest_results['cumulative_market_return'].iloc[-1] - 1.0
+        else:
+            metrics['market_return'] = 0.0
         
         # Annualized metrics (assuming 252 trading days in a year)
         n_days = len(backtest_results)
-        n_years = n_days / 252
+        n_years = n_days / 252.0 if n_days > 0 else 0 # Avoid division by zero
+
+        if n_years > 0:
+            metrics['annual_return'] = (1 + metrics['total_return']) ** (1 / n_years) - 1
+        elif metrics['total_return'] != 0 and n_days > 0: # Handle very short periods (less than a year)
+             metrics['annual_return'] = metrics['total_return'] * (252.0 / n_days) # Simple scaling
+        else: # No trading days or no returns
+            metrics['annual_return'] = 0.0
         
-        annual_return = (1 + total_return) ** (1 / n_years) - 1
+        daily_returns = backtest_results['strategy_return'].dropna().fillna(0)
         
-        # Risk metrics
-        daily_returns = backtest_results['strategy_return'].dropna()
-        volatility = daily_returns.std() * np.sqrt(252)
-        sharpe_ratio = annual_return / volatility if volatility > 0 else 0
+        if not daily_returns.empty and len(daily_returns) > 1:
+            metrics['volatility'] = daily_returns.std() * np.sqrt(252)
+        else:
+            metrics['volatility'] = 0.0
+            
+        if metrics['volatility'] > 0:
+            metrics['sharpe_ratio'] = metrics['annual_return'] / metrics['volatility']
+        else:
+            metrics['sharpe_ratio'] = 0.0
         
-        max_drawdown = backtest_results['drawdown'].max()
+        if 'drawdown' in backtest_results.columns and not backtest_results['drawdown'].empty:
+            metrics['max_drawdown'] = backtest_results['drawdown'].max() # Already a positive ratio
+        else:
+            metrics['max_drawdown'] = 0.0
         
         # Trade metrics
-        trades = backtest_results['trade'].value_counts()[1] if 1 in backtest_results['trade'].value_counts() else 0
-        
-        # Calculate win rate
-        if trades > 0:
-            winning_trades = (daily_returns[daily_returns > 0]).count()
-            win_rate = winning_trades / trades
+        if 'trade' in backtest_results.columns and 1 in backtest_results['trade'].value_counts():
+            metrics['trades'] = backtest_results['trade'].value_counts()[1]
         else:
-            win_rate = 0
+            metrics['trades'] = 0
+            
+        winning_trades_count = 0
+        if metrics['trades'] > 0 and not daily_returns.empty:
+            winning_trades_count = (daily_returns[daily_returns > 0]).count()
+            metrics['win_rate'] = winning_trades_count / metrics['trades']
+        else:
+            metrics['win_rate'] = 0.0
         
-        return {
-            'strategy_name': self.name,
-            'total_return': total_return * 100,  # Convert to percentage
-            'market_return': market_return * 100,  # Convert to percentage
-            'annual_return': annual_return * 100,  # Convert to percentage
-            'volatility': volatility * 100,  # Convert to percentage
-            'sharpe_ratio': sharpe_ratio,
-            'max_drawdown': max_drawdown * 100,  # Convert to percentage
-            'trades': trades,
-            'win_rate': win_rate * 100  # Convert to percentage
-        }
+        # Profit factor
+        if metrics['trades'] > 0 and not daily_returns.empty:
+            gross_wins = daily_returns[daily_returns > 0].sum()
+            gross_losses = abs(daily_returns[daily_returns < 0].sum()) # abs to make it positive
+            
+            if gross_losses > 0:
+                metrics['profit_factor'] = gross_wins / gross_losses
+            elif gross_wins > 0: # No losses, but wins
+                metrics['profit_factor'] = 1000.0  # Represent high profit factor
+            else: # No wins and no losses (or wins are zero, losses are zero)
+                metrics['profit_factor'] = 0.0 # Or 1.0 depending on convention for no P/L
+        else:
+            metrics['profit_factor'] = 0.0
+            
+        # Ensure all expected keys are present, even if zero
+        expected_keys = [
+            'strategy_name', 'total_return', 'market_return', 'annual_return',
+            'volatility', 'sharpe_ratio', 'max_drawdown', 'trades', 
+            'win_rate', 'profit_factor'
+        ]
+        for key in expected_keys:
+            if key not in metrics:
+                metrics[key] = 0.0 # Default to 0.0 if somehow missed
+        metrics['strategy_name'] = self.name # Ensure name is set
+
+        return metrics
     
     def get_parameters(self):
         """
