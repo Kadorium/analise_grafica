@@ -225,11 +225,26 @@ export async function arrangeData(arrangeConfig) {
     });
 }
 
-export async function runSeasonalityAnalysis(analysisType) {
+export async function runSeasonalityAnalysis(params) {
+    // Handle the case where we're passed a full params object or just a string analysis type
+    const analysisType = typeof params === 'string' ? params : params.pattern_type;
+    
+    if (!analysisType || typeof analysisType !== 'string') {
+        console.error('Invalid analysisType in runSeasonalityAnalysis:', params);
+        throw new Error('Invalid analysis type. Expected a string like "day_of_week", "monthly", etc.');
+    }
+    
     const endpoint = API_ENDPOINTS[`SEASONALITY_${analysisType.toUpperCase().replace('-', '_')}`];
+    
+    if (!endpoint) {
+        console.error(`No endpoint found for analysis type: ${analysisType}`);
+        throw new Error(`Unsupported seasonality analysis type: ${analysisType}`);
+    }
+    
     return fetchApi(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: params && typeof params === 'object' ? JSON.stringify(params) : null
     });
 }
 

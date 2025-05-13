@@ -1,0 +1,65 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+name: AI Trading LLM Workflow
+description: Guides LLM behavior for modifying, extending, or reasoning about the AI-Powered Trading Analysis System using patterns in `readmeLLM.md`
+
+trigger:
+  file: readmeLLM.md
+  on_change: true
+  on_open: true
+
+rules:
+  - if: "user wants to add a new indicator"
+    then: 
+      - suggest file: indicators/<category>.py
+      - suggest pattern: calculate_<indicator_name>(df, period=14)
+      - reference: "see readmeLLM.md > 'Adding New Indicators'"
+      - description: Use vectorized operations with proper docstrings and pandas integration.
+
+  - if: "user wants to add a new strategy"
+    then:
+      - suggest file: strategies/<strategy_name>.py
+      - suggest class: <StrategyName>Strategy
+      - suggest method: generate_signals(data: pd.DataFrame) -> pd.DataFrame
+      - reference: "see readmeLLM.md > 'Creating New Strategies'"
+      - description: Follow strategy class pattern and register in strategy factory.
+
+  - if: "user wants to optimize a strategy"
+    then:
+      - suggest file: optimization/optimizer.py
+      - suggest function: optimize_strategy(...) or grid_search(...)
+      - reference: "see readmeLLM.md > 'Optimize a Strategy'"
+      - description: Leverage grid search; write to results/optimization/.
+
+  - if: "user modifies the API"
+    then:
+      - suggest file: app.py or optimization/api.py
+      - suggest pattern: @app.post("/api/...")
+      - description: Ensure FastAPI routes follow async def format and update readmeLLM.md with new endpoints.
+
+  - if: "user creates new file or folder"
+    then:
+      - task: Update readmeLLM.md
+      - where: Key File Structure and Module Interaction Guidelines
+      - description: Maintain consistency for LLM-based workflows and architectural clarity.
+
+  - if: "user requests help"
+    then:
+      - reference: readmeLLM.md
+      - fallback_to: codebase exploration
+      - description: Always prioritize understanding architecture and module roles via the LLM guide.
+
+      
+### Version Control
+
+1. **Committing Changes**: When the user indicates that the code is working correctly, perform a commit with a descriptive message.
+   - **Correction Commits**: If a correction you made is confirmed by the user as working, even partially (e.g., user says "great", "it's working", "perfect", "that's it", "exactly", "nice", or similar affirmations), you MUST immediately perform a commit and then push the changes. This action takes precedence; complete the commit and push *before* proceeding with any other requests or tasks, even if they are part of the same user message.
+2. **Pushing to Remote**: After committing, push the changes to the GitHub repository.
+3. **Tagging Major Releases**: After completing a significant set of changes or a major feature (and after the above committing and pushing steps):
+    *   Update the `version` field (e.g., from "1.0" to "1.1" or "2.0") within the `AUTO_UPDATE_CONFIG` JSON block in this `readmeLLM.md` file. Also update the `last_updated` field.
+    *   Create a new Git tag for the release (e.g., `v1.1`, `v2.0`).
+
+    *   Push the new tag to the GitHub repository.
