@@ -48,45 +48,65 @@ class StrategyAdapter:
         # Calculate positions, equity, returns, and drawdowns
         df = result_df.copy()
         
-        # Initialize position and equity columns
-        df['position'] = 0
-        df['entry_price'] = 0.0
-        df['equity'] = initial_capital
-        df['trade_profit'] = 0.0
-        df['trade_returns'] = 0.0
+        # Initialize position and equity columns if they don't exist
+        if 'position' not in df.columns:
+            df['position'] = 0
+            # Convert signals to positions (cumulative sum of signals)
+            df['position'] = df['signal'].cumsum()
         
-        # Calculate positions
-        position = 0
-        entry_price = 0.0
-        equity = initial_capital
+        # Calculate price returns
+        if 'price_return' not in df.columns:
+            df['price_return'] = df['close'].pct_change().fillna(0)
+            df['price_return_cumulative'] = (1 + df['price_return']).cumprod() - 1
         
-        for i in range(len(df)):
-            if df.iloc[i]['signal'] == 'buy' and position == 0:
-                position = 1
-                entry_price = df.iloc[i]['close'] * (1 + commission)  # Include commission
-            elif df.iloc[i]['signal'] == 'sell' and position == 1:
-                position = 0
-                exit_price = df.iloc[i]['close'] * (1 - commission)  # Include commission
-                trade_profit = exit_price - entry_price
-                trade_return = trade_profit / entry_price
-                equity += trade_profit
-                df.at[df.index[i], 'trade_profit'] = trade_profit
-                df.at[df.index[i], 'trade_returns'] = trade_return
+        # Calculate strategy returns
+        if 'strategy_return' not in df.columns:
+            df['strategy_return'] = df['position'].shift(1) * df['price_return']
+            df['strategy_return'].iloc[0] = 0  # Set first day's return to 0
+            df['strategy_return_cumulative'] = (1 + df['strategy_return']).cumprod() - 1
+        
+        # Calculate equity curve
+        if 'equity' not in df.columns:
+            df['equity'] = initial_capital * (1 + df['strategy_return_cumulative'])
+        
+        # Calculate drawdowns
+        if 'drawdown' not in df.columns:
+            df['peak'] = df['equity'].cummax()
+            df['drawdown'] = (df['peak'] - df['equity']) / df['peak']
+        
+        # Calculate trade statistics
+        if 'trade' not in df.columns:
+            # Identify trades (position changes)
+            df['trade'] = df['position'].diff().ne(0).astype(int)
             
-            df.at[df.index[i], 'position'] = position
-            df.at[df.index[i], 'equity'] = equity
-            df.at[df.index[i], 'entry_price'] = entry_price
-        
-        # Calculate market returns for comparison
-        df['market_return'] = df['close'].pct_change().fillna(0)
-        df['cumulative_market_return'] = (1 + df['market_return']).cumprod()
-        
-        # Calculate drawdown
-        df['peak'] = df['equity'].cummax()
-        df['drawdown'] = (df['equity'] - df['peak']) / df['peak']
+            # Calculate trade profits
+            df['trade_profit'] = 0.0
+            trades = df[df['trade'] == 1].index
+            
+            for i in range(1, len(trades)):
+                entry_idx = trades[i-1]
+                exit_idx = trades[i]
+                
+                # Calculate profit for this trade
+                entry_price = df.loc[entry_idx, 'close']
+                exit_price = df.loc[exit_idx, 'close']
+                position = df.loc[entry_idx, 'position']
+                
+                # If position is positive, long trade; if negative, short trade
+                profit = position * (exit_price - entry_price) * initial_capital / entry_price
+                
+                # Apply commission
+                profit -= abs(position) * commission * initial_capital
+                
+                # Store profit at exit point
+                df.loc[exit_idx, 'trade_profit'] = profit
         
         # Calculate daily returns
-        df['daily_return'] = df['equity'].pct_change().fillna(0)
+        if 'daily_return' not in df.columns:
+            df['daily_return'] = df['equity'].pct_change().fillna(0)
+        
+        # Store the backtest results for use in get_performance_metrics
+        self.backtest_results = df
         
         return df
     
@@ -120,115 +140,157 @@ class StrategyAdapter:
         
         return value
     
-    def get_performance_metrics(self, backtest_results):
+    def get_performance_metrics(self):
         """Calculate performance metrics from backtest results"""
-        df = backtest_results
+        if not hasattr(self, 'backtest_results') or self.backtest_results is None:
+            return {}
+            
+        df = self.backtest_results
         
-        # Calculate total return
-        total_return = df['equity'].iloc[-1] / df['equity'].iloc[0] - 1
+        # Initialize metrics dictionary
+        metrics = {}
         
-        # Calculate annualized return
-        days = (df['date'].iloc[-1] - df['date'].iloc[0]).days
-        annual_return = (1 + total_return) ** (365 / max(days, 1)) - 1
-        
-        # Calculate Sharpe ratio (assuming risk-free rate of 0)
-        if len(df) > 1:
+        try:
+            # Calculate total return
+            total_return = df['equity'].iloc[-1] / df['equity'].iloc[0] - 1
+            metrics['total_return'] = total_return
+            
+            # Calculate annualized return
+            days = (df['date'].iloc[-1] - df['date'].iloc[0]).days
+            annual_return = (1 + total_return) ** (365 / max(days, 1)) - 1
+            metrics['annual_return'] = annual_return
+            
+            # Calculate daily returns
+            if 'daily_return' not in df.columns:
+                df['daily_return'] = df['equity'].pct_change().fillna(0)
+            
+            # Calculate Sharpe ratio (assuming risk-free rate of 0)
             daily_return_std = df['daily_return'].std()
             if daily_return_std > 0:
-                sharpe_ratio = df['daily_return'].mean() / daily_return_std * (252 ** 0.5)
+                metrics['sharpe_ratio'] = (df['daily_return'].mean() * 252) / (daily_return_std * (252 ** 0.5))
             else:
-                sharpe_ratio = 0
-        else:
-            sharpe_ratio = 0
-        
-        # Calculate Sortino ratio (downside risk only)
-        negative_returns = df['daily_return'][df['daily_return'] < 0]
-        if len(negative_returns) > 0:
-            downside_std = negative_returns.std() * (252 ** 0.5)
-            sortino_ratio = annual_return / downside_std if downside_std > 0 else 0
-        else:
-            # No negative returns is technically infinite Sortino, but we'll use a high value
-            sortino_ratio = 10.0 if annual_return > 0 else 0
+                metrics['sharpe_ratio'] = 0.0
             
-        # Calculate Calmar ratio (return / max drawdown)
-        max_drawdown = df['drawdown'].min()
-        calmar_ratio = annual_return / abs(max_drawdown) if max_drawdown != 0 else 0
-        
-        # Calculate win rate
-        trades = df[df['trade_profit'] != 0]
-        win_rate = (trades['trade_profit'] > 0).mean() if len(trades) > 0 else 0
-        
-        # Calculate profit factor
-        profit_factor = 0
-        if len(trades) > 0:
-            winning_trades = trades[trades['trade_profit'] > 0]
-            losing_trades = trades[trades['trade_profit'] < 0]
-            
-            total_profit = winning_trades['trade_profit'].sum() if len(winning_trades) > 0 else 0
-            total_loss = abs(losing_trades['trade_profit'].sum()) if len(losing_trades) > 0 else 0
-            
-            if total_loss > 0:
-                profit_factor = total_profit / total_loss
+            # Calculate Sortino ratio (downside risk only)
+            negative_returns = df['daily_return'][df['daily_return'] < 0]
+            if len(negative_returns) > 0:
+                downside_std = negative_returns.std() * (252 ** 0.5)
+                metrics['sortino_ratio'] = (df['daily_return'].mean() * 252) / downside_std if downside_std > 0 else 0
             else:
-                profit_factor = 1000 if total_profit > 0 else 0
-                
-        # Calculate percent profitable days
-        profitable_days = (df['daily_return'] > 0).sum()
-        total_days = len(df)
-        percent_profitable = (profitable_days / total_days) * 100 if total_days > 0 else 0
-        
-        # Calculate max consecutive wins and losses
-        if len(trades) > 0:
-            # Extract trade results as sequence of wins (True) and losses (False)
-            trade_results = []
-            for _, row in trades.iterrows():
-                if row['trade_profit'] > 0:
-                    trade_results.append(True)  # Win
-                else:
-                    trade_results.append(False)  # Loss
+                metrics['sortino_ratio'] = metrics['sharpe_ratio'] * 1.5  # Approximation if no negative returns
             
-            # Find max consecutive True values (wins)
-            max_wins = 0
-            current_streak = 0
-            for result in trade_results:
-                if result:  # Win
-                    current_streak += 1
-                    max_wins = max(max_wins, current_streak)
-                else:
-                    current_streak = 0
+            # Calculate max drawdown
+            if 'drawdown' in df.columns:
+                metrics['max_drawdown'] = df['drawdown'].max()
+            else:
+                df['peak'] = df['equity'].cummax()
+                df['drawdown'] = (df['peak'] - df['equity']) / df['peak']
+                metrics['max_drawdown'] = df['drawdown'].max()
             
-            # Find max consecutive False values (losses)
-            max_losses = 0
-            current_streak = 0
-            for result in trade_results:
-                if not result:  # Loss
-                    current_streak += 1
-                    max_losses = max(max_losses, current_streak)
-                else:
+            # Calculate Calmar ratio
+            if metrics['max_drawdown'] > 0:
+                metrics['calmar_ratio'] = annual_return / metrics['max_drawdown']
+            else:
+                metrics['calmar_ratio'] = metrics['sharpe_ratio'] / 2  # Approximation if no drawdown
+            
+            # Calculate win rate and profit factor
+            if 'trade_profit' in df.columns:
+                trades = df[df['trade_profit'] != 0]
+                if len(trades) > 0:
+                    winning_trades = trades[trades['trade_profit'] > 0]
+                    losing_trades = trades[trades['trade_profit'] < 0]
+                    
+                    win_count = len(winning_trades)
+                    total_trades = len(trades)
+                    
+                    metrics['win_rate'] = win_count / total_trades
+                    metrics['number_of_trades'] = total_trades
+                    
+                    # Calculate profit factor
+                    total_profit = winning_trades['trade_profit'].sum() if len(winning_trades) > 0 else 0
+                    total_loss = abs(losing_trades['trade_profit'].sum()) if len(losing_trades) > 0 else 0
+                    
+                    if total_loss > 0:
+                        metrics['profit_factor'] = total_profit / total_loss
+                    else:
+                        metrics['profit_factor'] = 1.0 if total_profit == 0 else 10.0
+                    
+                    # Calculate consecutive wins and losses
+                    # Extract trade results as sequence of wins (True) and losses (False)
+                    trade_results = []
+                    for _, row in trades.iterrows():
+                        if row['trade_profit'] > 0:
+                            trade_results.append(True)  # Win
+                        else:
+                            trade_results.append(False)  # Loss
+                    
+                    # Find max consecutive wins
+                    max_wins = 0
                     current_streak = 0
-        else:
-            max_wins = 0
-            max_losses = 0
-        
-        # Create metrics dict with sanitized values
-        metrics = {
-            'total_return': self._sanitize_float(total_return),
-            'total_return_percent': self._sanitize_float(total_return * 100),
-            'annual_return': self._sanitize_float(annual_return),
-            'annual_return_percent': self._sanitize_float(annual_return * 100),
-            'sharpe_ratio': self._sanitize_float(sharpe_ratio),
-            'sortino_ratio': self._sanitize_float(sortino_ratio),
-            'calmar_ratio': self._sanitize_float(calmar_ratio),
-            'max_drawdown': self._sanitize_float(max_drawdown),
-            'max_drawdown_percent': self._sanitize_float(max_drawdown * 100),
-            'win_rate': self._sanitize_float(win_rate),
-            'win_rate_percent': self._sanitize_float(win_rate * 100),
-            'profit_factor': self._sanitize_float(profit_factor),
-            'number_of_trades': len(trades),
-            'profitable_days': self._sanitize_float(percent_profitable),
-            'max_consecutive_wins': max_wins,
-            'max_consecutive_losses': max_losses
-        }
+                    for result in trade_results:
+                        if result:  # Win
+                            current_streak += 1
+                            max_wins = max(max_wins, current_streak)
+                        else:
+                            current_streak = 0
+                    
+                    metrics['max_consecutive_wins'] = max_wins
+                    
+                    # Find max consecutive losses
+                    max_losses = 0
+                    current_streak = 0
+                    for result in trade_results:
+                        if not result:  # Loss
+                            current_streak += 1
+                            max_losses = max(max_losses, current_streak)
+                        else:
+                            current_streak = 0
+                    
+                    metrics['max_consecutive_losses'] = max_losses
+            else:
+                metrics['win_rate'] = 0.5  # Default
+                metrics['profit_factor'] = 1.0  # Default
+                metrics['max_consecutive_wins'] = 0
+                metrics['max_consecutive_losses'] = 0
+                metrics['number_of_trades'] = 0
+            
+            # Calculate percent profitable days
+            profitable_days = (df['daily_return'] > 0).sum()
+            total_days = len(df)
+            metrics['percent_profitable_days'] = (profitable_days / total_days) if total_days > 0 else 0
+            
+            # Add percentage versions of metrics for frontend compatibility
+            metrics['total_return_percent'] = metrics['total_return'] * 100
+            metrics['annual_return_percent'] = metrics['annual_return'] * 100
+            metrics['max_drawdown_percent'] = metrics['max_drawdown'] * 100
+            metrics['win_rate_percent'] = metrics['win_rate'] * 100
+            
+            # Sanitize metrics for JSON serialization
+            metrics = {k: self._sanitize_float(v) for k, v in metrics.items()}
+            
+            # Add logging to see what metrics are being calculated
+            print(f"[DEBUG] Strategy '{self.name}' metrics: {metrics}")
+            
+        except Exception as e:
+            print(f"Error calculating metrics: {str(e)}")
+            # Return minimal set of metrics if calculation fails
+            metrics = {
+                'total_return': 0,
+                'annual_return': 0,
+                'sharpe_ratio': 0,
+                'max_drawdown': 0,
+                'win_rate': 0,
+                'profit_factor': 1.0,
+                'sortino_ratio': 0,
+                'calmar_ratio': 0,
+                'percent_profitable_days': 0,
+                'max_consecutive_wins': 0,
+                'max_consecutive_losses': 0,
+                'total_return_percent': 0,
+                'annual_return_percent': 0,
+                'max_drawdown_percent': 0,
+                'win_rate_percent': 0
+            }
         
         return metrics
     

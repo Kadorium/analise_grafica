@@ -53,20 +53,17 @@ class Backtester:
         
     def run_backtest(self, strategy, start_date=None, end_date=None):
         """
-        Run a backtest for a specific strategy.
+        Run a backtest for a strategy.
         
         Args:
-            strategy: An instance of a trading strategy class.
+            strategy: Strategy instance or callable
             start_date (str, optional): Start date for the backtest. Format: 'YYYY-MM-DD'.
             end_date (str, optional): End date for the backtest. Format: 'YYYY-MM-DD'.
             
         Returns:
-            dict: Dictionary containing backtest results and performance metrics.
+            dict: Dictionary containing strategy name, performance metrics, and signals.
         """
-        if self.data is None:
-            raise ValueError("No data set for backtesting. Call set_data() first.")
-            
-        # Filter data by date range if specified
+        # Prepare data
         data = self.data.copy()
         
         if start_date:
@@ -81,7 +78,7 @@ class Backtester:
         backtest_results = strategy.backtest(data, self.initial_capital, self.commission)
         
         # Get performance metrics
-        performance_metrics = strategy.get_performance_metrics(backtest_results)
+        performance_metrics = strategy.get_performance_metrics()
         
         # Convert NumPy types to Python native types for JSON serialization
         performance_metrics = convert_numpy_types(performance_metrics)
@@ -96,7 +93,8 @@ class Backtester:
         
         return {
             'strategy_name': strategy_name,
-            'performance_metrics': performance_metrics
+            'performance_metrics': performance_metrics,
+            'signals': backtest_results
         }
     
     def compare_strategies(self, strategies, start_date=None, end_date=None):
