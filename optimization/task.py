@@ -125,16 +125,20 @@ def run_optimization_task(data, optimization_config, current_config):
         # 5. Prepare and save results
         chart_timestamp = os.path.basename(chart_path).split('_')[-1].replace('.png', '') if chart_path else None
         
+        # Sanitize performance metrics to ensure JSON compatibility
+        sanitized_default_performance = _sanitize_dict(default_performance)
+        sanitized_optimized_performance = _sanitize_dict(optimized_performance)
+        
         results = {
             "strategy_type": optimization_config['strategy_type'],
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "default_params": default_params,
             "optimized_params": final_optimized_params,
-            "default_performance": default_performance,
-            "optimized_performance": optimized_performance,
+            "default_performance": sanitized_default_performance,
+            "optimized_performance": sanitized_optimized_performance,
             "chart_timestamp": chart_timestamp,
             "top_results": [],
-            "all_results": all_results_raw
+            "all_results": _sanitize_list(all_results_raw)
         }
         
         # Add top results in a more accessible format
@@ -142,8 +146,8 @@ def run_optimization_task(data, optimization_config, current_config):
             for i, result in enumerate(all_results_raw[:10]):  # Top 10 results
                 results["top_results"].append({
                     "params": result.get('params', {}),
-                    "score": result.get('value', 0),
-                    "metrics": result.get('performance', {})
+                    "score": _sanitize_value(result.get('value', 0)),
+                    "metrics": _sanitize_dict(result.get('performance', {}))
                 })
         
         # Save the results
@@ -155,9 +159,9 @@ def run_optimization_task(data, optimization_config, current_config):
             extra_info={
                 'default_params': default_params,
                 'optimized_params': final_optimized_params,
-                'default_performance': default_performance,
-                'optimized_performance': optimized_performance,
-                'all_results': all_results_raw[:3] if all_results_raw else []
+                'default_performance': sanitized_default_performance,
+                'optimized_performance': sanitized_optimized_performance,
+                'all_results': _sanitize_list(all_results_raw[:3] if all_results_raw else [])
             }
         )
         
@@ -165,8 +169,8 @@ def run_optimization_task(data, optimization_config, current_config):
         comparison_data = {
             "default_params": default_params,
             "optimized_params": final_optimized_params,
-            "default_performance": default_performance,
-            "optimized_performance": optimized_performance
+            "default_performance": sanitized_default_performance,
+            "optimized_performance": sanitized_optimized_performance
         }
         
         set_optimization_status({
@@ -198,4 +202,60 @@ def run_optimization_task(data, optimization_config, current_config):
             "message": f"Optimization failed: {error_message}",
             "strategy_type": optimization_config.get('strategy_type', "unknown")
         }
+
+# Helper functions for JSON sanitization
+def _sanitize_value(value):
+    """Sanitize a single value for JSON compatibility"""
+    import math
+    import numpy as np
+    
+    if value is None:
+        return None
+    
+    # Convert numpy types to Python types
+    if isinstance(value, (np.integer, np.int64, np.int32)):
+        return int(value)
+    elif isinstance(value, (np.floating, np.float64, np.float32)):
+        value = float(value)
+    
+    # Handle non-finite float values
+    if isinstance(value, float):
+        if math.isnan(value):
+            return 0
+        elif math.isinf(value):
+            return 1.0e+308 if value > 0 else -1.0e+308
+    
+    return value
+
+def _sanitize_dict(d):
+    """Sanitize a dictionary for JSON compatibility"""
+    if not isinstance(d, dict):
+        return {}
+    
+    result = {}
+    for k, v in d.items():
+        if isinstance(v, dict):
+            result[k] = _sanitize_dict(v)
+        elif isinstance(v, list):
+            result[k] = _sanitize_list(v)
+        else:
+            result[k] = _sanitize_value(v)
+    
+    return result
+
+def _sanitize_list(lst):
+    """Sanitize a list for JSON compatibility"""
+    if not isinstance(lst, list):
+        return []
+    
+    result = []
+    for item in lst:
+        if isinstance(item, dict):
+            result.append(_sanitize_dict(item))
+        elif isinstance(item, list):
+            result.append(_sanitize_list(item))
+        else:
+            result.append(_sanitize_value(item))
+    
+    return result
  

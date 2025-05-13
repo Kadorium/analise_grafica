@@ -97,50 +97,88 @@ async def get_optimization_results_endpoint(strategy_type: str, request: Request
     Returns:
         JSONResponse: Response with optimization results
     """
-    optimization_status = get_optimization_status()
-    
-    # If optimization is in progress, return status
-    if optimization_status["in_progress"] and optimization_status["strategy_type"] == strategy_type:
-        return {"status": "in_progress", "message": f"Optimization for {strategy_type} is still in progress"}
+    try:
+        optimization_status = get_optimization_status()
+        
+        # If optimization is in progress, return status
+        if optimization_status["in_progress"] and optimization_status["strategy_type"] == strategy_type:
+            return {"status": "in_progress", "message": f"Optimization for {strategy_type} is still in progress"}
 
-    # Load the results
-    results, timestamp, error = load_optimization_results(strategy_type)
-    if error:
-        logger.warning(f"Error loading optimization results: {error}")
-        return {"status": "not_found", "message": error}
+        # Load the results
+        results, timestamp, error = load_optimization_results(strategy_type)
+        if error:
+            logger.warning(f"Error loading optimization results: {error}")
+            return {"status": "not_found", "message": error}
+        
+        # Check if comparison data is present in the loaded results
+        has_comparison = ('default_params' in results and 
+                        'optimized_params' in results and
+                        'default_performance' in results and
+                        'optimized_performance' in results)
+        
+        # If no comparison data in the file but we have it in memory, add it to the results
+        if not has_comparison and optimization_status.get('comparison_data'):
+            logger.info(f"Adding comparison data from memory to results: {strategy_type}")
+            results.update(optimization_status.get('comparison_data', {}))
+        
+        # Ensure key fields expected by the frontend are present
+        if 'top_results' not in results:
+            results['top_results'] = []
+            # If we have optimized_params, add them as the best result
+            if 'optimized_params' in results and 'optimized_performance' in results:
+                results['top_results'].append({
+                    'params': results['optimized_params'],
+                    'metrics': results['optimized_performance']
+                })
+        
+        # Rename fields to match frontend expectations if needed
+        if 'total_return_percent' in results.get('default_performance', {}) and 'total_return' not in results['default_performance']:
+            results['default_performance']['total_return'] = results['default_performance']['total_return_percent'] / 100
+        if 'total_return_percent' in results.get('optimized_performance', {}) and 'total_return' not in results['optimized_performance']:
+            results['optimized_performance']['total_return'] = results['optimized_performance']['total_return_percent'] / 100
+        
+        # Sanitize all float values to ensure JSON compatibility
+        sanitized_results = _sanitize_json_values(results)
+        
+        return JSONResponse(content={
+            "status": "success",
+            "results": sanitized_results,
+            "timestamp": timestamp
+        })
+    except Exception as e:
+        logger.error(f"Error processing optimization results: {str(e)}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Internal server error: {str(e)}"}
+        )
+
+def _sanitize_json_values(obj):
+    """
+    Recursively sanitize all values in a dictionary to ensure JSON compatibility.
+    """
+    import math
+    import numpy as np
     
-    # Check if comparison data is present in the loaded results
-    has_comparison = ('default_params' in results and 
-                     'optimized_params' in results and
-                     'default_performance' in results and
-                     'optimized_performance' in results)
-    
-    # If no comparison data in the file but we have it in memory, add it to the results
-    if not has_comparison and optimization_status.get('comparison_data'):
-        logger.info(f"Adding comparison data from memory to results: {strategy_type}")
-        results.update(optimization_status.get('comparison_data', {}))
-    
-    # Ensure key fields expected by the frontend are present
-    if 'top_results' not in results:
-        results['top_results'] = []
-        # If we have optimized_params, add them as the best result
-        if 'optimized_params' in results and 'optimized_performance' in results:
-            results['top_results'].append({
-                'params': results['optimized_params'],
-                'metrics': results['optimized_performance']
-            })
-    
-    # Rename fields to match frontend expectations if needed
-    if 'total_return_percent' in results.get('default_performance', {}) and 'total_return' not in results['default_performance']:
-        results['default_performance']['total_return'] = results['default_performance']['total_return_percent'] / 100
-    if 'total_return_percent' in results.get('optimized_performance', {}) and 'total_return' not in results['optimized_performance']:
-        results['optimized_performance']['total_return'] = results['optimized_performance']['total_return_percent'] / 100
-    
-    return JSONResponse(content={
-        "status": "success",
-        "results": results,
-        "timestamp": timestamp
-    })
+    if isinstance(obj, dict):
+        return {k: _sanitize_json_values(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_sanitize_json_values(v) for v in obj]
+    elif isinstance(obj, (float, np.float32, np.float64)):
+        if math.isnan(float(obj)):
+            return 0
+        elif math.isinf(float(obj)):
+            if float(obj) > 0:
+                return 1.0e+308
+            else:
+                return -1.0e+308
+        else:
+            return float(obj)
+    elif isinstance(obj, (int, np.int32, np.int64)):
+        return int(obj)
+    elif isinstance(obj, np.ndarray):
+        return _sanitize_json_values(obj.tolist())
+    else:
+        return obj
 
 @router.get("/check-optimization-directory")
 async def check_optimization_directory_endpoint():

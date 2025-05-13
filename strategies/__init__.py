@@ -90,6 +90,36 @@ class StrategyAdapter:
         
         return df
     
+    def _sanitize_float(self, value):
+        """
+        Sanitize float values to ensure they are JSON-compatible
+        - Replace inf with a large number
+        - Replace -inf with a large negative number
+        - Replace NaN with 0
+        """
+        import math
+        import numpy as np
+        
+        if value is None:
+            return 0
+        
+        # Check for numpy types
+        if isinstance(value, (np.integer, np.int64, np.int32)):
+            return int(value)
+        elif isinstance(value, (np.floating, np.float64, np.float32)):
+            value = float(value)
+        
+        # Handle non-finite values
+        if math.isnan(value):
+            return 0
+        elif math.isinf(value):
+            if value > 0:
+                return 1.0e+308  # Max JSON-compatible float
+            else:
+                return -1.0e+308
+        
+        return value
+    
     def get_performance_metrics(self, backtest_results):
         """Calculate performance metrics from backtest results"""
         df = backtest_results
@@ -103,7 +133,11 @@ class StrategyAdapter:
         
         # Calculate Sharpe ratio (assuming risk-free rate of 0)
         if len(df) > 1:
-            sharpe_ratio = df['daily_return'].mean() / df['daily_return'].std() * (252 ** 0.5)
+            daily_return_std = df['daily_return'].std()
+            if daily_return_std > 0:
+                sharpe_ratio = df['daily_return'].mean() / daily_return_std * (252 ** 0.5)
+            else:
+                sharpe_ratio = 0
         else:
             sharpe_ratio = 0
         
@@ -123,21 +157,27 @@ class StrategyAdapter:
             total_profit = winning_trades['trade_profit'].sum() if len(winning_trades) > 0 else 0
             total_loss = abs(losing_trades['trade_profit'].sum()) if len(losing_trades) > 0 else 0
             
-            profit_factor = total_profit / total_loss if total_loss > 0 else float('inf')
+            if total_loss > 0:
+                profit_factor = total_profit / total_loss
+            else:
+                profit_factor = 1000 if total_profit > 0 else 0
         
-        return {
-            'total_return': total_return,
-            'total_return_percent': total_return * 100,
-            'annual_return': annual_return,
-            'annual_return_percent': annual_return * 100,
-            'sharpe_ratio': sharpe_ratio,
-            'max_drawdown': max_drawdown,
-            'max_drawdown_percent': max_drawdown * 100,
-            'win_rate': win_rate,
-            'win_rate_percent': win_rate * 100,
-            'profit_factor': profit_factor,
+        # Create metrics dict with sanitized values
+        metrics = {
+            'total_return': self._sanitize_float(total_return),
+            'total_return_percent': self._sanitize_float(total_return * 100),
+            'annual_return': self._sanitize_float(annual_return),
+            'annual_return_percent': self._sanitize_float(annual_return * 100),
+            'sharpe_ratio': self._sanitize_float(sharpe_ratio),
+            'max_drawdown': self._sanitize_float(max_drawdown),
+            'max_drawdown_percent': self._sanitize_float(max_drawdown * 100),
+            'win_rate': self._sanitize_float(win_rate),
+            'win_rate_percent': self._sanitize_float(win_rate * 100),
+            'profit_factor': self._sanitize_float(profit_factor),
             'number_of_trades': len(trades)
         }
+        
+        return metrics
     
     def get_parameters(self):
         """Return the strategy parameters"""
