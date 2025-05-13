@@ -242,48 +242,26 @@ def _evaluate_params(data, strategy_type, params, initial_capital, commission, m
         end_date = pd.to_datetime(end_date)
         filtered_data = filtered_data[filtered_data['date'] <= end_date]
     
-    # Check if this is a new modular strategy or a legacy strategy
-    if strategy_type in STRATEGY_REGISTRY:
-        # Get the strategy function
-        strategy_func = STRATEGY_REGISTRY[strategy_type]
-        
-        # Get default parameters and update with the provided parameters
-        all_params = get_default_parameters(strategy_type)
-        all_params.update(params)
-        
-        # Generate signals using the strategy function
-        signals_df = strategy_func(filtered_data, **all_params)
-        
-        # Calculate performance metrics
-        performance = calculate_performance_metrics(signals_df, initial_capital, commission)
-        
-        return {
-            'params': params,
-            'value': performance[metric],
-            'performance': performance
-        }
-    else:
-        # Legacy strategy approach
-        
-        # Get default parameters and update with the provided parameters
-        all_params = get_default_parameters(strategy_type)
-        all_params.update(params)
-        
-        # Create the strategy
-        strategy = create_strategy(strategy_type, **all_params)
-        
-        # Create a backtester
-        backtester = Backtester(filtered_data, initial_capital, commission)
-        
-        # Run the backtest
-        result = backtester.run_backtest(strategy)
-        performance = result['performance_metrics']
-        
-        return {
-            'params': params,
-            'value': performance[metric],
-            'performance': performance
-        }
+    # Create the strategy object (either legacy or modular via adapter)
+    # Get default parameters and update with the provided parameters
+    all_params = get_default_parameters(strategy_type)
+    all_params.update(params)
+    
+    # Create the strategy using the factory function
+    strategy = create_strategy(strategy_type, **all_params)
+    
+    # Create a backtester
+    backtester = Backtester(filtered_data, initial_capital, commission)
+    
+    # Run the backtest
+    result = backtester.run_backtest(strategy)
+    performance = result['performance_metrics']
+    
+    return {
+        'params': params,
+        'value': performance[metric],
+        'performance': performance
+    }
 
 def optimize_strategy(data, strategy_type, param_ranges=None, initial_capital=10000.0, commission=0.001,
                      metric='sharpe_ratio', start_date=None, end_date=None, max_workers=None):
@@ -335,44 +313,30 @@ def optimize_strategy(data, strategy_type, param_ranges=None, initial_capital=10
     if not best_params:
         return {}, {}, []
     
-    # Calculate performance metrics using the best parameters
-    if strategy_type in STRATEGY_REGISTRY:
-        # New modular strategy approach
-        strategy_func = STRATEGY_REGISTRY[strategy_type]
+    # Filter data by date range if specified
+    filtered_data = data.copy()
+    
+    if start_date:
+        start_date = pd.to_datetime(start_date)
+        filtered_data = filtered_data[filtered_data['date'] >= start_date]
         
-        # Filter data by date range if specified
-        filtered_data = data.copy()
-        
-        if start_date:
-            start_date = pd.to_datetime(start_date)
-            filtered_data = filtered_data[filtered_data['date'] >= start_date]
-            
-        if end_date:
-            end_date = pd.to_datetime(end_date)
-            filtered_data = filtered_data[filtered_data['date'] <= end_date]
-        
-        # Get default parameters and update with the best parameters
-        all_params = get_default_parameters(strategy_type)
-        all_params.update(best_params)
-        
-        # Generate signals using the strategy function
-        signals_df = strategy_func(filtered_data, **all_params)
-        
-        # Calculate performance metrics
-        performance = calculate_performance_metrics(signals_df, initial_capital, commission)
-    else:
-        # Legacy strategy approach
-        # Create the best strategy with all parameters (default + best)
-        all_params = get_default_parameters(strategy_type)
-        all_params.update(best_params)
-        best_strategy = create_strategy(strategy_type, **all_params)
-        
-        # Create a backtester
-        backtester = Backtester(data, initial_capital, commission)
-        
-        # Run a backtest with the best strategy
-        result = backtester.run_backtest(best_strategy, start_date, end_date)
-        performance = result['performance_metrics']
+    if end_date:
+        end_date = pd.to_datetime(end_date)
+        filtered_data = filtered_data[filtered_data['date'] <= end_date]
+    
+    # Get default parameters and update with the best parameters
+    all_params = get_default_parameters(strategy_type)
+    all_params.update(best_params)
+    
+    # Create the best strategy with all parameters
+    best_strategy = create_strategy(strategy_type, **all_params)
+    
+    # Create a backtester
+    backtester = Backtester(filtered_data, initial_capital, commission)
+    
+    # Run a backtest with the best strategy
+    result = backtester.run_backtest(best_strategy, start_date, end_date)
+    performance = result['performance_metrics']
     
     return best_params, performance, all_results
 

@@ -29,6 +29,120 @@ for filename in os.listdir(strategy_dir):
         except Exception as e:
             print(f"Error importing {module_name}: {e}")
 
+# Adapter class to make function-based strategies compatible with the Backtester
+class StrategyAdapter:
+    def __init__(self, name, strategy_func, parameters):
+        self.name = name
+        self.strategy_func = strategy_func
+        self.parameters = parameters
+    
+    def backtest(self, data, initial_capital=10000.0, commission=0.001):
+        """Run backtest using the strategy function"""
+        # Call the strategy function to get signals
+        result_df = self.strategy_func(data, **self.parameters)
+        
+        # Ensure required columns exist
+        if 'signal' not in result_df.columns:
+            raise ValueError("Strategy must provide a 'signal' column")
+        
+        # Calculate positions, equity, returns, and drawdowns
+        df = result_df.copy()
+        
+        # Initialize position and equity columns
+        df['position'] = 0
+        df['entry_price'] = 0.0
+        df['equity'] = initial_capital
+        df['trade_profit'] = 0.0
+        df['trade_returns'] = 0.0
+        
+        # Calculate positions
+        position = 0
+        entry_price = 0.0
+        equity = initial_capital
+        
+        for i in range(len(df)):
+            if df.iloc[i]['signal'] == 'buy' and position == 0:
+                position = 1
+                entry_price = df.iloc[i]['close'] * (1 + commission)  # Include commission
+            elif df.iloc[i]['signal'] == 'sell' and position == 1:
+                position = 0
+                exit_price = df.iloc[i]['close'] * (1 - commission)  # Include commission
+                trade_profit = exit_price - entry_price
+                trade_return = trade_profit / entry_price
+                equity += trade_profit
+                df.at[df.index[i], 'trade_profit'] = trade_profit
+                df.at[df.index[i], 'trade_returns'] = trade_return
+            
+            df.at[df.index[i], 'position'] = position
+            df.at[df.index[i], 'equity'] = equity
+            df.at[df.index[i], 'entry_price'] = entry_price
+        
+        # Calculate market returns for comparison
+        df['market_return'] = df['close'].pct_change().fillna(0)
+        df['cumulative_market_return'] = (1 + df['market_return']).cumprod()
+        
+        # Calculate drawdown
+        df['peak'] = df['equity'].cummax()
+        df['drawdown'] = (df['equity'] - df['peak']) / df['peak']
+        
+        # Calculate daily returns
+        df['daily_return'] = df['equity'].pct_change().fillna(0)
+        
+        return df
+    
+    def get_performance_metrics(self, backtest_results):
+        """Calculate performance metrics from backtest results"""
+        df = backtest_results
+        
+        # Calculate total return
+        total_return = df['equity'].iloc[-1] / df['equity'].iloc[0] - 1
+        
+        # Calculate annualized return
+        days = (df['date'].iloc[-1] - df['date'].iloc[0]).days
+        annual_return = (1 + total_return) ** (365 / max(days, 1)) - 1
+        
+        # Calculate Sharpe ratio (assuming risk-free rate of 0)
+        if len(df) > 1:
+            sharpe_ratio = df['daily_return'].mean() / df['daily_return'].std() * (252 ** 0.5)
+        else:
+            sharpe_ratio = 0
+        
+        # Calculate maximum drawdown
+        max_drawdown = df['drawdown'].min()
+        
+        # Calculate win rate
+        trades = df[df['trade_profit'] != 0]
+        win_rate = (trades['trade_profit'] > 0).mean() if len(trades) > 0 else 0
+        
+        # Calculate profit factor
+        profit_factor = 0
+        if len(trades) > 0:
+            winning_trades = trades[trades['trade_profit'] > 0]
+            losing_trades = trades[trades['trade_profit'] < 0]
+            
+            total_profit = winning_trades['trade_profit'].sum() if len(winning_trades) > 0 else 0
+            total_loss = abs(losing_trades['trade_profit'].sum()) if len(losing_trades) > 0 else 0
+            
+            profit_factor = total_profit / total_loss if total_loss > 0 else float('inf')
+        
+        return {
+            'total_return': total_return,
+            'total_return_percent': total_return * 100,
+            'annual_return': annual_return,
+            'annual_return_percent': annual_return * 100,
+            'sharpe_ratio': sharpe_ratio,
+            'max_drawdown': max_drawdown,
+            'max_drawdown_percent': max_drawdown * 100,
+            'win_rate': win_rate,
+            'win_rate_percent': win_rate * 100,
+            'profit_factor': profit_factor,
+            'number_of_trades': len(trades)
+        }
+    
+    def get_parameters(self):
+        """Return the strategy parameters"""
+        return self.parameters
+
 # Factory function to create strategy instances based on type
 def create_strategy(strategy_type, **parameters):
     """
@@ -43,7 +157,16 @@ def create_strategy(strategy_type, **parameters):
     """
     # First check if it's one of the new modular strategies
     if strategy_type in STRATEGY_REGISTRY:
-        return STRATEGY_REGISTRY[strategy_type]
+        # Use the default parameters and update with the provided parameters
+        all_params = get_default_parameters(strategy_type).copy()
+        all_params.update(parameters)
+        
+        # Create a strategy adapter that wraps the function
+        return StrategyAdapter(
+            name=strategy_type,
+            strategy_func=STRATEGY_REGISTRY[strategy_type],
+            parameters=all_params
+        )
     
     # Otherwise use the legacy strategy classes
     if strategy_type == 'trend_following':
