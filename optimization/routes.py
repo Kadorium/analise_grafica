@@ -131,6 +131,25 @@ async def get_optimization_results_endpoint(strategy_type: str, request: Request
                     'metrics': results['optimized_performance']
                 })
         
+        # Ensure all required metrics are present to avoid N/A display
+        required_metrics = [
+            'sharpe_ratio', 'sortino_ratio', 'calmar_ratio', 'total_return_percent', 
+            'annual_return_percent', 'max_drawdown_percent', 'win_rate_percent', 
+            'profit_factor', 'percent_profitable_days', 'max_consecutive_wins', 
+            'max_consecutive_losses'
+        ]
+        
+        # Add default values for missing metrics in both default and optimized performance
+        if 'default_performance' in results:
+            for metric in required_metrics:
+                if metric not in results['default_performance']:
+                    results['default_performance'][metric] = 0
+        
+        if 'optimized_performance' in results:
+            for metric in required_metrics:
+                if metric not in results['optimized_performance']:
+                    results['optimized_performance'][metric] = 0
+        
         # Rename fields to match frontend expectations if needed
         if 'total_return_percent' in results.get('default_performance', {}) and 'total_return' not in results['default_performance']:
             results['default_performance']['total_return'] = results['default_performance']['total_return_percent'] / 100
@@ -160,7 +179,21 @@ def _sanitize_json_values(obj):
     import numpy as np
     
     if isinstance(obj, dict):
-        return {k: _sanitize_json_values(v) for k, v in obj.items()}
+        # Perform field name mapping to match frontend expectations
+        result = {}
+        for k, v in obj.items():
+            # Map field names for consistency
+            mapped_key = k
+            if k == 'profitable_days':
+                mapped_key = 'percent_profitable_days'
+            
+            if isinstance(v, dict):
+                result[mapped_key] = _sanitize_json_values(v)
+            elif isinstance(v, list):
+                result[mapped_key] = _sanitize_json_values(v)
+            else:
+                result[mapped_key] = _sanitize_json_values(v)
+        return result
     elif isinstance(obj, list):
         return [_sanitize_json_values(v) for v in obj]
     elif isinstance(obj, (float, np.float32, np.float64)):
