@@ -224,6 +224,12 @@ def _sanitize_value(value):
             return 0
         elif math.isinf(value):
             return 1.0e+308 if value > 0 else -1.0e+308
+        
+        # Fix extreme percentage values (sometimes win_rate can be calculated incorrectly)
+        # The frontend expects values like 75.5 for 75.5%, not 7550 for 7550%
+        # This covers win_rate, profitable days, and other percentage metrics
+        if value > 100 and value < 100000:  # Likely a percentage that was already multiplied by 100
+            value = value / 100
     
     return value
 

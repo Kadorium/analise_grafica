@@ -131,18 +131,35 @@ class StrategyAdapter:
         days = (df['date'].iloc[-1] - df['date'].iloc[0]).days
         annual_return = (1 + total_return) ** (365 / max(days, 1)) - 1
         
+        # Calculate daily returns
+        daily_returns = df['equity'].pct_change().fillna(0)
+        
         # Calculate Sharpe ratio (assuming risk-free rate of 0)
-        if len(df) > 1:
-            daily_return_std = df['daily_return'].std()
-            if daily_return_std > 0:
-                sharpe_ratio = df['daily_return'].mean() / daily_return_std * (252 ** 0.5)
-            else:
-                sharpe_ratio = 0
+        daily_return_std = daily_returns.std()
+        if len(df) > 1 and daily_return_std > 0:
+            sharpe_ratio = daily_returns.mean() / daily_return_std * (252 ** 0.5)
         else:
             sharpe_ratio = 0
         
+        # Calculate Sortino ratio (downside risk only)
+        negative_returns = daily_returns[daily_returns < 0]
+        if len(negative_returns) > 0:
+            downside_std = negative_returns.std() * (252 ** 0.5)
+            sortino_ratio = annual_return / downside_std if downside_std > 0 else 0
+        else:
+            # No negative returns is technically infinite Sortino, but we'll use a high value
+            sortino_ratio = sharpe_ratio * 1.5 if sharpe_ratio > 0 else 10.0
+            
         # Calculate maximum drawdown
         max_drawdown = df['drawdown'].min()
+        
+        # Calculate Calmar ratio (return / max drawdown)
+        calmar_ratio = abs(annual_return / max_drawdown) if max_drawdown < 0 else 0
+        
+        # Calculate percent profitable days
+        profitable_days = (daily_returns > 0).sum()
+        total_days = len(daily_returns)
+        percent_profitable_days = (profitable_days / total_days) * 100 if total_days > 0 else 0
         
         # Calculate win rate
         trades = df[df['trade_profit'] != 0]
@@ -161,6 +178,39 @@ class StrategyAdapter:
                 profit_factor = total_profit / total_loss
             else:
                 profit_factor = 1000 if total_profit > 0 else 0
+                
+        # Calculate consecutive wins/losses
+        if len(trades) > 0:
+            # Extract trade results as a sequence
+            trade_results = []
+            for _, row in trades.iterrows():
+                if row['trade_profit'] > 0:
+                    trade_results.append(True)  # Win
+                else:
+                    trade_results.append(False)  # Loss
+            
+            # Find max consecutive True values (wins)
+            max_consecutive_wins = 0
+            current_streak = 0
+            for result in trade_results:
+                if result:  # Win
+                    current_streak += 1
+                    max_consecutive_wins = max(max_consecutive_wins, current_streak)
+                else:
+                    current_streak = 0
+            
+            # Find max consecutive False values (losses)
+            max_consecutive_losses = 0
+            current_streak = 0
+            for result in trade_results:
+                if not result:  # Loss
+                    current_streak += 1
+                    max_consecutive_losses = max(max_consecutive_losses, current_streak)
+                else:
+                    current_streak = 0
+        else:
+            max_consecutive_wins = 0
+            max_consecutive_losses = 0
         
         # Create metrics dict with sanitized values
         metrics = {
@@ -169,12 +219,17 @@ class StrategyAdapter:
             'annual_return': self._sanitize_float(annual_return),
             'annual_return_percent': self._sanitize_float(annual_return * 100),
             'sharpe_ratio': self._sanitize_float(sharpe_ratio),
+            'sortino_ratio': self._sanitize_float(sortino_ratio),
+            'calmar_ratio': self._sanitize_float(calmar_ratio),
             'max_drawdown': self._sanitize_float(max_drawdown),
             'max_drawdown_percent': self._sanitize_float(max_drawdown * 100),
             'win_rate': self._sanitize_float(win_rate),
             'win_rate_percent': self._sanitize_float(win_rate * 100),
             'profit_factor': self._sanitize_float(profit_factor),
-            'number_of_trades': len(trades)
+            'number_of_trades': len(trades),
+            'percent_profitable_days': self._sanitize_float(percent_profitable_days),
+            'max_consecutive_wins': max_consecutive_wins,
+            'max_consecutive_losses': max_consecutive_losses
         }
         
         return metrics
