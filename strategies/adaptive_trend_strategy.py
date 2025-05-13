@@ -50,8 +50,8 @@ def generate_signals(df: pd.DataFrame, fast_period=10, slow_period=30, adx_perio
     result['adaptive_slow_period'] = np.maximum(10, slow_period - (result['volatility_ratio'] - 1) * volatility_factor * slow_period)
     
     # Convert to integer periods (required for moving averages)
-    result['adaptive_fast_period'] = result['adaptive_fast_period'].astype(int)
-    result['adaptive_slow_period'] = result['adaptive_slow_period'].astype(int)
+    result['adaptive_fast_period'] = result['adaptive_fast_period'].fillna(0).astype(int)
+    result['adaptive_slow_period'] = result['adaptive_slow_period'].fillna(0).astype(int)
     
     # Calculate adaptive moving averages
     # Since periods are different for each row, we need to calculate them iteratively

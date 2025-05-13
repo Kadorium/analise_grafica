@@ -5,167 +5,152 @@ import traceback
 
 logger = logging.getLogger(__name__)
 
-def calculate_advanced_metrics(signals_df, initial_capital=10000.0):
+def calculate_advanced_metrics(signals_df, initial_capital=10000.0, base_metrics=None):
     """
-    Calculate additional performance metrics that aren't in the base set
+    Calculate additional performance metrics using the signals DataFrame and base metrics.
     
     Args:
-        signals_df (pd.DataFrame): DataFrame with trading signals and equity curve
+        signals_df (pd.DataFrame): DataFrame with trading signals and equity curve.
+                                   Should contain 'date', 'equity', 'daily_return', 'trade_profit'.
         initial_capital (float, optional): Initial capital for the backtest. Defaults to 10000.0.
+        base_metrics (dict, optional): Dictionary of pre-calculated base metrics from StrategyAdapter.
+                                       Expected keys: 'annual_return' (raw ratio), 'max_drawdown' (raw ratio).
         
     Returns:
-        dict: Dictionary containing advanced performance metrics
+        tuple: (dict: Dictionary containing advanced metrics, list: List of debug log strings)
     """
-    df = signals_df.copy()
-    metrics = {}
-    
+    df = signals_df.copy() # df is the signals_df from StrategyAdapter.backtest
+    advanced_metrics = {}
+    debug_logs = [] # Initialize list to collect debug logs
+
+    if base_metrics is None:
+        base_metrics = {}
+
     try:
-        # Initialize required columns if they don't exist
-        if 'daily_return' not in df.columns:
-            if 'equity' in df.columns:
+        # Ensure 'date' column is datetime
+        if 'date' in df.columns and not pd.api.types.is_datetime64_any_dtype(df['date']):
+            df['date'] = pd.to_datetime(df['date'])
+
+        # Ensure 'daily_return' is present and calculated if missing
+        if 'daily_return' not in df.columns or df['daily_return'].isnull().all():
+            if 'equity' in df.columns and not df.empty:
                 df['daily_return'] = df['equity'].pct_change().fillna(0)
-            else:
-                logger.warning("No equity column found in signals_df for advanced metrics calculation")
-                return metrics
+            else: # Fallback if equity is also missing or empty
+                logger.warning("Cannot calculate daily_return for advanced metrics; equity data missing or empty.")
+                df['daily_return'] = pd.Series([0.0] * len(df))
         
-        # Percent profitable days
-        profitable_days = (df['daily_return'] > 0).sum()
-        total_days = len(df)
-        metrics['percent_profitable_days'] = (profitable_days / total_days) * 100 if total_days > 0 else 0
+        # 1. Profitable Days (%)
+        profitable_days_count = (df['daily_return'] > 0).sum()
+        total_trading_days = len(df['daily_return'])
+        # Return as a ratio; frontend will multiply by 100. Key changed to match frontend.
+        advanced_metrics['percent_profitable_days'] = (profitable_days_count / total_trading_days) if total_trading_days > 0 else 0.0
         
-        # Calculate average returns
-        avg_daily_return = df['daily_return'].mean()
-        # Annualize returns
-        avg_annual_return = avg_daily_return * 252
+        # 2. Annualized Volatility (%)
+        annual_volatility = 0.0
+        if not df['daily_return'].empty:
+            std_daily_return = df['daily_return'].std()
+            if std_daily_return is not None and std_daily_return > 0:
+                annual_volatility = std_daily_return * np.sqrt(252) # Assuming 252 trading days
+        advanced_metrics['annual_volatility_percent'] = annual_volatility * 100
+
+        # Dependencies from base_metrics
+        # Use raw annual_return (ratio), not percentage
+        avg_annual_return_ratio = base_metrics.get('annual_return', 0.0) 
+        # Use raw max_drawdown (ratio, should be positive or zero from StrategyAdapter), not percentage
+        max_drawdown_ratio = base_metrics.get('max_drawdown', 0.0) 
+
+        # 3. Sortino Ratio
+        sortino_ratio = 0.0
+        if not df['daily_return'].empty:
+            negative_returns = df['daily_return'][df['daily_return'] < 0]
+            if not negative_returns.empty:
+                downside_std_daily = negative_returns.std()
+                if downside_std_daily is not None and downside_std_daily > 0:
+                    downside_std_annual = downside_std_daily * np.sqrt(252)
+                    if downside_std_annual > 0:
+                        sortino_ratio = avg_annual_return_ratio / downside_std_annual
+            elif avg_annual_return_ratio > 0: # No negative returns and positive annual return
+                sortino_ratio = 100.0  # High value indicating excellent risk/reward (no downside risk)
+        advanced_metrics['sortino_ratio'] = sortino_ratio
         
-        # Calculate standard deviation of daily returns
-        std_daily = df['daily_return'].std()
-        if std_daily > 0:
-            # Annualize volatility
-            annual_volatility = std_daily * np.sqrt(252)
-            metrics['annual_volatility_percent'] = annual_volatility * 100
-            
-            # Sharpe ratio (assuming 0 risk-free rate for simplicity)
-            metrics['sharpe_ratio'] = avg_annual_return / annual_volatility
+        # 4. Calmar Ratio
+        # max_drawdown_ratio from base_metrics is now expected to be positive or zero.
+        calmar_ratio = 0.0
+        if max_drawdown_ratio > 0:
+            calmar_ratio = avg_annual_return_ratio / max_drawdown_ratio
+        elif avg_annual_return_ratio > 0:  # max_drawdown_ratio is 0, and annual return is positive
+            calmar_ratio = 1e9  # Represent infinite Calmar with a large number
+        else: # max_drawdown_ratio is 0 and annual return is <= 0
+            calmar_ratio = 0.0
+        advanced_metrics['calmar_ratio'] = calmar_ratio
         
-        # Sortino ratio (downside risk only)
-        negative_returns = df['daily_return'][df['daily_return'] < 0]
-        if len(negative_returns) > 0:
-            downside_std = negative_returns.std() * np.sqrt(252)
-            metrics['sortino_ratio'] = avg_annual_return / downside_std if downside_std > 0 else 0
-        else:
-            # No negative returns is technically infinite Sortino, but we'll use a high value
-            metrics['sortino_ratio'] = 10.0  # High value indicating no downside
-        
-        # Calculate drawdown if not already in the frame
-        if 'drawdown' not in df.columns:
-            if 'equity' in df.columns:
-                df['peak'] = df['equity'].cummax()
-                df['drawdown'] = (df['peak'] - df['equity']) / df['peak']
-            else:
-                logger.warning("Cannot calculate drawdown: no equity column")
-        
-        # Calmar ratio (return / max drawdown)
-        if 'drawdown' in df.columns and df['drawdown'].max() > 0:
-            metrics['calmar_ratio'] = avg_annual_return / df['drawdown'].max()
-        else:
-            metrics['calmar_ratio'] = 0
-        
-        # Ensure certain metrics exist and are not zero for display purposes
-        if metrics.get('calmar_ratio', 0) == 0 and metrics.get('sharpe_ratio', 0) > 0:
-            metrics['calmar_ratio'] = metrics['sharpe_ratio'] / 2  # Rough approximation
-            
-        if metrics.get('sortino_ratio', 0) == 0 and metrics.get('sharpe_ratio', 0) > 0:
-            metrics['sortino_ratio'] = metrics['sharpe_ratio'] * 1.5  # Rough approximation
-        
-        # Calculate win/loss metrics if trade_profit exists
+        # 5. Max Consecutive Wins & Losses
+        max_consecutive_wins = 0
+        max_consecutive_losses = 0
         if 'trade_profit' in df.columns:
-            # Filter out rows with no trades
-            trades = df[df['trade_profit'] != 0]
-            
-            if not trades.empty:
-                # Winning/losing trades
-                winning_trades = trades[trades['trade_profit'] > 0]
-                losing_trades = trades[trades['trade_profit'] < 0]
+            trade_profit_series = pd.to_numeric(df['trade_profit'], errors='coerce').fillna(0)
+            actual_trades = trade_profit_series[trade_profit_series != 0]
+            # --- Debug Logging for Consecutive Wins/Losses ---
+            debug_logs.append("\n[DEBUG] calculate_advanced_metrics - Consecutive Wins/Losses")
+            debug_logs.append(f"[DEBUG] trade_profit_series (first 5 for consecutive calc):\n{trade_profit_series.head()}")
+            debug_logs.append(f"[DEBUG] actual_trades (non-zero profit) for consecutive calc (first 5):\n{actual_trades.head()}")
+            debug_logs.append(f"[DEBUG] Number of actual_trades for streak calc: {len(actual_trades)}")
+            # --- End Debug Logging ---
+            if not actual_trades.empty:
+                trade_results_bool = actual_trades > 0 # True for win, False for loss
+                # --- Debug Logging for Consecutive Wins/Losses ---
+                debug_logs.append(f"[DEBUG] trade_results_bool (first 5):\n{trade_results_bool.head()}")
+                # --- End Debug Logging ---
                 
-                # Count trades
-                total_trades = len(trades)
-                win_count = len(winning_trades)
-                loss_count = len(losing_trades)
-                
-                # Win rate
-                metrics['win_rate_percent'] = (win_count / total_trades) * 100 if total_trades > 0 else 0
-                
-                # Calculate profit factor
-                total_profit = winning_trades['trade_profit'].sum() if not winning_trades.empty else 0
-                total_loss = abs(losing_trades['trade_profit'].sum()) if not losing_trades.empty else 0
-                metrics['profit_factor'] = total_profit / total_loss if total_loss > 0 else (1.0 if total_profit == 0 else 10.0)
-                
-                # Total return
-                start_equity = df['equity'].iloc[0] if 'equity' in df.columns else initial_capital
-                end_equity = df['equity'].iloc[-1] if 'equity' in df.columns else initial_capital
-                metrics['total_return_percent'] = ((end_equity / start_equity) - 1) * 100
-                
-                # Annual return
-                days = len(df)
-                years = days / 252  # Trading days in a year
-                metrics['annual_return_percent'] = (((end_equity / start_equity) ** (1/years)) - 1) * 100 if years > 0 else 0
-                
-                # Max drawdown
-                if 'drawdown' in df.columns:
-                    metrics['max_drawdown_percent'] = df['drawdown'].max() * 100
-                
-                # Consecutive wins/losses - simplified calculation
-                # Extract trade results as sequence of wins (True) and losses (False)
-                trade_results = []
-                for _, row in trades.iterrows():
-                    if row['trade_profit'] > 0:
-                        trade_results.append(True)  # Win
-                    else:
-                        trade_results.append(False)  # Loss
-                
-                # Find max consecutive True values (wins)
-                max_wins = 0
-                current_streak = 0
-                for result in trade_results:
-                    if result:  # Win
-                        current_streak += 1
-                        max_wins = max(max_wins, current_streak)
-                    else:
-                        current_streak = 0
-                
-                metrics['max_consecutive_wins'] = max_wins
-                
-                # Find max consecutive False values (losses)
-                max_losses = 0
-                current_streak = 0
-                for result in trade_results:
-                    if not result:  # Loss
-                        current_streak += 1
-                        max_losses = max(max_losses, current_streak)
-                    else:
-                        current_streak = 0
-                
-                metrics['max_consecutive_losses'] = max_losses
+                current_win_streak = 0
+                current_loss_streak = 0
+                for i, is_win in enumerate(trade_results_bool):
+                    if is_win:
+                        current_win_streak += 1
+                        max_consecutive_losses = max(max_consecutive_losses, current_loss_streak)
+                        current_loss_streak = 0
+                    else: # Is Loss
+                        current_loss_streak += 1
+                        max_consecutive_wins = max(max_consecutive_wins, current_win_streak)
+                        current_win_streak = 0
+                    # --- Debug Logging for Consecutive Wins/Losses ---
+                    if i < 5 or i > len(trade_results_bool) - 5: # Log first 5 and last 5 iterations
+                        debug_logs.append(f"[DEBUG] Streak loop iter {i}: is_win={is_win}, cur_W={current_win_streak}, cur_L={current_loss_streak}, max_W={max_consecutive_wins}, max_L={max_consecutive_losses}")
+                    # --- End Debug Logging ---
+                # Final check for streaks ending at the last trade
+                max_consecutive_wins = max(max_consecutive_wins, current_win_streak)
+                max_consecutive_losses = max(max_consecutive_losses, current_loss_streak)
+                # --- Debug Logging for Consecutive Wins/Losses ---
+                debug_logs.append(f"[DEBUG] Final streaks: max_W={max_consecutive_wins}, max_L={max_consecutive_losses}")
+                # --- End Debug Logging ---
         
-        # If we still don't have adequate values, set reasonable defaults
-        if metrics.get('win_rate_percent', 0) == 0:
-            metrics['win_rate_percent'] = 50.0  # Neutral default
-        
-        if metrics.get('profit_factor', 0) == 0:
-            metrics['profit_factor'] = 1.0  # Neutral default
-        
-        if metrics.get('total_return_percent', 0) == 0 and metrics.get('sharpe_ratio', 0) > 0:
-            # Positive Sharpe but no return? Estimate a positive return
-            metrics['total_return_percent'] = metrics['sharpe_ratio'] * 10
-        
-        if metrics.get('annual_return_percent', 0) == 0 and metrics.get('total_return_percent', 0) > 0:
-            # Estimate annual from total
-            metrics['annual_return_percent'] = metrics['total_return_percent'] / 2  # Rough estimate
-        
-        logger.info(f"Calculated advanced metrics: {metrics}")
+        advanced_metrics['max_consecutive_wins'] = max_consecutive_wins
+        advanced_metrics['max_consecutive_losses'] = max_consecutive_losses
+
+        logger.info(f"Calculated advanced metrics (to be merged): {advanced_metrics}")
+        debug_logs.append(f"[INFO] Calculated advanced metrics (to be merged): {advanced_metrics}") # Also add logger info to debug list
         
     except Exception as e:
-        logger.error(f"Error calculating advanced metrics: {str(e)}\n{traceback.format_exc()}")
+        error_message = f"Error calculating advanced metrics: {str(e)}\n{traceback.format_exc()}"
+        logger.error(error_message)
+        debug_logs.append(f"[ERROR] {error_message}") # Add error to debug list
+        # Return empty or partially filled dict on error to avoid breaking the flow
+        # Ensure all expected keys are present, even if with default error values (e.g., 0 or None)
+        default_error_metrics = {
+            'percent_profitable_days': 0.0,
+            'annual_volatility_percent': 0.0,
+            'sortino_ratio': 0.0,
+            'calmar_ratio': 0.0,
+            'max_consecutive_wins': 0,
+            'max_consecutive_losses': 0
+        }
+        for key in default_error_metrics:
+            if key not in advanced_metrics:
+                advanced_metrics[key] = default_error_metrics[key]
     
-    return metrics 
+    return advanced_metrics, debug_logs # Return metrics and debug logs
+
+# Example usage
+# advanced_metrics, debug_logs = calculate_advanced_metrics(signals_df)
+# print("Advanced Metrics:", advanced_metrics)
+# print("Debug Logs:", debug_logs) 

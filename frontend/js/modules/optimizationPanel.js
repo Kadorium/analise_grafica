@@ -333,13 +333,6 @@ function displayOptimizationResults(results) {
                 });
                 continue;
             }
-            
-            // Add debug logging to see what metrics are available
-            console.log("[DEBUG] Available metrics in results:", {
-                default_keys: Object.keys(results.default_performance),
-                optimized_keys: Object.keys(results.optimized_performance)
-            });
-            
             let defaultValue = results.default_performance[metric.key];
             let optimizedValue = results.optimized_performance[metric.key];
             if (metric.isPercent) {
@@ -380,8 +373,8 @@ function displayOptimizationResults(results) {
         
         // Check if we have a chart
         let chartSection = '';
-        if (results.comparison_chart_html) {
-            console.log("Comparison chart HTML is present");
+        if (results.chart_html) {
+            console.log("Comparison chart HTML is present. Content snippet:", String(results.chart_html).substring(0, 200));
             
             // Create unique IDs for this chart
             const chartContainerId = `chart-container-${Date.now()}`;
@@ -414,7 +407,7 @@ function displayOptimizationResults(results) {
             let chartData = null;
             try {
                 // Look for JSON data in script tag 
-                const dataMatch = results.comparison_chart_html.match(/const chartData = (\{[\s\S]*?\});/);
+                const dataMatch = results.chart_html.match(/const chartData = (\{[\s\S]*?\});/);
                 if (dataMatch && dataMatch[1]) {
                     // Try to parse the chart data JSON
                     try {
@@ -438,7 +431,7 @@ function displayOptimizationResults(results) {
             
             // Use setTimeout to ensure DOM is updated before we try to access the chart container
             setTimeout(() => {
-                console.log("Setting up chart controls...");
+                console.log("Setting up chart controls for chart in container:", chartContainerId);
                 
                 // Remove the loading indicator once chart is loaded (or after 5 seconds)
                 const removeLoading = () => {
@@ -602,8 +595,8 @@ function displayOptimizationResults(results) {
                 }
             }, 200); // Wait 200ms for DOM to update
         } else {
-            console.warn("No comparison chart HTML found in results");
-            chartSection = '<div class="alert alert-warning mt-4">No comparison chart available</div>';
+            console.warn("No chart_html found in results object. results.chart_html was:", results.chart_html, "Full results object:", results);
+            chartSection = '<div class="alert alert-warning mt-4">No comparison chart available for display.</div>';
         }
         
         // Build the complete comparison HTML

@@ -8,10 +8,11 @@ import pandas as pd
 import io
 import base64
 import time
+import traceback
 
 logger = logging.getLogger(__name__)
 
-def plot_optimization_comparison(default_signals, optimized_signals, strategy_type):
+def plot_optimization_comparison(default_signals, optimized_signals, strategy_type, initial_capital=10000.0):
     """
     Generate a comparison chart of default vs optimized strategy performance.
     
@@ -19,6 +20,7 @@ def plot_optimization_comparison(default_signals, optimized_signals, strategy_ty
         default_signals (pd.DataFrame): DataFrame with default strategy signals
         optimized_signals (pd.DataFrame): DataFrame with optimized strategy signals
         strategy_type (str): The type of strategy being compared
+        initial_capital (float): Initial capital for Buy & Hold calculation.
         
     Returns:
         tuple: (chart_html, chart_path)
@@ -41,6 +43,14 @@ def plot_optimization_comparison(default_signals, optimized_signals, strategy_ty
         default_equity = default_signals['equity'].tolist()
         optimized_equity = optimized_signals['equity'].tolist()
         
+        buy_and_hold_equity = []
+        if 'cumulative_market_return' in default_signals.columns:
+            buy_and_hold_equity = (default_signals['cumulative_market_return'] * initial_capital).tolist()
+        else:
+            logger.warning("'cumulative_market_return' column not found in default_signals. Buy & Hold curve will be omitted.")
+            # Ensure buy_and_hold_equity is an empty list of the same length for consistency if needed elsewhere, though Chart.js handles empty datasets.
+            # buy_and_hold_equity = [initial_capital] * len(default_signals_dates) # Alternative: flat line at initial capital
+        
         # Log sample of the data for debugging
         logger.info(f"Chart data prepared - dates: {len(default_signals_dates)} points, equity: {len(default_equity)} points")
         logger.info(f"Sample date: {default_signals_dates[0]} to {default_signals_dates[-1]}")
@@ -50,6 +60,8 @@ def plot_optimization_comparison(default_signals, optimized_signals, strategy_ty
         plt.figure(figsize=(10, 5))
         plt.plot(default_signals['date'], default_signals['equity'], label='Default', color='red')
         plt.plot(optimized_signals['date'], optimized_signals['equity'], label='Optimized', color='green')
+        if buy_and_hold_equity:
+            plt.plot(default_signals['date'], buy_and_hold_equity, label='Buy & Hold', color='blue', linestyle='--')
         plt.xlabel('Date')
         plt.ylabel('Equity')
         plt.title('Equity Curve Comparison')
@@ -71,6 +83,7 @@ def plot_optimization_comparison(default_signals, optimized_signals, strategy_ty
                 "dates": default_signals_dates[:10] + ["..."] + default_signals_dates[-10:],
                 "default_equity_sample": default_equity[:10] + ["..."] + default_equity[-10:],
                 "optimized_equity_sample": optimized_equity[:10] + ["..."] + optimized_equity[-10:],
+                "buy_and_hold_equity_sample": buy_and_hold_equity[:10] + ["..."] + buy_and_hold_equity[-10:],
                 "date_count": len(default_signals_dates),
                 "equity_count": len(default_equity)
             }, f, indent=2)
@@ -161,6 +174,19 @@ def plot_optimization_comparison(default_signals, optimized_signals, strategy_ty
                 }}
             }};
             
+            // Add Buy & Hold dataset only if data is available
+            if (window.chartConfig_{chart_id}.data.datasets.length < 3 && {json.dumps(bool(buy_and_hold_equity))}) {{
+                window.chartConfig_{chart_id}.data.datasets.push({{
+                    label: 'Buy & Hold',
+                    data: {json.dumps(buy_and_hold_equity)},
+                    borderColor: 'rgb(75, 192, 192)', // Teal color for Buy & Hold
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    borderDash: [5, 5], // Dashed line
+                    tension: 0.1,
+                    fill: false
+                }});
+            }}
+            
             // Function to render chart
             function renderChart() {{
                 var ctx = document.getElementById('{chart_id}');
@@ -190,7 +216,8 @@ def plot_optimization_comparison(default_signals, optimized_signals, strategy_ty
         return chart_html, backup_chart_path
         
     except Exception as e:
-        logger.error(f"Error creating optimization comparison chart: {str(e)}")
+        error_details = traceback.format_exc()
+        logger.error(f"Error creating optimization comparison chart: {str(e)}\nTraceback:\n{error_details}")
         return None, None
 
 def plot_to_base64(plt_figure):

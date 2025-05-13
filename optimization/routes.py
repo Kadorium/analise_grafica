@@ -35,20 +35,26 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
     Returns:
         JSONResponse: Response with optimization status
     """
-    # Log the incoming optimization request
-    log_optimization_request(optimization_config.dict())
+    # Log the incoming optimization request (initial log, can be brief)
+    # The comprehensive log will be written at the end of the task.
+    # log_optimization_request(optimization_config.dict()) # This can be removed if we only want one comprehensive log at the end.
     logger.info(f"[ENDPOINT] Received optimization config: {optimization_config.dict()}")
 
     if processed_data is None:
-        log_optimization_request(optimization_config.dict(), error="No processed data.")
+        # Log this specific failure scenario if desired
+        # log_optimization_request(optimization_config.dict(), error="No processed data.") 
         return JSONResponse(status_code=400, content={"success": False, "message": "No processed data."})
     
+    # Store the initial API request for comprehensive logging at the end of the task
+    initial_api_request_details = optimization_config.dict()
+
     # Update optimization status
     set_optimization_status({
         "in_progress": True,
         "strategy_type": optimization_config.strategy_type,
         "start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "latest_result_file": None
+        "latest_result_file": None,
+        "current_optimization_api_request": initial_api_request_details # Store for later logging
     })
 
     # Add the optimization task to background tasks
@@ -106,6 +112,17 @@ async def get_optimization_results_endpoint(strategy_type: str, request: Request
 
         # Load the results
         results, timestamp, error = load_optimization_results(strategy_type)
+        
+        # Log loaded results to check for chart_html
+        logger.info(f"[API /optimization-results] Loaded results for {strategy_type}:")
+        logger.info(f"  chart_html is present in loaded results: {'chart_html' in results}")
+        if 'chart_html' in results and results['chart_html'] is not None:
+            logger.info(f"  chart_html content in loaded (first 100 chars): {str(results['chart_html'])[:100]}...")
+        elif 'chart_html' in results:
+            logger.info(f"  chart_html is present but None in loaded results.")
+        else:
+            logger.info(f"  chart_html is NOT present in loaded results.")
+
         if error:
             logger.warning(f"Error loading optimization results: {error}")
             return {"status": "not_found", "message": error}
@@ -131,25 +148,6 @@ async def get_optimization_results_endpoint(strategy_type: str, request: Request
                     'metrics': results['optimized_performance']
                 })
         
-        # Ensure all required metrics are present to avoid N/A display
-        required_metrics = [
-            'sharpe_ratio', 'sortino_ratio', 'calmar_ratio', 'total_return_percent', 
-            'annual_return_percent', 'max_drawdown_percent', 'win_rate_percent', 
-            'profit_factor', 'percent_profitable_days', 'max_consecutive_wins', 
-            'max_consecutive_losses'
-        ]
-        
-        # Add default values for missing metrics in both default and optimized performance
-        if 'default_performance' in results:
-            for metric in required_metrics:
-                if metric not in results['default_performance']:
-                    results['default_performance'][metric] = 0
-        
-        if 'optimized_performance' in results:
-            for metric in required_metrics:
-                if metric not in results['optimized_performance']:
-                    results['optimized_performance'][metric] = 0
-        
         # Rename fields to match frontend expectations if needed
         if 'total_return_percent' in results.get('default_performance', {}) and 'total_return' not in results['default_performance']:
             results['default_performance']['total_return'] = results['default_performance']['total_return_percent'] / 100
@@ -159,6 +157,16 @@ async def get_optimization_results_endpoint(strategy_type: str, request: Request
         # Sanitize all float values to ensure JSON compatibility
         sanitized_results = _sanitize_json_values(results)
         
+        # Log sanitized_results before returning to check chart_html
+        logger.info(f"[API /optimization-results] Sanitized results for {strategy_type} (checking chart_html before JSONResponse):")
+        logger.info(f"  chart_html is present in sanitized_results: {'chart_html' in sanitized_results}")
+        if 'chart_html' in sanitized_results and sanitized_results['chart_html'] is not None:
+            logger.info(f"  chart_html content in sanitized (first 100 chars): {str(sanitized_results['chart_html'])[:100]}...")
+        elif 'chart_html' in sanitized_results:
+            logger.info(f"  chart_html is present but None in sanitized_results.")
+        else:
+            logger.info(f"  chart_html is NOT present in sanitized_results.")
+
         return JSONResponse(content={
             "status": "success",
             "results": sanitized_results,
@@ -179,21 +187,7 @@ def _sanitize_json_values(obj):
     import numpy as np
     
     if isinstance(obj, dict):
-        # Perform field name mapping to match frontend expectations
-        result = {}
-        for k, v in obj.items():
-            # Map field names for consistency
-            mapped_key = k
-            if k == 'profitable_days':
-                mapped_key = 'percent_profitable_days'
-            
-            if isinstance(v, dict):
-                result[mapped_key] = _sanitize_json_values(v)
-            elif isinstance(v, list):
-                result[mapped_key] = _sanitize_json_values(v)
-            else:
-                result[mapped_key] = _sanitize_json_values(v)
-        return result
+        return {k: _sanitize_json_values(v) for k, v in obj.items()}
     elif isinstance(obj, list):
         return [_sanitize_json_values(v) for v in obj]
     elif isinstance(obj, (float, np.float32, np.float64)):

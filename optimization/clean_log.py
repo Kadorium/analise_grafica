@@ -50,9 +50,9 @@ try:
     with open(backup_path, 'w', encoding='utf-8') as f:
         f.write(content)
     
-    # Write only the last entry back to the file
+    # Clear the log file
     with open(log_path, 'w', encoding='utf-8') as f:
-        f.write(last_entry)
+        f.write('') # Write an empty string to clear the file
     
     print(f'Log file cleaned successfully. Backup saved as {backup_path}')
 

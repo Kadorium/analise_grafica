@@ -53,17 +53,20 @@ class Backtester:
         
     def run_backtest(self, strategy, start_date=None, end_date=None):
         """
-        Run a backtest for a strategy.
+        Run a backtest for a specific strategy.
         
         Args:
-            strategy: Strategy instance or callable
+            strategy: An instance of a trading strategy class.
             start_date (str, optional): Start date for the backtest. Format: 'YYYY-MM-DD'.
             end_date (str, optional): End date for the backtest. Format: 'YYYY-MM-DD'.
             
         Returns:
-            dict: Dictionary containing strategy name, performance metrics, and signals.
+            dict: Dictionary containing backtest results and performance metrics.
         """
-        # Prepare data
+        if self.data is None:
+            raise ValueError("No data set for backtesting. Call set_data() first.")
+            
+        # Filter data by date range if specified
         data = self.data.copy()
         
         if start_date:
@@ -78,8 +81,17 @@ class Backtester:
         backtest_results = strategy.backtest(data, self.initial_capital, self.commission)
         
         # Get performance metrics
-        performance_metrics = strategy.get_performance_metrics()
+        metrics_result = strategy.get_performance_metrics(backtest_results)
         
+        strategy_debug_logs = []
+        if isinstance(metrics_result, tuple) and len(metrics_result) == 2:
+            # Assuming (metrics_dict, debug_logs_list) for StrategyAdapter
+            performance_metrics = metrics_result[0]
+            strategy_debug_logs = metrics_result[1]
+        else:
+            # Assuming metrics_dict directly for other strategy types
+            performance_metrics = metrics_result
+            
         # Convert NumPy types to Python native types for JSON serialization
         performance_metrics = convert_numpy_types(performance_metrics)
         
@@ -88,13 +100,15 @@ class Backtester:
         self.results[strategy_name] = {
             'backtest_results': backtest_results,
             'performance_metrics': performance_metrics,
-            'strategy_parameters': strategy.get_parameters()
+            'strategy_parameters': strategy.get_parameters(),
+            'debug_logs': strategy_debug_logs
         }
         
         return {
             'strategy_name': strategy_name,
             'performance_metrics': performance_metrics,
-            'signals': backtest_results
+            'signals': backtest_results,
+            'debug_logs': strategy_debug_logs
         }
     
     def compare_strategies(self, strategies, start_date=None, end_date=None):

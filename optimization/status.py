@@ -46,7 +46,8 @@ def reset_optimization_status():
     })
 
 def log_optimization_request(request_data, extra_info=None, error=None, traceback_info=None, 
-                             params_to_optimizer=None, final_params_backtest=None):
+                             params_to_optimizer=None, final_params_backtest=None,
+                             api_request_details: dict = None):
     """
     Appends optimization request data, extra info, and errors to a log file for debugging and traceability.
     
@@ -57,6 +58,7 @@ def log_optimization_request(request_data, extra_info=None, error=None, tracebac
         traceback_info (str, optional): Traceback information for the error
         params_to_optimizer (dict, optional): Parameters sent to the optimizer
         final_params_backtest (dict, optional): Parameters used for the final backtest
+        api_request_details (dict, optional): API request details
     """
     log_file = 'optimization_requests.log'
     
@@ -65,6 +67,10 @@ def log_optimization_request(request_data, extra_info=None, error=None, tracebac
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'strategy_type': request_data.get('strategy_type', 'unknown')
     }
+    
+    # Add API request details if provided (e.g., initial call parameters)
+    if api_request_details:
+        log_entry['api_request_details'] = api_request_details
     
     # Add request parameters with better formatting
     if 'param_ranges' in request_data:
@@ -95,7 +101,13 @@ def log_optimization_request(request_data, extra_info=None, error=None, tracebac
         # Format optimization results for better readability
         if 'default_performance' in extra_info and 'optimized_performance' in extra_info:
             perf_comparison = {}
-            for metric in ['sharpe_ratio', 'total_return_percent', 'max_drawdown_percent', 'win_rate_percent']:
+            # Log the full performance dictionaries for completeness
+            log_entry['full_default_performance'] = extra_info['default_performance']
+            log_entry['full_optimized_performance'] = extra_info['optimized_performance']
+
+            # Keep the summary comparison for quick view
+            comparison_metrics_keys = ['sharpe_ratio', 'total_return', 'max_drawdown', 'win_rate', 'profit_factor', 'percent_profitable_days', 'calmar_ratio']
+            for metric in comparison_metrics_keys:
                 if metric in extra_info['default_performance'] and metric in extra_info['optimized_performance']:
                     default_val = extra_info['default_performance'][metric]
                     opt_val = extra_info['optimized_performance'][metric]
@@ -122,17 +134,19 @@ def log_optimization_request(request_data, extra_info=None, error=None, tracebac
                     }
             log_entry['parameter_changes'] = param_comparison
         
-        # Add summary of all results
-        if 'all_results' in extra_info:
-            top_results_summary = []
-            for i, result in enumerate(extra_info['all_results'][:min(3, len(extra_info['all_results']))]):
-                result_summary = {
-                    'rank': i + 1,
-                    'params': result['params'],
-                    'score': round(result['value'], 4) if isinstance(result['value'], (int, float)) else result['value']
-                }
-                top_results_summary.append(result_summary)
-            log_entry['top_results_summary'] = top_results_summary
+        # Add summary of all results (already uses 'all_results_summary' from task.py if available)
+        if 'all_results_summary' in extra_info: # Changed from 'all_results' to match task.py
+            log_entry['top_results_summary'] = extra_info['all_results_summary']
+
+        # Add the collected debug logs from metric calculations
+        if 'default_base_debug_logs' in extra_info:
+            log_entry['default_base_metric_debug_logs'] = extra_info['default_base_debug_logs']
+        if 'default_advanced_debug_logs' in extra_info:
+            log_entry['default_advanced_metric_debug_logs'] = extra_info['default_advanced_debug_logs']
+        if 'optimized_base_debug_logs' in extra_info:
+            log_entry['optimized_base_metric_debug_logs'] = extra_info['optimized_base_debug_logs']
+        if 'optimized_advanced_debug_logs' in extra_info:
+            log_entry['optimized_advanced_metric_debug_logs'] = extra_info['optimized_advanced_debug_logs']
     
     # Add error if any
     if error is not None:
