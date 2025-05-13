@@ -372,231 +372,13 @@ function displayOptimizationResults(results) {
         }
         
         // Check if we have a chart
-        let chartSection = '';
+        let chartSectionHtml = '';
         if (results.chart_html) {
-            console.log("Comparison chart HTML is present. Content snippet:", String(results.chart_html).substring(0, 200));
-            
-            // Create unique IDs for this chart
-            const chartContainerId = `chart-container-${Date.now()}`;
-            const canvasId = `equity-chart-${Date.now()}`;
-            
-            console.log(`Creating chart container with ID ${chartContainerId} and canvas ID ${canvasId}`);
-            
-            // Create our own chart container and canvas instead of trying to extract from HTML
-            chartSection = `
-                <h6 class="mt-4">Equity Curve Comparison</h6>
-                <div class="d-flex mb-2">
-                    <div class="btn-group chart-type-toggle">
-                        <button class="btn btn-sm btn-outline-primary active" data-chart-type="line">Line</button>
-                        <button class="btn btn-sm btn-outline-primary" data-chart-type="area">Area</button>
-                        <button class="btn btn-sm btn-outline-primary" data-chart-type="bar">Bar</button>
-                    </div>
-                    <button class="btn btn-sm btn-outline-success ms-2 download-chart-btn">
-                        <i class="bi bi-download"></i> Download Chart
-                    </button>
-                </div>
-                <div class="alert alert-info chart-loading">
-                    Loading chart... <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
-                </div>
-                <div id="${chartContainerId}" class="comparison-chart-container">
-                    <canvas id="${canvasId}" width="800" height="400"></canvas>
-                </div>
-            `;
-            
-            // Extract chart data from the HTML content provided by the server
-            let chartData = null;
-            try {
-                // Look for JSON data in script tag 
-                const dataMatch = results.chart_html.match(/const chartData = (\{[\s\S]*?\});/);
-                if (dataMatch && dataMatch[1]) {
-                    // Try to parse the chart data JSON
-                    try {
-                        // Make it safe to evaluate by removing any potential harmful code
-                        const safeDataString = dataMatch[1]
-                            .replace(/\/\/.*/g, '') // Remove comments
-                            .replace(/[\r\n]/g, ''); // Remove newlines
-                        
-                        // Use Function constructor to evaluate the string as JSON
-                        chartData = (new Function(`return ${safeDataString}`))();
-                        console.log("Successfully extracted chart data:", chartData);
-                    } catch (e) {
-                        console.error("Error parsing chart data:", e);
-                    }
+            console.log("[OPTIMIZATION_PANEL] chart_html received from backend. Length:", results.chart_html.length);
+            chartSectionHtml = results.chart_html; // Store the HTML string
                 } else {
-                    console.warn("Could not find chart data in HTML");
-                }
-            } catch (e) {
-                console.error("Error extracting chart data:", e);
-            }
-            
-            // Use setTimeout to ensure DOM is updated before we try to access the chart container
-            setTimeout(() => {
-                console.log("Setting up chart controls for chart in container:", chartContainerId);
-                
-                // Remove the loading indicator once chart is loaded (or after 5 seconds)
-                const removeLoading = () => {
-                    const loadingEl = document.querySelector('.chart-loading');
-                    if (loadingEl) loadingEl.remove();
-                };
-                
-                // Set a max timeout for loading indicator
-                setTimeout(removeLoading, 5000);
-                
-                // Check if we have Chart.js available
-                if (typeof Chart === 'undefined') {
-                    console.error("Chart.js library not available - charts won't render correctly");
-                    const container = document.getElementById(chartContainerId);
-                    if (container) {
-                        // Check if we can find a strategy type 
-                        let strategyType = 'trend_following';
-                        if (document.getElementById('optimization-strategy')) {
-                            strategyType = document.getElementById('optimization-strategy').value;
-                        }
-                        
-                        // Try to find the most recent optimization file for this strategy
-                        container.innerHTML = `
-                            <div class="alert alert-warning">Chart.js not available. Using static image fallback.</div>
-                            <div class="text-center">
-                                <p>No chart could be rendered. Check the console for errors.</p>
-                            </div>
-                        `;
-                        removeLoading();
-                    }
-                    return;
-                }
-                
-                // Look for the chart container that should now be in the DOM
-                const chartContainer = document.getElementById(chartContainerId);
-                if (!chartContainer) {
-                    console.error(`Chart container #${chartContainerId} not found in DOM`);
-                    return;
-                }
-                
-                console.log(`Chart container found: ${chartContainerId}`);
-                
-                // Find the canvas element
-                const canvasElement = document.getElementById(canvasId);
-                if (!canvasElement) {
-                    console.error(`Canvas element with ID ${canvasId} not found`);
-                    return;
-                }
-                
-                console.log(`Canvas element found: ${canvasId}`);
-                
-                // If we have chart data, use it, otherwise create demo data
-                if (!chartData) {
-                    console.warn("No chart data found, creating demo data");
-                    // Create some demo data
-                    chartData = {
-                        labels: Array.from({length: 30}, (_, i) => `Day ${i+1}`),
-                        datasets: [
-                            {
-                                label: 'Default Strategy',
-                                data: Array.from({length: 30}, (_, i) => 10000 + (i * 100) + Math.random() * 200),
-                                borderColor: 'rgb(255, 99, 132)',
-                                backgroundColor: 'rgba(255, 99, 132, 0.1)'
-                            },
-                            {
-                                label: 'Optimized Strategy',
-                                data: Array.from({length: 30}, (_, i) => 10000 + (i * 150) + Math.random() * 200),
-                                borderColor: 'rgb(54, 162, 235)',
-                                backgroundColor: 'rgba(54, 162, 235, 0.1)'
-                            }
-                        ]
-                    };
-                }
-                
-                // Create the chart configuration
-                const chartConfig = {
-                    type: 'line',
-                    data: chartData,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { 
-                            title: { display: true, text: 'Default vs. Optimized Strategy Performance' },
-                            tooltip: { mode: 'index', intersect: false }
-                        },
-                        scales: {
-                            x: { display: true, title: { display: true, text: 'Date' }, ticks: { maxTicksLimit: 12 } },
-                            y: { display: true, title: { display: true, text: 'Equity' } }
-                        }
-                    }
-                };
-                
-                // Try to initialize the chart
-                try {
-                    // Wait a moment for the canvas to be fully initialized
-                    setTimeout(() => {
-                        // Get context and create chart
-                        const ctx = canvasElement.getContext('2d');
-                        try {
-                            console.log("Creating chart with config:", chartConfig);
-                            const chartInstance = new Chart(ctx, chartConfig);
-                            console.log("Successfully created chart instance:", chartInstance);
-                            removeLoading();
-                            
-                            // Set up chart type toggle buttons
-                            const toggleButtons = document.querySelectorAll('.chart-type-toggle button');
-                            if (toggleButtons && toggleButtons.length > 0) {
-                                toggleButtons.forEach(btn => {
-                                    btn.addEventListener('click', function() {
-                                        const chartType = this.getAttribute('data-chart-type');
-                                        console.log(`Changing chart type to: ${chartType}`);
-                                        
-                                        // Remove active class from all buttons
-                                        toggleButtons.forEach(b => b.classList.remove('active'));
-                                        
-                                        // Add active class to clicked button
-                                        this.classList.add('active');
-                                        
-                                        // Update chart type
-                                        chartInstance.config.type = chartType === 'area' ? 'line' : chartType;
-                                        
-                                        // For area charts, set fill to true
-                                        chartInstance.data.datasets.forEach(dataset => {
-                                            dataset.fill = chartType === 'area';
-                                        });
-                                        
-                                        // Update the chart
-                                        chartInstance.update();
-                                    });
-                                });
-                            }
-                            
-                            // Set up download button
-                            const downloadBtn = document.querySelector('.download-chart-btn');
-                            if (downloadBtn) {
-                                downloadBtn.addEventListener('click', function() {
-                                    try {
-                                        const link = document.createElement('a');
-                                        link.download = 'strategy_comparison_chart.png';
-                                        link.href = chartInstance.toBase64Image();
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
-                                    } catch (e) {
-                                        console.error('Error downloading chart:', e);
-                                        alert('Error downloading chart. See console for details.');
-                                    }
-                                });
-                            }
-                        } catch (e) {
-                            console.error("Error creating chart:", e);
-                            removeLoading();
-                            chartContainer.innerHTML = `
-                                <div class="alert alert-danger">Error creating chart: ${e.message}</div>
-                            `;
-                        }
-                    }, 100);
-                } catch (e) {
-                    console.error("Error initializing chart controls:", e);
-                    removeLoading();
-                }
-            }, 200); // Wait 200ms for DOM to update
-        } else {
-            console.warn("No chart_html found in results object. results.chart_html was:", results.chart_html, "Full results object:", results);
-            chartSection = '<div class="alert alert-warning mt-4">No comparison chart available for display.</div>';
+            console.warn("[OPTIMIZATION_PANEL] No chart_html found in results object. results.chart_html was:", results.chart_html, "Full results object:", results);
+            chartSectionHtml = '<div class="alert alert-warning mt-4">No comparison chart available for display.</div>';
         }
         
         // Build the complete comparison HTML
@@ -635,7 +417,7 @@ function displayOptimizationResults(results) {
                         </tbody>
                     </table>
                     
-                    ${chartSection}
+                    ${chartSectionHtml} // Use the stored HTML string here
                 </div>
             </div>
         `;
@@ -667,6 +449,27 @@ function displayOptimizationResults(results) {
     
     // Add the summary to the container
     container.innerHTML = summaryHtml;
+    
+    // After setting innerHTML, find and execute scripts from chartSectionHtml if it was populated
+    if (results.chart_html) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = results.chart_html; // Parse the chart_html string into a temporary element
+        const scripts = tempDiv.querySelectorAll('script');
+        scripts.forEach(scriptTag => {
+            if (scriptTag.textContent) {
+                try {
+                    console.log("[OPTIMIZATION_PANEL] Attempting to execute script content directly for chart:", scriptTag.textContent.substring(0, 100) + "...");
+                    // Execute the script content in the global scope
+                    // Using new Function() is generally safer than eval()
+                    new Function(scriptTag.textContent)(); 
+                    console.log("[OPTIMIZATION_PANEL] Successfully executed script content for chart.");
+                } catch (e) {
+                    console.error("[OPTIMIZATION_PANEL] Error executing script content:", e);
+                    console.error("[OPTIMIZATION_PANEL] Script content that failed (first 500 chars):", scriptTag.textContent.substring(0, 500));
+                }
+            }
+        });
+    }
     
     // Add download and use parameter buttons
     const currentStrategy = document.getElementById('optimization-strategy') ? 
