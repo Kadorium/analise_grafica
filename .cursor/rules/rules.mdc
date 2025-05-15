@@ -52,14 +52,21 @@ rules:
       - fallback_to: codebase exploration
       - description: Always prioritize understanding architecture and module roles via the LLM guide.
 
+  # General documentation update rule
+  - if: "user modifies, extends, or creates any file or folder in a module or directory"
+    then:
+      - task: Always read the relevant README.md (or equivalent documentation markdown file) in the same folder or module before making changes
+      - task: Update that README.md (or equivalent) to reflect the change
+      - description: Ensures that documentation is always current and consistent with code changes at the module/folder level. Applies to all folders with a README.md, readme_be_*.md, or similar documentation file.
+
       
 ### Version Control
 
-1. **Committing Changes**: When the user indicates that the code is working correctly, perform a commit with a descriptive message.
+1. **Committing Changes**: Only perform a commit when the user indicates that the code is working correctly, or gives explicit approval. Do NOT commit automatically after making code changes yourself without user feedback or confirmation.
    - **Correction Commits**: If a correction you made is confirmed by the user as working, even partially (e.g., user says "great", "it's working", "perfect", "that's it", "exactly", "nice", or similar affirmations), you MUST immediately perform a commit and then push the changes. This action takes precedence; complete the commit and push *before* proceeding with any other requests or tasks, even if they are part of the same user message.
 2. **Pushing to Remote**: After committing, push the changes to the GitHub repository.
-3. **Tagging Major Releases**: After completing a significant set of changes or a major feature (and after the above committing and pushing steps):
+3. **Commit Verification**: After every commit and push, you must verify the commit was successful by checking `git log` and/or `git status`, and only confirm completion if the commit is present in the log.
+4. **Tagging Major Releases**: After completing a significant set of changes or a major feature (and after the above committing and pushing steps):
     *   Update the `version` field (e.g., from "1.0" to "1.1" or "2.0") within the `AUTO_UPDATE_CONFIG` JSON block in this `readmeLLM.md` file. Also update the `last_updated` field.
     *   Create a new Git tag for the release (e.g., `v1.1`, `v2.0`).
-
     *   Push the new tag to the GitHub repository.
