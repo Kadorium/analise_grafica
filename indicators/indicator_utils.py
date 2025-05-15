@@ -4,6 +4,9 @@ import matplotlib.pyplot as plt
 from matplotlib.dates import DateFormatter
 import io
 import base64
+import logging
+
+logger = logging.getLogger(__name__)
 
 def combine_indicators(data, indicators_config=None):
     """
@@ -508,10 +511,12 @@ def plot_price_with_indicators(data, plot_config=None):
         
         # Convert plot to base64 encoded string
         buffer = io.BytesIO()
-        plt.savefig(buffer, format='png', dpi=100)
+        plt.savefig(r'C:\\Users\\ricar\\Desktop\\Python Works\\Analise_Grafica\\test_chart.png', format='png', dpi=100)
         buffer.seek(0)
         image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
         plt.close()
+        
+        logger.info("Saved test_chart.png to project root.")
         
         return image_base64
         
@@ -677,3 +682,24 @@ def create_indicator_summary(data, last_n_periods=1):
         summary['overall_signal'] = "Neutral"
     
     return summary 
+
+# Utility for strategies: Ensures the 'signal' column contains only 'buy', 'sell', or 'hold' as strings.
+def normalize_signals_column(df):
+    """
+    Utility for strategies: Ensures the 'signal' column contains only 'buy', 'sell', or 'hold' as strings.
+    If the column is numeric, converts to text. If missing, creates as 'hold'.
+    Any unexpected value is coerced to 'hold'.
+    """
+    import numpy as np
+    import pandas as pd
+    df = df.copy()
+    if 'signal' not in df.columns:
+        df['signal'] = 'hold'
+    if df['signal'].dtype in [np.int64, np.float64, 'int64', 'float64']:
+        map_dict = {1: 'buy', -1: 'sell', 0: 'hold'}
+        df['signal'] = df['signal'].map(map_dict).fillna('hold')
+    valid_signals = {'buy', 'sell', 'hold'}
+    df['signal'] = df['signal'].astype(str).str.lower()
+    df.loc[~df['signal'].isin(valid_signals), 'signal'] = 'hold'
+    df['signal'] = df['signal'].astype(object)
+    return df 

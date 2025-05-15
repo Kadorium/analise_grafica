@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from indicators.moving_averages import add_moving_averages, add_crossover_signals
+from indicators.indicator_utils import normalize_signals_column
 
 class TrendFollowingStrategy:
     """
@@ -69,36 +70,31 @@ class TrendFollowingStrategy:
             data (pandas.DataFrame): DataFrame containing price data and indicators.
             
         Returns:
-            pandas.DataFrame: DataFrame with added signal columns.
+            pandas.DataFrame: DataFrame with added 'signal' column (1=buy, -1=sell, 0=hold), then normalized to text ('buy', 'sell', 'hold').
         """
         # Make sure necessary indicators are added
         if 'golden_cross' not in data.columns or 'death_cross' not in data.columns:
             data = self.prepare_data(data)
-            
         result = data.copy()
-        
         # Generate signals
         result['signal'] = 0
         result.loc[result['golden_cross'] == 1, 'signal'] = 1  # Buy signal
         result.loc[result['death_cross'] == 1, 'signal'] = -1  # Sell signal
-        
         # Generate positions (1 = long, 0 = no position, -1 = short)
         result['position'] = 0
-        
-        # For a long-only strategy
         current_position = 0
         positions = []
-        
         for signal in result['signal']:
             if signal == 1 and current_position <= 0:  # Buy if we don't have a long position
                 current_position = 1
             elif signal == -1 and current_position >= 0:  # Sell if we have a long position
                 current_position = 0
-                
             positions.append(current_position)
-            
         result['position'] = positions
-        
+        # Use the shared normalization utility for signals
+        result = normalize_signals_column(result)
+        # Debug printout
+        print("[TrendFollowingStrategy] Signals DataFrame after generate_signals (head):\n", result[['date', 'close', 'signal', 'position']].head())
         return result
     
     def backtest(self, data, initial_capital=10000.0, commission=0.001):

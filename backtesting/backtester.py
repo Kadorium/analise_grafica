@@ -6,6 +6,7 @@ import io
 import base64
 import json
 from datetime import datetime
+import logging
 
 # Helper function to convert NumPy types to Python native types
 def convert_numpy_types(obj):
@@ -412,4 +413,85 @@ class Backtester:
             loaded_results = json.load(f)
             
         self.results = loaded_results
-        return loaded_results 
+        return loaded_results
+    
+    def plot_price_with_trade_signals(self, signals_df, strategy_name='Strategy', initial_capital=10000.0):
+        """
+        Plot price with buy/sell/exit signals and equity as a subplot.
+        Args:
+            signals_df (pd.DataFrame): DataFrame with backtest results (must include 'date', 'close', 'signal', 'equity')
+            strategy_name (str): Name of the strategy
+            initial_capital (float): Initial capital for Buy & Hold calculation
+        Returns:
+            str: Base64 encoded image.
+        """
+        import matplotlib.pyplot as plt
+        from matplotlib.dates import DateFormatter
+        import io, base64
+        logger = logging.getLogger("trading-app")
+        df = signals_df.copy()
+        logger.info(f"[plot_price_with_trade_signals] DataFrame shape: {df.shape}, columns: {list(df.columns)}")
+        logger.info(f"[plot_price_with_trade_signals] DataFrame head:\n{df.head(5)}")
+        # Check for required columns
+        required_cols = ['date', 'close', 'signal', 'equity', 'position']
+        missing_cols = [col for col in required_cols if col not in df.columns]
+        if len(df) == 0 or missing_cols:
+            logger.warning(f"[plot_price_with_trade_signals] DataFrame is empty or missing columns: {missing_cols}")
+            # Create a simple error plot
+            fig, ax = plt.subplots(figsize=(10, 6))
+            msg = "No data to plot. "
+            if missing_cols:
+                msg += f"Missing columns: {', '.join(missing_cols)}"
+            else:
+                msg += "DataFrame is empty."
+            ax.text(0.5, 0.5, msg, horizontalalignment='center', verticalalignment='center', fontsize=14, color='red')
+            ax.set_xticks([])
+            ax.set_yticks([])
+            buffer = io.BytesIO()
+            plt.savefig(buffer, format='png', dpi=100)
+            buffer.seek(0)
+            image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            plt.close()
+            return image_base64
+        # Ensure date is datetime
+        if not pd.api.types.is_datetime64_any_dtype(df['date']):
+            df['date'] = pd.to_datetime(df['date'])
+        # Prepare buy/sell/exit points
+        buy_mask = df['signal'] == 'buy'
+        sell_mask = df['signal'] == 'sell'
+        # Find exit points (where position goes from 1 to 0)
+        exit_mask = (df['position'].shift(1) == 1) & (df['position'] == 0)
+        # Create figure with two subplots
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(14, 8), sharex=True, gridspec_kw={'height_ratios': [2, 1]})
+        # --- Top: Price with trade signals ---
+        ax1.plot(df['date'], df['close'], label='Price', color='black', linewidth=1.5, zorder=1)
+        ax1.scatter(df.loc[buy_mask, 'date'], df.loc[buy_mask, 'close'], marker='^', color='green', s=80, label='Buy', zorder=3)
+        ax1.scatter(df.loc[sell_mask, 'date'], df.loc[sell_mask, 'close'], marker='v', color='red', s=80, label='Sell', zorder=3)
+        ax1.scatter(df.loc[exit_mask, 'date'], df.loc[exit_mask, 'close'], marker='o', color='blue', s=60, label='Exit', zorder=3)
+        ax1.set_ylabel('Price')
+        ax1.set_title(f'Price with Trade Signals ({strategy_name})')
+        ax1.legend(loc='upper left')
+        ax1.grid(True)
+        # --- Bottom: Equity curve ---
+        ax2.plot(df['date'], df['equity'], label='Strategy Equity', color='teal', linewidth=1.5)
+        if 'cumulative_market_return' in df.columns:
+            ax2.plot(df['date'], initial_capital * df['cumulative_market_return'], label='Buy & Hold', color='grey', linestyle='--')
+        ax2.set_ylabel('Equity')
+        ax2.set_title('Equity Curve')
+        ax2.legend(loc='upper left')
+        ax2.grid(True)
+        # Format x-axis
+        date_format = DateFormatter('%Y-%m-%d')
+        ax2.xaxis.set_major_formatter(date_format)
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        # Convert to base64
+        buffer = io.BytesIO()
+        plt.savefig(buffer, format='png', dpi=100)
+        # Also save to file for debugging
+        plt.savefig(r'C:\Users\ricar\Desktop\Python Works\Analise_Grafica\test_chart.png', format='png', dpi=100)
+        logger.info("Saved test_chart.png to project root.")
+        buffer.seek(0)
+        image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        plt.close()
+        return image_base64 

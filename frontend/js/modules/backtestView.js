@@ -190,359 +190,207 @@ export function displayBacktestResults(results) {
     
     // Display charts
     const updatedChartsContainer = backtestResultsContainer.querySelector('#backtest-charts');
-    if (updatedChartsContainer && results.metrics) {
-        console.log('Creating charts from metrics data');
-        
-        // Clear existing content and ensure the container is visible
-        updatedChartsContainer.innerHTML = '';
-        updatedChartsContainer.style.display = 'block';
-        
-        // Create container divs for all three charts
+    if (updatedChartsContainer && results.metrics && results.charts_data) {
+        console.log('Creating charts from charts_data');
         updatedChartsContainer.innerHTML = `
             <h4>Backtest Charts</h4>
-            
-            <!-- Equity Curve Chart -->
             <div class="chart-container mb-4" style="position: relative; height:400px; width:100%;">
                 <h5>Equity Curve</h5>
                 <canvas id="equity-curve-chart"></canvas>
             </div>
-            
-            <!-- Price Chart with Trade Signals -->
             <div class="chart-container mb-4" style="position: relative; height:400px; width:100%;">
                 <h5>Price with Trade Signals</h5>
                 <canvas id="price-signals-chart"></canvas>
             </div>
-            
-            <!-- Indicator Action Signals -->
             <div class="chart-container" style="position: relative; height:400px; width:100%;">
                 <h5>Indicator Action Signals</h5>
                 <canvas id="indicator-signals-chart"></canvas>
             </div>
         `;
-        
-        // Check if Chart.js is available
-        if (typeof Chart === 'undefined') {
-            console.error('Chart.js library not loaded');
-            updatedChartsContainer.innerHTML = '<div class="alert alert-danger">Chart.js library not available. Charts cannot be displayed.</div>';
-        } else {
-            // Extract chart data from server response
-            try {
-                // Create the charts when DOM is ready
-                setTimeout(() => {
-                    // Extract common data from HTML if available
-                    let dates = [];
-                    let priceData = [];
-                    let equityData = [];
-                    let indicators = {};
-                    let tradeSignals = [];
-                    
-                    if (results.charts) {
-                        const labelsMatch = results.charts.match(/labels:\s*(\[.*?\])/s);
-                        const equityMatch = results.charts.match(/data:\s*(\[.*?\])/s);
-                        
-                        if (labelsMatch && labelsMatch[1]) {
-                            try {
-                                dates = JSON.parse(labelsMatch[1].replace(/'/g, '"'));
-                            } catch (e) {
-                                console.error('Error parsing chart dates:', e);
+        setTimeout(() => {
+            const chartsData = results.charts_data;
+            // 1. Equity Curve Chart
+            const equityCurve = chartsData.equity_curve;
+            const equityCtx = document.getElementById('equity-curve-chart');
+            if (equityCtx) {
+                new Chart(equityCtx, {
+                    type: 'line',
+                    data: {
+                        labels: equityCurve.dates,
+                        datasets: [
+                            {
+                                label: 'Strategy',
+                                data: equityCurve.equity,
+                                borderColor: 'rgb(75, 192, 192)',
+                                backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                                tension: 0.1,
+                                fill: true
+                            },
+                            {
+                                label: 'Buy & Hold',
+                                data: equityCurve.buy_and_hold,
+                                borderColor: 'rgb(192, 75, 75)',
+                                backgroundColor: 'rgba(192, 75, 75, 0.1)',
+                                borderDash: [5, 5],
+                                tension: 0.1,
+                                fill: true
                             }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: false },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            x: { display: true, title: { display: true, text: 'Date' }, ticks: { maxTicksLimit: 12 } },
+                            y: { display: true, title: { display: true, text: 'Equity ($)' } }
                         }
-                        
-                        if (equityMatch && equityMatch[1]) {
-                            try {
-                                equityData = JSON.parse(equityMatch[1].replace(/'/g, '"'));
-                            } catch (e) {
-                                console.error('Error parsing equity data:', e);
-                            }
-                        }
                     }
-                    
-                    // Extract price data and signals from trades if available
-                    if (results.trades && results.trades.length > 0) {
-                        // Create a synthetic price dataset if not available directly
-                        // This is a simplification - ideally we'd have the actual price data from the server
-                        const pricePoints = results.trades.map(trade => ({
-                            date: trade.entry_date,
-                            price: trade.entry_price,
-                            signal: 'buy'
-                        })).concat(results.trades.map(trade => ({
-                            date: trade.exit_date,
-                            price: trade.exit_price,
-                            signal: 'sell'
-                        }))).sort((a, b) => new Date(a.date) - new Date(b.date));
-                        
-                        // Create synthetic price data spanning the entire date range
-                        const startDate = new Date(dates[0] || pricePoints[0].date);
-                        const endDate = new Date(dates[dates.length-1] || pricePoints[pricePoints.length-1].date);
-                        
-                        // Generate price data for each date in our range
-                        priceData = dates.map((date, i) => {
-                            // Look for an exact match in our pricePoints
-                            const matchPoint = pricePoints.find(point => point.date === date);
-                            if (matchPoint) return matchPoint.price;
-                            
-                            // If no match, interpolate based on nearby trades or use equity as a proxy
-                            // For simplicity, we're using a scaled version of the equity curve
-                            const baseValue = equityData[i] || 100;
-                            return baseValue * 0.1; // Scale down for visualization
-                        });
-                        
-                        // Extract trade signals
-                        tradeSignals = pricePoints.map(point => ({
-                            date: point.date,
-                            price: point.price,
-                            signal: point.signal
-                        }));
-                    }
-                    
-                    // 1. Create equity curve chart
-                    const equityCtx = document.getElementById('equity-curve-chart');
-                    if (equityCtx) {
-                        new Chart(equityCtx, {
-                            type: 'line',
-                            data: {
-                                labels: dates,
-                                datasets: [{
-                                    label: 'Strategy',
-                                    data: equityData,
-                                    borderColor: 'rgb(75, 192, 192)',
-                                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                                    tension: 0.1,
-                                    fill: true
-                                }]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                plugins: {
-                                    title: {
-                                        display: false
-                                    },
-                                    tooltip: {
-                                        mode: 'index',
-                                        intersect: false,
-                                    }
-                                },
-                                scales: {
-                                    x: {
-                                        display: true,
-                                        title: {
-                                            display: true,
-                                            text: 'Date'
-                                        },
-                                        ticks: {
-                                            maxTicksLimit: 12
-                                        }
-                                    },
-                                    y: {
-                                        display: true,
-                                        title: {
-                                            display: true,
-                                            text: 'Equity ($)'
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    }
-                    
-                    // 2. Create price chart with trade signals
-                    const priceCtx = document.getElementById('price-signals-chart');
-                    if (priceCtx) {
-                        // Prepare data for signal markers
-                        const buySignals = tradeSignals.filter(s => s.signal === 'buy').map(s => {
-                            const index = dates.indexOf(s.date);
-                            return index >= 0 ? {
-                                x: index,
-                                y: s.price,
-                                r: 6  // size of the point
-                            } : null;
-                        }).filter(s => s !== null);
-                        
-                        const sellSignals = tradeSignals.filter(s => s.signal === 'sell').map(s => {
-                            const index = dates.indexOf(s.date);
-                            return index >= 0 ? {
-                                x: index,
-                                y: s.price,
-                                r: 6  // size of the point
-                            } : null;
-                        }).filter(s => s !== null);
-                        
-                        new Chart(priceCtx, {
-                            type: 'line',
-                            data: {
-                                labels: dates,
-                                datasets: [
-                                    {
-                                        label: 'Price',
-                                        data: priceData,
-                                        borderColor: 'rgb(100, 100, 100)',
-                                        backgroundColor: 'rgba(100, 100, 100, 0.1)',
-                                        tension: 0.1,
-                                        fill: false,
-                                        pointRadius: 0
-                                    },
-                                    {
-                                        label: 'Buy Signals',
-                                        data: buySignals,
-                                        backgroundColor: 'rgba(75, 192, 75, 0.8)',
-                                        borderColor: 'rgba(75, 192, 75, 1)',
-                                        type: 'bubble',
-                                        pointStyle: 'triangle',
-                                        pointRadius: 8,
-                                        pointHoverRadius: 10
-                                    },
-                                    {
-                                        label: 'Sell Signals',
-                                        data: sellSignals,
-                                        backgroundColor: 'rgba(192, 75, 75, 0.8)',
-                                        borderColor: 'rgba(192, 75, 75, 1)',
-                                        type: 'bubble',
-                                        pointStyle: 'triangle',
-                                        pointRadius: 8,
-                                        pointRotation: 180,
-                                        pointHoverRadius: 10
-                                    }
-                                ]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                interaction: {
-                                    mode: 'index',
-                                    intersect: false
-                                },
-                                plugins: {
-                                    tooltip: {
-                                        callbacks: {
-                                            label: function(context) {
-                                                if (context.dataset.label === 'Buy Signals') {
-                                                    return 'BUY @ ' + context.parsed.y;
-                                                } else if (context.dataset.label === 'Sell Signals') {
-                                                    return 'SELL @ ' + context.parsed.y;
-                                                }
-                                                return context.dataset.label + ': ' + context.parsed.y;
-                                            }
-                                        }
-                                    }
-                                },
-                                scales: {
-                                    x: {
-                                        ticks: {
-                                            maxTicksLimit: 12,
-                                            callback: function(value) {
-                                                return dates[value];
-                                            }
-                                        }
-                                    },
-                                    y: {
-                                        title: {
-                                            display: true,
-                                            text: 'Price'
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    }
-                    
-                    // 3. Create indicator signals chart
-                    const indicatorCtx = document.getElementById('indicator-signals-chart');
-                    if (indicatorCtx) {
-                        // Generate mock indicator data based on trade signals
-                        // In a real implementation, this would come from the server
-                        const mockSMA50 = priceData.map((price, i) => price * (1 + Math.sin(i/20) * 0.05));
-                        const mockSMA200 = priceData.map((price, i) => price * (1 + Math.sin(i/50) * 0.1));
-                        const mockRSI = Array(dates.length).fill(0).map((_, i) => 
-                            50 + 20 * Math.sin(i/15) + 10 * Math.sin(i/7)
-                        );
-                        
-                        new Chart(indicatorCtx, {
-                            type: 'line',
-                            data: {
-                                labels: dates,
-                                datasets: [
-                                    {
-                                        label: 'SMA 50',
-                                        data: mockSMA50,
-                                        borderColor: 'rgb(75, 192, 192)',
-                                        backgroundColor: 'transparent',
-                                        tension: 0.1,
-                                        yAxisID: 'y',
-                                        pointRadius: 0
-                                    },
-                                    {
-                                        label: 'SMA 200',
-                                        data: mockSMA200,
-                                        borderColor: 'rgb(192, 75, 75)',
-                                        backgroundColor: 'transparent',
-                                        tension: 0.1,
-                                        yAxisID: 'y',
-                                        pointRadius: 0
-                                    },
-                                    {
-                                        label: 'RSI',
-                                        data: mockRSI,
-                                        borderColor: 'rgb(192, 75, 192)',
-                                        backgroundColor: 'transparent',
-                                        tension: 0.1,
-                                        yAxisID: 'y1',
-                                        pointRadius: 0,
-                                        borderDash: [5, 5]
-                                    }
-                                ]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                interaction: {
-                                    mode: 'index',
-                                    intersect: false
-                                },
-                                scales: {
-                                    x: {
-                                        ticks: {
-                                            maxTicksLimit: 12,
-                                            callback: function(value) {
-                                                return dates[value];
-                                            }
-                                        }
-                                    },
-                                    y: {
-                                        type: 'linear',
-                                        display: true,
-                                        position: 'left',
-                                        title: {
-                                            display: true,
-                                            text: 'Price'
-                                        }
-                                    },
-                                    y1: {
-                                        type: 'linear',
-                                        display: true,
-                                        position: 'right',
-                                        min: 0,
-                                        max: 100,
-                                        title: {
-                                            display: true,
-                                            text: 'RSI'
-                                        },
-                                        grid: {
-                                            drawOnChartArea: false
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                        
-                        console.log('All charts created successfully');
-                    }
-                }, 500);
-            } catch (error) {
-                console.error('Error setting up charts:', error);
-                updatedChartsContainer.innerHTML += `<div class="alert alert-danger">Error setting up charts: ${error.message}</div>`;
+                });
             }
-        }
+            // 2. Price with Trade Signals Chart
+            const priceSignals = chartsData.price_signals;
+            const priceCtx = document.getElementById('price-signals-chart');
+            if (priceCtx) {
+                // Prepare buy/sell/exit markers
+                const buyPoints = priceSignals.buy_signals.map(i => ({ x: i, y: priceSignals.close[i], r: 7 }));
+                const sellPoints = priceSignals.sell_signals.map(i => ({ x: i, y: priceSignals.close[i], r: 7 }));
+                const exitPoints = priceSignals.exit_signals.map(i => ({ x: i, y: priceSignals.close[i], r: 6 }));
+                new Chart(priceCtx, {
+                    type: 'line',
+                    data: {
+                        labels: priceSignals.dates,
+                        datasets: [
+                            {
+                                label: 'Price',
+                                data: priceSignals.close,
+                                borderColor: 'rgb(100, 100, 100)',
+                                backgroundColor: 'rgba(100, 100, 100, 0.1)',
+                                tension: 0.1,
+                                fill: false,
+                                pointRadius: 0
+                            },
+                            {
+                                label: 'Buy',
+                                data: buyPoints,
+                                backgroundColor: 'rgba(75, 192, 75, 0.8)',
+                                borderColor: 'rgba(75, 192, 75, 1)',
+                                type: 'bubble',
+                                pointStyle: 'triangle',
+                                pointRadius: 8,
+                                pointHoverRadius: 10
+                            },
+                            {
+                                label: 'Sell',
+                                data: sellPoints,
+                                backgroundColor: 'rgba(192, 75, 75, 0.8)',
+                                borderColor: 'rgba(192, 75, 75, 1)',
+                                type: 'bubble',
+                                pointStyle: 'triangle',
+                                pointRadius: 8,
+                                pointRotation: 180,
+                                pointHoverRadius: 10
+                            },
+                            {
+                                label: 'Exit',
+                                data: exitPoints,
+                                backgroundColor: 'rgba(75, 75, 192, 0.8)',
+                                borderColor: 'rgba(75, 75, 192, 1)',
+                                type: 'bubble',
+                                pointStyle: 'circle',
+                                pointRadius: 7,
+                                pointHoverRadius: 9
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        if (context.dataset.label === 'Buy') {
+                                            return 'BUY @ ' + context.parsed.y;
+                                        } else if (context.dataset.label === 'Sell') {
+                                            return 'SELL @ ' + context.parsed.y;
+                                        } else if (context.dataset.label === 'Exit') {
+                                            return 'EXIT @ ' + context.parsed.y;
+                                        }
+                                        return context.dataset.label + ': ' + context.parsed.y;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    maxTicksLimit: 12,
+                                    callback: function(value) { return priceSignals.dates[value]; }
+                                }
+                            },
+                            y: { title: { display: true, text: 'Price' } }
+                        }
+                    }
+                });
+            }
+            // 3. Indicator Action Signals Chart
+            const indicatorCtx = document.getElementById('indicator-signals-chart');
+            if (indicatorCtx) {
+                // Plot all available indicators (up to 3 for clarity)
+                const indicatorKeys = Object.keys(chartsData.indicators);
+                const indicatorDatasets = indicatorKeys.slice(0, 3).map((key, idx) => ({
+                    label: key,
+                    data: chartsData.indicators[key],
+                    borderColor: ['rgb(75, 192, 192)', 'rgb(192, 75, 75)', 'rgb(192, 75, 192)'][idx % 3],
+                    backgroundColor: 'transparent',
+                    tension: 0.1,
+                    yAxisID: idx === 2 ? 'y1' : 'y',
+                    pointRadius: 0,
+                    borderDash: idx === 2 ? [5, 5] : []
+                }));
+                new Chart(indicatorCtx, {
+                    type: 'line',
+                    data: {
+                        labels: priceSignals.dates,
+                        datasets: indicatorDatasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    maxTicksLimit: 12,
+                                    callback: function(value) { return priceSignals.dates[value]; }
+                                }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: { display: true, text: 'Value' }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: indicatorDatasets.length > 2,
+                                position: 'right',
+                                min: 0,
+                                max: 100,
+                                title: { display: true, text: indicatorDatasets.length > 2 ? indicatorKeys[2] : '' },
+                                grid: { drawOnChartArea: false }
+                            }
+                        }
+                    }
+                });
+            }
+            console.log('All charts created successfully');
+        }, 500);
     } else {
         console.warn('No charts data found or charts container missing');
         if (updatedChartsContainer) {

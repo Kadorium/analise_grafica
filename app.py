@@ -135,6 +135,7 @@ def normalize_signals_df(df: pd.DataFrame) -> pd.DataFrame:
     Ensures a 'signal' column exists and contains text ('buy', 'sell', 'hold').
     Derives 'signal' from 'position' or crossover columns if not present.
     Converts numeric signals (1, -1, 0) to text.
+    Coerces any unexpected values to 'hold'.
     """
     signals_df = df.copy()
     logger.info("Normalizing signals...")
@@ -165,22 +166,15 @@ def normalize_signals_df(df: pd.DataFrame) -> pd.DataFrame:
             signals_df['signal'] = 'hold'
         signals_df['signal'] = signals_df['signal'].fillna('hold')
 
-
-    if 'signal' in signals_df.columns and signals_df['signal'].dtype in [np.int64, np.float64, 'int64', 'float64']:
-        logger.info("Converting numeric signals to text values ('buy', 'sell', 'hold').")
-        signals_df['signal'] = signals_df['signal'].fillna(0) 
-        map_dict = {1: 'buy', -1: 'sell', 0: 'hold'}
-        signals_df['signal'] = signals_df['signal'].map(map_dict).fillna('hold')
-    
-    if 'signal' in signals_df.columns:
-        signals_df['signal'] = signals_df['signal'].astype(object)
+    # Use the shared normalization utility for signals
+    signals_df = normalize_signals_column(signals_df)
 
     logger.info(f"Signal normalization complete. Signal counts: {signals_df['signal'].value_counts().to_dict() if 'signal' in signals_df else 'N/A'}")
     return signals_df
 
 # Import our modules
 from data.data_loader import DataLoader
-from indicators.indicator_utils import combine_indicators, plot_price_with_indicators, create_indicator_summary
+from indicators.indicator_utils import combine_indicators, plot_price_with_indicators, create_indicator_summary, normalize_signals_column
 from strategies import create_strategy, get_default_parameters, AVAILABLE_STRATEGIES, STRATEGY_REGISTRY
 from backtesting.backtester import Backtester
 from optimization import (
@@ -678,10 +672,17 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
     
     strategy = create_strategy(strategy_config.strategy_type, **strategy_config.parameters)
     
-    if callable(strategy) and not hasattr(strategy, 'generate_signals'):
+    # Support both class-based and function-based (StrategyAdapter) strategies
+    if hasattr(strategy, 'generate_signals'):
+        signals_df = strategy.generate_signals(filtered_data)
+    elif hasattr(strategy, 'backtest'):
+        # For function-based strategies, backtest returns the full DataFrame with signals
+        signals_df = strategy.backtest(filtered_data, initial_capital=backtest_config.initial_capital, commission=backtest_config.commission)
+    elif callable(strategy):
+        # Fallback: direct function call (should not be needed with current registry)
         signals_df = strategy(filtered_data, **strategy_config.parameters)
     else:
-        signals_df = strategy.generate_signals(filtered_data)
+        raise ValueError(f"Strategy object does not support signal generation or backtesting: {type(strategy)}")
     
     required_cols_signals = ['date', 'close']
     missing_cols = check_required_columns(signals_df, required_cols_signals)
@@ -757,9 +758,15 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
         signals_df['market_return_pct'] = signals_df['close'].pct_change().fillna(0)
         signals_df['cumulative_market_return'] = (1 + signals_df['market_return_pct']).cumprod()
 
-    chart_html = plot_backtest_results(signals_df, 
-                                      strategy_name=strategy_config.strategy_type.replace("_", " ").title(),
-                                      initial_capital=backtest_config.initial_capital)
+    # Ensure BACKTESTER is initialized
+    if BACKTESTER is None:
+        BACKTESTER = Backtester()
+    # Use the new plot_price_with_trade_signals for the first chart
+    chart_image_b64 = BACKTESTER.plot_price_with_trade_signals(
+        signals_df,
+        strategy_name=strategy_config.strategy_type.replace("_", " ").title(),
+        initial_capital=backtest_config.initial_capital
+    )
     
     def clean_for_json(data_item):
         if isinstance(data_item, dict):
@@ -770,15 +777,36 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
             if np.isnan(data_item) or np.isinf(data_item): return None
             return data_item
         elif isinstance(data_item, (np.int64, np.int32, np.int16, np.int8)): return int(data_item)
-        elif isinstance(data_item, (np.float64, np.float32)): 
+        elif isinstance(data_item, (np.float64, np.float32)):
             if np.isnan(data_item) or np.isinf(data_item): return None
             return float(data_item)
         elif isinstance(data_item, pd.Timestamp): return data_item.strftime('%Y-%m-%d %H:%M:%S')
         return data_item
 
+    # Prepare chart data for frontend charting
+    chart_data = {
+        "equity_curve": {
+            "dates": signals_df['date'].dt.strftime('%Y-%m-%d').tolist() if pd.api.types.is_datetime64_any_dtype(signals_df['date']) else signals_df['date'].astype(str).tolist(),
+            "equity": signals_df['equity'].tolist() if 'equity' in signals_df else [],
+            "buy_and_hold": (signals_df['cumulative_market_return'] * backtest_config.initial_capital).tolist() if 'cumulative_market_return' in signals_df else []
+        },
+        "price_signals": {
+            "dates": signals_df['date'].dt.strftime('%Y-%m-%d').tolist() if pd.api.types.is_datetime64_any_dtype(signals_df['date']) else signals_df['date'].astype(str).tolist(),
+            "close": signals_df['close'].tolist() if 'close' in signals_df else [],
+            "buy_signals": [i for i, s in enumerate(signals_df['signal']) if s == 'buy'],
+            "sell_signals": [i for i, s in enumerate(signals_df['signal']) if s == 'sell'],
+            "exit_signals": [i for i in range(1, len(signals_df)) if signals_df['position'].iloc[i-1] == 1 and signals_df['position'].iloc[i] == 0]
+        },
+        "indicators": {}
+    }
+    # Add available indicators (e.g., rsi, sma_50, ema_20, etc.)
+    indicator_cols = [col for col in signals_df.columns if col not in ['date', 'open', 'high', 'low', 'close', 'volume', 'signal', 'position', 'equity', 'cumulative_market_return', 'market_return_pct']]
+    for col in indicator_cols:
+        chart_data["indicators"][col] = signals_df[col].tolist()
+
     result_data = clean_for_json({
         "metrics": results_metrics,
-        "charts": chart_html,
+        "charts_data": chart_data,
         "trades": extract_trades(signals_df, 
                                 commission=backtest_config.commission,
                                 initial_capital=backtest_config.initial_capital)
@@ -1101,29 +1129,24 @@ async def get_seasonality_summary(request: Request):
 def calculate_performance_metrics(signals_df, initial_capital=10000.0, commission=0.001):
     """
     Calculate performance metrics from signals DataFrame.
-    
     Args:
         signals_df (pd.DataFrame): DataFrame with signal column ('buy', 'sell', 'hold')
         initial_capital (float): Initial capital for the backtest
         commission (float): Commission rate per trade
-        
     Returns:
         dict: Performance metrics
     """
     df = signals_df.copy()
-    
     # Ensure we have the right columns
     required_cols = ['date', 'close', 'signal']
     if not all(col in df.columns for col in required_cols):
         raise ValueError(f"Data must contain columns: {required_cols}")
-    
     # Initialize position and equity columns
     df['position'] = 0
     df['entry_price'] = 0.0
     df['equity'] = initial_capital
     df['trade_profit'] = 0.0
     df['trade_returns'] = 0.0
-    
     position = 0
     entry_price = 0.0
     equity = initial_capital
@@ -1132,21 +1155,18 @@ def calculate_performance_metrics(signals_df, initial_capital=10000.0, commissio
     losing_trades = 0
     total_profit = 0
     total_loss = 0
-    
-    buy_signals_indices = [] # Storing indices for potential analysis, not directly used in metrics here
+    buy_signals_indices = []
     sell_signals_indices = []
-    
     for i in range(len(df)):
         current_signal = df.iloc[i]['signal']
         current_price = df.iloc[i]['close']
         current_date = df.iloc[i]['date']
-        
         if current_signal == 'buy':
             buy_signals_indices.append(df.index[i])
             if position == 0:
                 position = 1
                 entry_price = current_price * (1 + commission)
-                logger.info(f"BUY at {current_date} price: {entry_price:.2f}")
+                logger.info(f"[BACKTEST] BUY at {current_date} price: {entry_price:.2f} (raw: {current_price:.2f}) equity: {equity:.2f}")
         elif current_signal == 'sell':
             sell_signals_indices.append(df.index[i])
             if position == 1:
@@ -1155,7 +1175,6 @@ def calculate_performance_metrics(signals_df, initial_capital=10000.0, commissio
                 trade_profit = exit_price - entry_price
                 trade_return = (trade_profit / entry_price) if entry_price != 0 else 0
                 equity += trade_profit
-                
                 total_trades += 1
                 if trade_profit > 0:
                     winning_trades += 1
@@ -1163,40 +1182,31 @@ def calculate_performance_metrics(signals_df, initial_capital=10000.0, commissio
                 else:
                     losing_trades += 1
                     total_loss += trade_profit
-                   
                 df.at[df.index[i], 'trade_profit'] = trade_profit
                 df.at[df.index[i], 'trade_returns'] = trade_return
-                logger.info(f"SELL at {current_date} price: {exit_price:.2f}, profit: {trade_profit:.2f}")
-            entry_price = 0.0 # Reset entry price
+                logger.info(f"[BACKTEST] SELL at {current_date} price: {exit_price:.2f} (raw: {current_price:.2f}) profit: {trade_profit:.2f} equity: {equity:.2f}")
+            entry_price = 0.0
             entry_date_val = None
-           
+        df.at[df.index[i], 'equity'] = equity
     df['market_return'] = df['close'].pct_change().fillna(0)
     df['cumulative_market_return'] = (1 + df['market_return']).cumprod()
-    
     start_date = df['date'].min()
     end_date = df['date'].max()
     days = (end_date - start_date).days
-    years = max(days / 365.25, 0.01) # Avoid division by zero for very short periods
-    
+    years = max(days / 365.25, 0.01)
     final_equity = df['equity'].iloc[-1] if not df['equity'].empty else initial_capital
     total_return_calc = (final_equity / initial_capital) - 1
     annual_return_calc = ((1 + total_return_calc) ** (1 / years)) - 1 if years > 0 else 0
-    
-    df['drawdown'] = (df['equity'].cummax() - df['equity']) / df['equity'].cummax().replace(0, np.nan) # Avoid div by zero if equity hits 0
+    df['drawdown'] = (df['equity'].cummax() - df['equity']) / df['equity'].cummax().replace(0, np.nan)
     max_drawdown_calc = df['drawdown'].max() if not df['drawdown'].empty else 0
     max_drawdown_calc = max_drawdown_calc if pd.notna(max_drawdown_calc) else 0
-
     win_rate_calc = winning_trades / total_trades if total_trades > 0 else 0
-    
     avg_win_calc = total_profit / winning_trades if winning_trades > 0 else 0
-    avg_loss_calc = abs(total_loss / losing_trades) if losing_trades > 0 else 0 # abs for avg loss
-    
-    profit_factor_calc = abs(total_profit / total_loss) if total_loss != 0 else float('inf') # total_loss can be negative
-    
+    avg_loss_calc = abs(total_loss / losing_trades) if losing_trades > 0 else 0
+    profit_factor_calc = abs(total_profit / total_loss) if total_loss != 0 else float('inf')
     daily_returns_series = df['equity'].pct_change().fillna(0)
     annual_volatility_calc = daily_returns_series.std() * (252 ** 0.5)
     sharpe_ratio_calc = annual_return_calc / annual_volatility_calc if annual_volatility_calc > 0 else 0
-    
     metrics = {
         'start_date': start_date.strftime('%Y-%m-%d') if pd.notna(start_date) else 'N/A',
         'end_date': end_date.strftime('%Y-%m-%d') if pd.notna(end_date) else 'N/A',
@@ -1214,10 +1224,7 @@ def calculate_performance_metrics(signals_df, initial_capital=10000.0, commissio
         'annual_volatility_percent': annual_volatility_calc * 100,
         'buy_signals_count': len(buy_signals_indices),
         'sell_signals_count': len(sell_signals_indices)
-        # 'final_capital_series': df['equity'].tolist() # For run_backtest to use if needed
     }
-    
-    # Ensure signals_df in the caller has the equity column for plotting
     signals_df['equity'] = df['equity']
     signals_df['cumulative_market_return'] = df['cumulative_market_return']
     return metrics
@@ -1302,7 +1309,7 @@ def plot_backtest_results(signals_df, strategy_name='Strategy', initial_capital=
     """
     return chart_html
 
-def extract_trades(signals_df, commission=0.001, initial_capital=10000.0): # initial_capital not used here, but kept for signature consistency if desired
+def extract_trades(signals_df, commission=0.001, initial_capital=10000.0):
     """
     Extract individual trades from signals DataFrame.
     Args:
@@ -1316,29 +1323,27 @@ def extract_trades(signals_df, commission=0.001, initial_capital=10000.0): # ini
     position = 0
     entry_price = 0.0
     entry_date_val = None
-
     required_trade_cols = ['date', 'close', 'signal']
     if not all(col in df.columns for col in required_trade_cols):
         logger.error("Missing required columns for trade extraction.")
         return []
-
     for i in range(len(df)):
         current_signal = df.iloc[i]['signal']
         current_price = df.iloc[i]['close']
-        current_date = df.iloc[i]['date'] # Assuming date is already pd.Timestamp or datetime object
-
+        current_date = df.iloc[i]['date']
         if current_signal == 'buy' and position == 0:
             position = 1
             entry_price = current_price * (1 + commission)
             entry_date_val = current_date
+            logger.info(f"[TRADES] Entry: {entry_date_val} at {entry_price:.2f} (raw: {current_price:.2f})")
         elif current_signal == 'sell' and position == 1:
             position = 0
             exit_price = current_price * (1 - commission)
             exit_date_val = current_date
-            
-            if entry_price != 0: # Ensure there was an entry to calculate profit
+            if entry_price != 0:
                 profit_val = exit_price - entry_price
                 profit_pct_val = (profit_val / entry_price) * 100
+                logger.info(f"[TRADES] Exit: {exit_date_val} at {exit_price:.2f} (raw: {current_price:.2f}) | Profit: {profit_val:.2f} | Profit %: {profit_pct_val:.2f}")
                 trades.append({
                     'entry_date': entry_date_val.strftime('%Y-%m-%d') if hasattr(entry_date_val, 'strftime') else str(entry_date_val),
                     'exit_date': exit_date_val.strftime('%Y-%m-%d') if hasattr(exit_date_val, 'strftime') else str(exit_date_val),
@@ -1348,9 +1353,8 @@ def extract_trades(signals_df, commission=0.001, initial_capital=10000.0): # ini
                     'profit_pct': profit_pct_val,
                     'result': 'win' if profit_val > 0 else 'loss'
                 })
-            entry_price = 0.0 # Reset entry price
+            entry_price = 0.0
             entry_date_val = None
-           
     return trades
 
 # Run the app

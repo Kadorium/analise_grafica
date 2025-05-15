@@ -48,6 +48,7 @@ backtesting/             # Backtesting implementation
 data/                    # Data management
 └── sample/              # Sample datasets
 indicators/              # Technical indicators implementation
+└── indicator_utils.py   # Contains indicator combination logic and utility functions for indicator processing. Includes `normalize_signals_column(df)` utility to standardize signal columns in strategies.
 optimization/            # Strategy optimization modules
 strategies/              # Trading strategy implementations
 frontend/                # UI files
@@ -383,3 +384,7 @@ Changes to this document should include:
 - Last modified date
 - Summary of changes
 - Author or source of changes (if applicable)
+
+## Strategy Pattern
+
+Each strategy class (in `strategies/`) should implement a `generate_signals(data: pd.DataFrame) -> pd.DataFrame` method. The returned DataFrame must include a normalized 'signal' column using `normalize_signals_column` from `indicators/indicator_utils.py`.

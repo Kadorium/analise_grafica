@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from indicators.momentum import relative_strength_index, detect_overbought_oversold
+from indicators.indicator_utils import normalize_signals_column
 
 class MeanReversionStrategy:
     """
@@ -109,6 +110,8 @@ class MeanReversionStrategy:
             
         result['position'] = positions
         
+        # Use the shared normalization utility for signals
+        result = normalize_signals_column(result)
         return result
     
     def backtest(self, data, initial_capital=10000.0, commission=0.001):
