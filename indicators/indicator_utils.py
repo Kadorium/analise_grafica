@@ -5,6 +5,8 @@ from matplotlib.dates import DateFormatter
 import io
 import base64
 import logging
+import os
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -223,7 +225,7 @@ def combine_indicators(data, indicators_config=None):
     
     return result
 
-def plot_price_with_indicators(data, plot_config=None):
+def plot_price_with_indicators(data, plot_config=None, debug_save_path=None):
     """
     Create a plot of price with selected indicators.
     
@@ -237,6 +239,7 @@ def plot_price_with_indicators(data, plot_config=None):
                 'start_date': '2020-01-01',
                 'end_date': '2021-01-01'
             }
+        debug_save_path (str, optional): If provided, saves the chart to this path for debugging.
     
     Returns:
         str: Base64 encoded image.
@@ -283,13 +286,33 @@ def plot_price_with_indicators(data, plot_config=None):
         adx_indicators = [ind for ind in subplot_indicators if ind in ['adx', 'plus_di', 'minus_di']]
         non_adx_indicators = [ind for ind in subplot_indicators if ind not in adx_indicators]
         
-        # If any ADX indicator is selected, we'll plot all three (adx, plus_di, minus_di) in a single subplot
-        n_adx_subplots = 1 if adx_indicators else 0
-        n_subplots = 1 + len(non_adx_indicators) + n_adx_subplots
+        num_indicator_subplots = len(non_adx_indicators) + (1 if adx_indicators else 0)
+
+        # Define base heights and width for the plot in inches, configurable via plot_config
+        figure_width_inches = plot_config.get('figure_width_inches', 14.0)
+        main_plot_base_height_inches = plot_config.get('main_plot_base_height_inches', 9.0)
+        indicator_subplot_height_inches = plot_config.get('indicator_subplot_height_inches', 3.0)
+        min_total_figure_height_inches = plot_config.get('min_total_figure_height_inches', 10.0)
+        
+        # Calculate total figure height
+        total_figure_height_inches = main_plot_base_height_inches + (num_indicator_subplots * indicator_subplot_height_inches)
+        total_figure_height_inches = max(total_figure_height_inches, min_total_figure_height_inches)
+        
+        # Total number of gridspec rows (main plot + indicator subplots)
+        n_gridspec_rows = 1 + num_indicator_subplots
         
         # Create figure and gridspec
-        fig = plt.figure(figsize=(12, 8))
-        gs = fig.add_gridspec(n_subplots, 1, height_ratios=[3] + [1] * (n_subplots - 1))
+        fig = plt.figure(figsize=(figure_width_inches, total_figure_height_inches))
+        
+        if n_gridspec_rows == 1:
+            # Only main plot, no separate indicator subplots
+            gs = fig.add_gridspec(1, 1)
+        else:
+            # Define height ratios: main plot gets more space
+            main_plot_ratio = plot_config.get('main_plot_ratio', 3) 
+            indicator_plot_ratio = plot_config.get('indicator_plot_ratio', 1)
+            height_ratios = [main_plot_ratio] + [indicator_plot_ratio] * num_indicator_subplots
+            gs = fig.add_gridspec(n_gridspec_rows, 1, height_ratios=height_ratios)
         
         # Main price plot - Create twin axis for indicators
         ax_main = fig.add_subplot(gs[0])
@@ -499,7 +522,7 @@ def plot_price_with_indicators(data, plot_config=None):
         ax_main.xaxis.set_major_formatter(date_format)
         
         # Remove main x-axis labels to avoid overlap
-        if n_subplots > 1:
+        if n_gridspec_rows > 1:
             plt.setp(ax_main.get_xticklabels(), visible=False)
         
         # Add title and legend
@@ -509,17 +532,39 @@ def plot_price_with_indicators(data, plot_config=None):
         
         plt.tight_layout()
         
+        # --- Save filtered data and chart to results/indicators/ folder ---
+        save_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'results', 'indicators'))
+        os.makedirs(save_dir, exist_ok=True)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        main_inds = '_'.join(plot_config.get('main_indicators', []))[:40].replace(',', '_').replace(' ', '')
+        base_name = f"indicators_{main_inds}_{timestamp}"
+        # Save filtered data as CSV with semicolon separator
+        csv_path = os.path.join(save_dir, f"{base_name}.csv")
+        temp_data.to_csv(csv_path, index=False, sep=';')
+        # Save chart as PNG
+        chart_path = os.path.join(save_dir, f"{base_name}.png")
+        plt.savefig(chart_path, format='png', dpi=100)
+        # Save a TXT log file with main console information
+        log_path = os.path.join(save_dir, f"{base_name}.txt")
+        with open(log_path, 'w', encoding='utf-8') as logf:
+            logf.write(f"Plot Config:\n{plot_config}\n\n")
+            logf.write(f"CSV Path: {csv_path}\n")
+            logf.write(f"Chart Path: {chart_path}\n")
+            logf.write(f"Data shape: {temp_data.shape}\n")
+            logf.write(f"Columns: {list(temp_data.columns)}\n")
+            logf.write(f"Timestamp: {timestamp}\n")
+        
         # Convert plot to base64 encoded string
         buffer = io.BytesIO()
-        plt.savefig(r'C:\\Users\\ricar\\Desktop\\Python Works\\Analise_Grafica\\test_chart.png', format='png', dpi=100)
+        plt.savefig(buffer, format='png', dpi=100)
+        if debug_save_path:
+            plt.savefig(debug_save_path, format='png', dpi=100)
+            logger.info(f"Saved debug chart to {debug_save_path}")
         buffer.seek(0)
         image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
         plt.close()
         
-        logger.info("Saved test_chart.png to project root.")
-        
         return image_base64
-        
     except Exception as e:
         print(f"Error plotting indicators: {e}")
         # Create a simple error plot

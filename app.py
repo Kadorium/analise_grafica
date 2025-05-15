@@ -609,7 +609,11 @@ async def add_indicators(indicator_config: IndicatorConfig):
 
 @app.post("/api/plot-indicators")
 @endpoint_wrapper("POST /api/plot-indicators")
-async def plot_indicators(plot_config: PlotConfig):
+async def plot_indicators(plot_config: PlotConfig, request: Request = None):
+    """
+    Plot price and selected indicators, returning a base64 image for the frontend. 
+    No chart is saved to disk unless debug mode is enabled.
+    """
     global PROCESSED_DATA
     
     log_endpoint("POST /api/plot-indicators - DETAILS", 
@@ -623,7 +627,11 @@ async def plot_indicators(plot_config: PlotConfig):
         )
     
     plot_dict = plot_config.dict(exclude_none=True)
-    image_base64 = plot_price_with_indicators(PROCESSED_DATA, plot_dict)
+    # Only save debug chart if DEBUG_SAVE_CHART env var is set
+    debug_save_path = None
+    if os.environ.get("DEBUG_SAVE_CHART", "0") == "1":
+        debug_save_path = os.path.join(os.getcwd(), "test_chart.png")
+    image_base64 = plot_price_with_indicators(PROCESSED_DATA, plot_dict, debug_save_path=debug_save_path)
     
     log_endpoint("POST /api/plot-indicators - SUMMARY", 
                 plot_generated=True,

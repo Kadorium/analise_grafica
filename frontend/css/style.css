@@ -323,4 +323,17 @@ select[multiple] {
     .sidebar .nav-item {
         display: inline-block;
     }
+}
+
+/* Styles specifically for the Indicators Tab Chart */
+#indicators-section #chart-container {
+    width: 100%; /* Ensure it takes full width */
+    height: auto; /* Adjust height based on content (the chart image) */
+    overflow: hidden; /* Prevent overflow issues if image is unexpectedly large */
+}
+
+#indicators-section #chart-container img {
+    max-width: 100%;
+    height: auto; /* Ensure image scales proportionally and dictates container height */
+    display: block; /* Remove extra space below image */
 } 
