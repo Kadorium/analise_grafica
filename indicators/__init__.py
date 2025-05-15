@@ -34,6 +34,54 @@ from indicators.indicator_utils import (
     create_indicator_summary
 )
 
+from indicators.adx import (
+    average_directional_index,
+    add_adx_indicator
+)
+
+from indicators.supertrend import (
+    supertrend,
+    add_supertrend_indicator
+)
+
+from indicators.cci import (
+    commodity_channel_index,
+    add_cci_indicator
+)
+
+from indicators.williams_r import (
+    williams_r,
+    add_williams_r_indicator
+)
+
+from indicators.chaikin_money_flow import (
+    chaikin_money_flow,
+    add_chaikin_money_flow_indicator
+)
+
+from indicators.donchian_channels import (
+    donchian_channels,
+    add_donchian_channels_indicator
+)
+
+from indicators.keltner_channels import (
+    keltner_channels,
+    add_keltner_channels_indicator
+)
+
+from indicators.accumulation_distribution import (
+    accumulation_distribution_line,
+    add_accumulation_distribution_indicator
+)
+
+from indicators.candlestick_patterns import (
+    detect_doji,
+    detect_engulfing,
+    detect_hammer,
+    detect_morning_star,
+    add_candlestick_patterns
+)
+
 __all__ = [
     # Moving Averages
     'simple_moving_average',
@@ -64,5 +112,44 @@ __all__ = [
     # Utils
     'combine_indicators',
     'plot_price_with_indicators',
-    'create_indicator_summary'
+    'create_indicator_summary',
+    
+    # ADX
+    'average_directional_index',
+    'add_adx_indicator',
+    
+    # SuperTrend
+    'supertrend',
+    'add_supertrend_indicator',
+    
+    # CCI
+    'commodity_channel_index',
+    'add_cci_indicator',
+    
+    # Williams %R
+    'williams_r',
+    'add_williams_r_indicator',
+    
+    # Chaikin Money Flow
+    'chaikin_money_flow',
+    'add_chaikin_money_flow_indicator',
+    
+    # Donchian Channels
+    'donchian_channels',
+    'add_donchian_channels_indicator',
+    
+    # Keltner Channels
+    'keltner_channels',
+    'add_keltner_channels_indicator',
+    
+    # Accumulation Distribution
+    'accumulation_distribution_line',
+    'add_accumulation_distribution_indicator',
+    
+    # Candlestick Patterns
+    'detect_doji',
+    'detect_engulfing',
+    'detect_hammer',
+    'detect_morning_star',
+    'add_candlestick_patterns'
 ] 

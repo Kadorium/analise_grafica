@@ -1778,8 +1778,533 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set up optimization parameters
     setupOptimizationParameters();
     
+<<<<<<< HEAD
     // Initialize seasonality controls
     initializeSeasonalityControls();
+=======
+    // Add event listener for the optimization form
+    const optimizationForm = document.getElementById('optimization-form');
+    if (optimizationForm) {
+        optimizationForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            // Set up optimization parameters based on the form values
+            setupOptimizationParameters();
+            
+            // Directly call runOptimization instead of looking for the button
+            runOptimization();
+        });
+    }
+    
+    // Add event listener for the indicators form
+    const indicatorsForm = document.getElementById('indicators-form');
+    if (indicatorsForm) {
+        indicatorsForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            // Ensure data is still processed
+            if (!dataProcessed) {
+                showError('Please upload and process data first.');
+                activateTab(dataTab, dataSection, 'Data Upload');
+                return;
+            }
+            
+            // Get selected indicators
+            const indicatorConfig = {};
+            
+            // Moving Averages (SMA)
+            const smaCheckbox = document.getElementById('sma-checkbox');
+            if (smaCheckbox && smaCheckbox.checked) {
+                if (!indicatorConfig.moving_averages) {
+                    indicatorConfig.moving_averages = {
+                        types: []
+                    };
+                }
+                
+                indicatorConfig.moving_averages.types.push('sma');
+                
+                // Extract SMA periods (comma separated values)
+                const smaPeriodsStr = document.getElementById('sma-periods').value;
+                const smaPeriods = smaPeriodsStr.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p) && p > 0);
+                indicatorConfig.moving_averages.sma_periods = smaPeriods;
+                
+                console.log("Adding SMA with periods:", smaPeriods);
+            }
+            
+            // Moving Averages (EMA)
+            const emaCheckbox = document.getElementById('ema-checkbox');
+            if (emaCheckbox && emaCheckbox.checked) {
+                if (!indicatorConfig.moving_averages) {
+                    indicatorConfig.moving_averages = {
+                        types: []
+                    };
+                }
+                
+                indicatorConfig.moving_averages.types.push('ema');
+                
+                // Extract EMA periods (comma separated values)
+                const emaPeriodsStr = document.getElementById('ema-periods').value;
+                const emaPeriods = emaPeriodsStr.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p) && p > 0);
+                indicatorConfig.moving_averages.ema_periods = emaPeriods;
+                
+                console.log("Adding EMA with periods:", emaPeriods);
+            }
+            
+            // RSI
+            const rsiCheckbox = document.getElementById('rsi-checkbox');
+            if (rsiCheckbox && rsiCheckbox.checked) {
+                const rsiPeriod = document.getElementById('rsi-period');
+                indicatorConfig.rsi = {
+                    period: rsiPeriod ? parseInt(rsiPeriod.value) : 14
+                };
+                console.log("Adding RSI with period:", indicatorConfig.rsi.period);
+            }
+            
+            // MACD
+            const macdCheckbox = document.getElementById('macd-checkbox');
+            if (macdCheckbox && macdCheckbox.checked) {
+                const macdFast = document.getElementById('macd-fast');
+                const macdSlow = document.getElementById('macd-slow');
+                const macdSignal = document.getElementById('macd-signal');
+                indicatorConfig.macd = {
+                    fast_period: macdFast ? parseInt(macdFast.value) : 12,
+                    slow_period: macdSlow ? parseInt(macdSlow.value) : 26,
+                    signal_period: macdSignal ? parseInt(macdSignal.value) : 9
+                };
+                console.log("Adding MACD with parameters:", indicatorConfig.macd);
+            }
+            
+            // Bollinger Bands
+            const bbandsCheckbox = document.getElementById('bbands-checkbox');
+            if (bbandsCheckbox && bbandsCheckbox.checked) {
+                const bbandsPeriod = document.getElementById('bbands-period');
+                const bbandsStd = document.getElementById('bbands-std');
+                indicatorConfig.bollinger_bands = {
+                    window: bbandsPeriod ? parseInt(bbandsPeriod.value) : 20,
+                    num_std: bbandsStd ? parseFloat(bbandsStd.value) : 2.0
+                };
+                console.log("Adding Bollinger Bands with parameters:", indicatorConfig.bollinger_bands);
+            }
+            
+            // Stochastic
+            const stochCheckbox = document.getElementById('stoch-checkbox');
+            if (stochCheckbox && stochCheckbox.checked) {
+                const stochK = document.getElementById('stoch-k');
+                const stochD = document.getElementById('stoch-d');
+                const stochSlowing = document.getElementById('stoch-slowing');
+                indicatorConfig.stochastic = {
+                    k_period: stochK ? parseInt(stochK.value) : 14,
+                    d_period: stochD ? parseInt(stochD.value) : 3,
+                    slowing: stochSlowing ? parseInt(stochSlowing.value) : 3
+                };
+                console.log("Adding Stochastic with parameters:", indicatorConfig.stochastic);
+            }
+            
+            // Volume
+            const volumeCheckbox = document.getElementById('volume-checkbox');
+            if (volumeCheckbox && volumeCheckbox.checked) {
+                indicatorConfig.volume = true;
+                console.log("Adding Volume indicators");
+            }
+            
+            // ATR
+            const atrCheckbox = document.getElementById('atr-checkbox');
+            if (atrCheckbox && atrCheckbox.checked) {
+                const atrPeriod = document.getElementById('atr-period');
+                indicatorConfig.atr = {
+                    period: atrPeriod ? parseInt(atrPeriod.value) : 14
+                };
+                console.log("Adding ATR with period:", indicatorConfig.atr.period);
+            }
+            
+            // ADX
+            const adxCheckbox = document.getElementById('adx-checkbox');
+            if (adxCheckbox && adxCheckbox.checked) {
+                const adxPeriod = document.getElementById('adx-period');
+                indicatorConfig.adx = {
+                    period: adxPeriod ? parseInt(adxPeriod.value) : 14
+                };
+                console.log("Adding ADX with period:", indicatorConfig.adx.period);
+            }
+            
+            // SuperTrend
+            const supertrendCheckbox = document.getElementById('supertrend-checkbox');
+            if (supertrendCheckbox && supertrendCheckbox.checked) {
+                const atrPeriod = document.getElementById('supertrend-atr-period');
+                const multiplier = document.getElementById('supertrend-multiplier');
+                indicatorConfig.supertrend = {
+                    atr_period: atrPeriod ? parseInt(atrPeriod.value) : 10,
+                    multiplier: multiplier ? parseFloat(multiplier.value) : 3.0
+                };
+                console.log("Adding SuperTrend with parameters:", indicatorConfig.supertrend);
+            }
+            
+            // CCI (Commodity Channel Index)
+            const cciCheckbox = document.getElementById('cci-checkbox');
+            if (cciCheckbox && cciCheckbox.checked) {
+                const cciPeriod = document.getElementById('cci-period');
+                indicatorConfig.cci = {
+                    period: cciPeriod ? parseInt(cciPeriod.value) : 20
+                };
+                console.log("Adding CCI with period:", indicatorConfig.cci.period);
+            }
+            
+            // Williams %R
+            const williamsRCheckbox = document.getElementById('williams-r-checkbox');
+            if (williamsRCheckbox && williamsRCheckbox.checked) {
+                const williamsRPeriod = document.getElementById('williams-r-period');
+                indicatorConfig.williams_r = {
+                    period: williamsRPeriod ? parseInt(williamsRPeriod.value) : 14
+                };
+                console.log("Adding Williams %R with period:", indicatorConfig.williams_r.period);
+            }
+            
+            // Chaikin Money Flow
+            const cmfCheckbox = document.getElementById('cmf-checkbox');
+            if (cmfCheckbox && cmfCheckbox.checked) {
+                const cmfPeriod = document.getElementById('cmf-period');
+                indicatorConfig.cmf = {
+                    period: cmfPeriod ? parseInt(cmfPeriod.value) : 20
+                };
+                console.log("Adding Chaikin Money Flow with period:", indicatorConfig.cmf.period);
+            }
+            
+            // Accumulation Distribution Line
+            const adLineCheckbox = document.getElementById('ad-line-checkbox');
+            if (adLineCheckbox && adLineCheckbox.checked) {
+                indicatorConfig.ad_line = true;
+                console.log("Adding Accumulation Distribution Line");
+            }
+            
+            // Donchian Channels
+            const donchianCheckbox = document.getElementById('donchian-checkbox');
+            if (donchianCheckbox && donchianCheckbox.checked) {
+                const donchianPeriod = document.getElementById('donchian-period');
+                indicatorConfig.donchian_channels = {
+                    period: donchianPeriod ? parseInt(donchianPeriod.value) : 20
+                };
+                console.log("Adding Donchian Channels with period:", indicatorConfig.donchian_channels.period);
+            }
+            
+            // Keltner Channels
+            const keltnerCheckbox = document.getElementById('keltner-checkbox');
+            if (keltnerCheckbox && keltnerCheckbox.checked) {
+                const emaPeriod = document.getElementById('keltner-ema-period');
+                const atrPeriod = document.getElementById('keltner-atr-period');
+                const multiplier = document.getElementById('keltner-multiplier');
+                indicatorConfig.keltner_channels = {
+                    ema_period: emaPeriod ? parseInt(emaPeriod.value) : 20,
+                    atr_period: atrPeriod ? parseInt(atrPeriod.value) : 10,
+                    multiplier: multiplier ? parseFloat(multiplier.value) : 1.5
+                };
+                console.log("Adding Keltner Channels with parameters:", indicatorConfig.keltner_channels);
+            }
+            
+            // Candlestick Patterns
+            const candlestickPatternsCheckbox = document.getElementById('candlestick-patterns-checkbox');
+            if (candlestickPatternsCheckbox && candlestickPatternsCheckbox.checked) {
+                indicatorConfig.candlestick_patterns = true;
+                console.log("Adding Candlestick Patterns");
+            } else {
+                // Check for individual patterns
+                const dojiCheckbox = document.getElementById('doji-checkbox');
+                const engulfingCheckbox = document.getElementById('engulfing-checkbox');
+                const hammerCheckbox = document.getElementById('hammer-checkbox');
+                const morningStarCheckbox = document.getElementById('morning-star-checkbox');
+                
+                if ((dojiCheckbox && dojiCheckbox.checked) ||
+                    (engulfingCheckbox && engulfingCheckbox.checked) ||
+                    (hammerCheckbox && hammerCheckbox.checked) ||
+                    (morningStarCheckbox && morningStarCheckbox.checked)) {
+                    
+                    indicatorConfig.candlestick_patterns = true;
+                    console.log("Adding Selected Candlestick Patterns");
+                }
+            }
+            
+            // Check if any indicator is selected
+            if (Object.keys(indicatorConfig).length === 0) {
+                showError('Please select at least one indicator to add.');
+                return;
+            }
+            
+            // Disable the add indicators button
+            const addIndicatorsBtn = document.getElementById('add-indicators-btn');
+            addIndicatorsBtn.disabled = true;
+            addIndicatorsBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding...';
+            
+            console.log("Sending indicator config:", JSON.stringify(indicatorConfig));
+            
+            // Call the API
+            fetch(API_ENDPOINTS.ADD_INDICATORS, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(indicatorConfig)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    throw new Error(data.message || 'Error adding indicators');
+                }
+                
+                console.log("API response:", data);
+                
+                // IMPORTANT: Replace the indicators list entirely rather than merging
+                // This ensures previously checked indicators that are now unchecked don't persist
+                availableIndicators = data.available_indicators || [];
+                console.log("Updated indicators list:", availableIndicators);
+                
+                // Update the indicator selection dropdowns
+                updateIndicatorDropdowns();
+                
+                // Auto-select all available indicators in main and subplot lists
+                const mainIndicatorsSelect = document.getElementById('main-indicators');
+                const subplotIndicatorsSelect = document.getElementById('subplot-indicators');
+                
+                if (mainIndicatorsSelect) {
+                    for (let i = 0; i < mainIndicatorsSelect.options.length; i++) {
+                        mainIndicatorsSelect.options[i].selected = true;
+                    }
+                }
+                
+                if (subplotIndicatorsSelect) {
+                    for (let i = 0; i < subplotIndicatorsSelect.options.length; i++) {
+                        subplotIndicatorsSelect.options[i].selected = true;
+                    }
+                }
+                
+                // Update checkboxes to reflect available indicators
+                updateCheckboxesFromAvailableIndicators();
+                
+                // Show success message
+                showSuccessMessage('Indicators added successfully!');
+                
+                // Ensure dataProcessed flag remains true
+                dataProcessed = true;
+                sessionStorage.setItem('dataProcessed', 'true');
+            })
+            .catch(error => {
+                console.error('Error adding indicators:', error);
+                showError('Error adding indicators: ' + error.message);
+            })
+            .finally(() => {
+                // Re-enable the button
+                if (addIndicatorsBtn) {
+                    addIndicatorsBtn.disabled = false;
+                    addIndicatorsBtn.textContent = 'Add Indicators';
+                }
+            });
+        });
+    }
+    
+    // Add event listener for the chart form
+    const chartForm = document.getElementById('chart-form');
+    if (chartForm) {
+        chartForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            // Ensure data is still processed
+            if (!dataProcessed) {
+                showError('Please upload and process data first.');
+                activateTab(dataTab, dataSection, 'Data Upload');
+                return;
+            }
+            
+            // Get all indicators from the respective lists
+            const mainIndicatorsSelect = document.getElementById('main-indicators');
+            const subplotIndicatorsSelect = document.getElementById('subplot-indicators');
+            
+            // Check if any indicators are explicitly selected
+            const selectedMainIndicators = Array.from(mainIndicatorsSelect.selectedOptions).map(opt => opt.value);
+            const selectedSubplotIndicators = Array.from(subplotIndicatorsSelect.selectedOptions).map(opt => opt.value);
+            
+            // If nothing is selected, use all options
+            let mainIndicators = selectedMainIndicators.length > 0 ? 
+                                selectedMainIndicators : 
+                                Array.from(mainIndicatorsSelect.options).map(opt => opt.value);
+                                
+            let subplotIndicators = selectedSubplotIndicators.length > 0 ? 
+                                   selectedSubplotIndicators : 
+                                   Array.from(subplotIndicatorsSelect.options).map(opt => opt.value);
+            
+            console.log("Using main indicators:", mainIndicators);
+            console.log("Using subplot indicators:", subplotIndicators);
+            
+            // Get date range
+            const startDate = document.getElementById('chart-start-date').value;
+            const endDate = document.getElementById('chart-end-date').value;
+            
+            // Prepare request data
+            const plotConfig = {
+                main_indicators: mainIndicators,
+                subplot_indicators: subplotIndicators,
+                title: 'Price Chart with Selected Indicators',
+                start_date: startDate,
+                end_date: endDate
+            };
+            
+            // Disable the plot button
+            const plotChartBtn = document.getElementById('plot-chart-btn');
+            plotChartBtn.disabled = true;
+            plotChartBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Plotting...';
+            
+            // Call the API
+            fetch(API_ENDPOINTS.PLOT_INDICATORS, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(plotConfig)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.message || `Error plotting chart (${response.status})`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Check if the response indicates success, regardless of the message
+                if (!data.success && data.message !== 'Plot created successfully') {
+                    throw new Error(data.message || 'Error plotting chart');
+                }
+                
+                // Display the chart
+                const chartImage = document.getElementById('chart-image');
+                if (data.chart_image) {
+                    chartImage.src = `data:image/png;base64,${data.chart_image}`;
+                    chartImage.style.display = 'block';
+                } else {
+                    showError('No chart image data returned from server');
+                }
+                
+                // Display indicator summary if available
+                if (data.indicator_summary) {
+                    const indicatorSummary = document.getElementById('indicator-summary');
+                    indicatorSummary.innerHTML = data.indicator_summary;
+                }
+                
+                // Ensure dataProcessed flag remains true
+                dataProcessed = true;
+                sessionStorage.setItem('dataProcessed', 'true');
+            })
+            .catch(error => {
+                // Don't log or show "Plot created successfully" as an error
+                if (error.message !== 'Plot created successfully') {
+                    console.error('Error plotting chart:', error);
+                    showError('Error plotting chart: ' + error.message);
+                }
+            })
+            .finally(() => {
+                // Re-enable the button
+                if (plotChartBtn) {
+                    plotChartBtn.disabled = false;
+                    plotChartBtn.textContent = 'Plot Chart';
+                }
+            });
+        });
+    }
+    
+    // Add event listener for the strategy comparison form
+    const compareStrategiesForm = document.getElementById('compare-strategies-form');
+    if (compareStrategiesForm) {
+        compareStrategiesForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            // Ensure data is still processed
+            if (!dataProcessed) {
+                showError('Please upload and process data first.');
+                activateTab(dataTab, dataSection, 'Data Upload');
+                return;
+            }
+            
+            // Get selected strategies to compare using the value of the checkboxes
+            const selectedStrategies = Array.from(document.querySelectorAll('#compare-strategies-form input[type="checkbox"]:checked'))
+                .map(checkbox => checkbox.value);
+                
+            if (selectedStrategies.length === 0) {
+                showNotification('Please select at least one strategy to compare', 'warning');
+                return;
+            }
+            
+            // Compare strategies
+            compareStrategies();
+        });
+    }
+    
+    // Add event listener for the update strategy button
+    const updateStrategyBtn = document.getElementById('update-strategy-btn');
+    if (updateStrategyBtn) {
+        updateStrategyBtn.addEventListener('click', () => {
+            // Ensure data is still processed
+            if (!dataProcessed) {
+                showError('Please upload and process data first.');
+                activateTab(dataTab, dataSection, 'Data Upload');
+                return;
+            }
+            
+            // Get the strategy type and parameters
+            const strategyType = document.getElementById('strategy-type').value;
+            
+            // Check if parameters have been loaded
+            if (!document.getElementById('strategy-parameters').children.length) {
+                showError('Strategy parameters not loaded. Please wait or try again.');
+                return;
+            }
+            
+            try {
+                // Different parameters based on strategy type
+                let parameters = {};
+                
+                if (strategyType === 'trend_following') {
+                    parameters = {
+                        fast_ma_type: document.getElementById('fast-ma-type').value,
+                        fast_ma_period: parseInt(document.getElementById('fast-ma-period').value),
+                        slow_ma_type: document.getElementById('slow-ma-type').value,
+                        slow_ma_period: parseInt(document.getElementById('slow-ma-period').value)
+                    };
+                } else if (strategyType === 'mean_reversion') {
+                    parameters = {
+                        rsi_period: parseInt(document.getElementById('rsi-period').value),
+                        oversold: parseInt(document.getElementById('oversold').value),
+                        overbought: parseInt(document.getElementById('overbought').value),
+                        exit_middle: parseInt(document.getElementById('exit-middle').value)
+                    };
+                } else if (strategyType === 'breakout') {
+                    parameters = {
+                        lookback_period: parseInt(document.getElementById('lookback-period').value),
+                        volume_threshold: parseFloat(document.getElementById('volume-threshold').value),
+                        price_threshold: parseFloat(document.getElementById('price-threshold').value) / 100, // Convert from % to decimal
+                        volatility_exit: document.getElementById('volatility-exit').checked,
+                        atr_multiplier: parseFloat(document.getElementById('atr-multiplier').value),
+                        use_bbands: document.getElementById('use-bbands').checked
+                    };
+                }
+                
+                // Update current configuration
+                if (!currentConfig.strategies) {
+                    currentConfig.strategies = {};
+                }
+                
+                currentConfig.strategies[strategyType] = parameters;
+                
+                // Show success message
+                showSuccessMessage(`${strategyType.replace('_', ' ')} strategy parameters updated.`);
+                
+                // Ensure dataProcessed flag remains true
+                dataProcessed = true;
+                sessionStorage.setItem('dataProcessed', 'true');
+                
+            } catch (error) {
+                console.error('Error updating strategy parameters:', error);
+                showError('Error updating strategy parameters: ' + error.message);
+            }
+        });
+    }
+>>>>>>> fix-indicator-issues
     
     // Initialize indicator controls
     initializeIndicatorControls();
@@ -1820,6 +2345,13 @@ function updateIndicatorDropdowns() {
     const mainIndicatorsSelect = document.getElementById('main-indicators');
     const subplotIndicatorsSelect = document.getElementById('subplot-indicators');
     
+    // Save current selections before clearing
+    const currentMainSelections = Array.from(mainIndicatorsSelect.options).map(opt => opt.value);
+    const currentSubplotSelections = Array.from(subplotIndicatorsSelect.options).map(opt => opt.value);
+    
+    console.log("Current main indicators:", currentMainSelections);
+    console.log("Current subplot indicators:", currentSubplotSelections);
+    
     // Clear existing options
     mainIndicatorsSelect.innerHTML = '';
     subplotIndicatorsSelect.innerHTML = '';
@@ -1827,8 +2359,17 @@ function updateIndicatorDropdowns() {
     console.log("Updating indicator dropdowns with available indicators:", availableIndicators);
     
     // Categorize indicators based on type
-    const mainIndicatorTypes = ['sma_', 'ema_', 'bb_', 'typical_price'];
-    const subplotIndicatorTypes = ['rsi', 'macd', 'stoch', 'obv', 'vpt', 'volume_', 'atr'];
+    const mainIndicatorTypes = [
+        'sma_', 'ema_', 'bb_', 'typical_price', 
+        'supertrend', 'donchian_', 'keltner_',
+        'bullish_engulfing', 'bearish_engulfing', 'doji', 'hammer', 'inverted_hammer',
+        'morning_star', 'evening_star'
+    ];
+    
+    const subplotIndicatorTypes = [
+        'rsi', 'macd', 'stoch', 'obv', 'vpt', 'volume_', 'atr',
+        'adx', 'plus_di', 'minus_di', 'cci', 'williams_r', 'cmf', 'ad_line'
+    ];
     
     // Exclude columns that are not indicators
     const excludedItems = ['ticker', 'index'];
@@ -1844,18 +2385,27 @@ function updateIndicatorDropdowns() {
     
     console.log("Filtered indicators (excluding non-indicators):", filteredIndicators);
     
-    const categorizedMain = [];
-    const categorizedSubplot = [];
+    // Find new indicators that weren't in any select before
+    const allPreviousSelections = [...currentMainSelections, ...currentSubplotSelections];
+    const newIndicators = filteredIndicators.filter(ind => !allPreviousSelections.includes(ind));
     
-    // Initialize typical_price for price display
-    const hasTypicalPrice = filteredIndicators.some(ind => ind === 'typical_price');
+    console.log("New indicators to categorize:", newIndicators);
+    
+    // Initialize separate arrays for main and subplot indicators
+    let categorizedMain = [...currentMainSelections];
+    let categorizedSubplot = [...currentSubplotSelections];
+    
+    // Initialize typical_price for price display if not already present
+    const hasTypicalPrice = categorizedMain.includes('typical_price') || 
+                           filteredIndicators.some(ind => ind === 'typical_price');
     if (!hasTypicalPrice) {
         categorizedMain.push('typical_price');
     }
     
-    filteredIndicators.forEach(indicator => {
+    // Categorize only new indicators
+    newIndicators.forEach(indicator => {
         // Decide which dropdown this indicator belongs to
-        let isMainIndicator = mainIndicatorTypes.some(prefix => indicator.startsWith(prefix));
+        let isMainIndicator = mainIndicatorTypes.some(prefix => indicator.startsWith(prefix) || indicator === prefix);
         let isSubplotIndicator = subplotIndicatorTypes.some(prefix => indicator.startsWith(prefix) || indicator === prefix);
         
         if (isMainIndicator) {
@@ -1868,22 +2418,32 @@ function updateIndicatorDropdowns() {
         }
     });
     
+    // Remove duplicates
+    categorizedMain = [...new Set(categorizedMain)];
+    categorizedSubplot = [...new Set(categorizedSubplot)];
+    
     console.log("Categorized main indicators:", categorizedMain);
     console.log("Categorized subplot indicators:", categorizedSubplot);
     
     // Add categorized indicators to their respective dropdowns
     categorizedMain.forEach(indicator => {
-        const option = document.createElement('option');
-        option.value = indicator;
-        option.textContent = indicator.replace(/_/g, ' ');
-        mainIndicatorsSelect.appendChild(option);
+        // Only add if the indicator exists in filtered indicators or was already selected
+        if (filteredIndicators.includes(indicator) || currentMainSelections.includes(indicator)) {
+            const option = document.createElement('option');
+            option.value = indicator;
+            option.textContent = indicator.replace(/_/g, ' ');
+            mainIndicatorsSelect.appendChild(option);
+        }
     });
     
     categorizedSubplot.forEach(indicator => {
-        const option = document.createElement('option');
-        option.value = indicator;
-        option.textContent = indicator.replace(/_/g, ' ');
-        subplotIndicatorsSelect.appendChild(option);
+        // Only add if the indicator exists in filtered indicators or was already selected
+        if (filteredIndicators.includes(indicator) || currentSubplotSelections.includes(indicator)) {
+            const option = document.createElement('option');
+            option.value = indicator;
+            option.textContent = indicator.replace(/_/g, ' ');
+            subplotIndicatorsSelect.appendChild(option);
+        }
     });
 }
 
@@ -2426,6 +2986,7 @@ async function updateStrategy() {
         };
     }
     
+<<<<<<< HEAD
     try {
         const updateStrategyBtn = document.getElementById('update-strategy-btn');
         updateStrategyBtn.disabled = true;
@@ -2460,3 +3021,216 @@ async function updateStrategy() {
         updateStrategyBtn.textContent = 'Update Strategy';
     }
 }
+=======
+    // ... existing code ...
+});
+
+// ... existing code ...
+
+// On DOM content loaded - initialize event listeners and check data status
+document.addEventListener('DOMContentLoaded', async function() {
+    try {
+        console.log("Document loaded, initializing app...");
+        
+        // Check if data is already processed
+        const dataStatus = await checkDataStatus();
+        console.log("Data status:", dataStatus);
+        
+        // If data is already processed, update the UI to reflect this
+        if (dataStatus.processed) {
+            // Update UI to show data is processed
+            console.log("Data already processed, updating UI");
+            
+            // Get current config
+            await fetchCurrentConfig();
+            
+            // Ensure the indicators dropdowns are initialized
+            updateIndicatorDropdowns();
+            
+            // Auto-populate all available indicators in the chart selects
+            const mainIndicatorsSelect = document.getElementById('main-indicators');
+            const subplotIndicatorsSelect = document.getElementById('subplot-indicators');
+            
+            if (mainIndicatorsSelect) {
+                for (let i = 0; i < mainIndicatorsSelect.options.length; i++) {
+                    mainIndicatorsSelect.options[i].selected = true;
+                }
+            }
+            
+            if (subplotIndicatorsSelect) {
+                for (let i = 0; i < subplotIndicatorsSelect.options.length; i++) {
+                    subplotIndicatorsSelect.options[i].selected = true;
+                }
+            }
+            
+            // Update checkboxes to reflect what indicators are available
+            updateCheckboxesFromAvailableIndicators();
+        }
+        
+        // Initialize seasonality analysis controls
+        initializeSeasonalityControls();
+        
+        // Restore active tab from session storage if available
+        const activeTab = sessionStorage.getItem('activeTab');
+        if (activeTab) {
+            const tab = document.getElementById(activeTab);
+            if (tab) {
+                console.log("Restoring tab:", activeTab);
+                
+                // Get corresponding section
+                const sectionId = activeTab.replace('tab', 'section');
+                const section = document.getElementById(sectionId);
+                
+                // Get title
+                const title = tab.textContent.trim();
+                
+                // Activate the tab
+                activateTab(tab, section, title);
+            }
+        }
+        
+        // Initialize indicator controls
+        initializeIndicatorControls();
+        
+        // Initialize candlestick pattern master checkbox control
+        const candlestickPatternsCheckbox = document.getElementById('candlestick-patterns-checkbox');
+        if (candlestickPatternsCheckbox) {
+            // Add function to toggle visibility of individual pattern options
+            function togglePatternOptions() {
+                const patternsContainer = document.querySelector('.patterns-container');
+                if (patternsContainer) {
+                    if (candlestickPatternsCheckbox.checked) {
+                        patternsContainer.style.display = 'block';
+                    } else {
+                        patternsContainer.style.display = 'none';
+                        
+                        // Uncheck all individual patterns when master is unchecked
+                        const patternCheckboxes = document.querySelectorAll('.pattern-checkbox');
+                        patternCheckboxes.forEach(checkbox => {
+                            checkbox.checked = false;
+                        });
+                    }
+                }
+            }
+            
+            // Initialize visibility state
+            togglePatternOptions();
+            
+            // Update when checkbox changes
+            candlestickPatternsCheckbox.addEventListener('change', function() {
+                // Toggle visibility of pattern options
+                togglePatternOptions();
+                
+                // If checked, check all pattern checkboxes
+                if (candlestickPatternsCheckbox.checked) {
+                    const patternCheckboxes = document.querySelectorAll('.pattern-checkbox');
+                    patternCheckboxes.forEach(checkbox => {
+                        checkbox.checked = true;
+                    });
+                }
+            });
+            
+            // Also update master checkbox if all individual checkboxes are checked/unchecked
+            const patternCheckboxes = document.querySelectorAll('.pattern-checkbox');
+            patternCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    // Check if all pattern checkboxes are checked
+                    const allChecked = Array.from(patternCheckboxes).every(cb => cb.checked);
+                    const allUnchecked = Array.from(patternCheckboxes).every(cb => !cb.checked);
+                    
+                    // Update master checkbox accordingly
+                    if (allChecked) {
+                        candlestickPatternsCheckbox.checked = true;
+                        candlestickPatternsCheckbox.indeterminate = false;
+                    } else if (allUnchecked) {
+                        candlestickPatternsCheckbox.checked = false;
+                        candlestickPatternsCheckbox.indeterminate = false;
+                    } else {
+                        // Some checked, some unchecked - show indeterminate state
+                        candlestickPatternsCheckbox.indeterminate = true;
+                    }
+                });
+            });
+        }
+    } catch (error) {
+        console.error("Error initializing app:", error);
+    }
+});
+
+// Add this new function
+function updateCheckboxesFromAvailableIndicators() {
+    console.log("Updating checkboxes to match available indicators:", availableIndicators);
+    
+    // Update moving averages checkboxes
+    const hasSma = availableIndicators.some(ind => ind.startsWith('sma_'));
+    const hasEma = availableIndicators.some(ind => ind.startsWith('ema_'));
+    
+    const smaCheckbox = document.getElementById('sma-checkbox');
+    const emaCheckbox = document.getElementById('ema-checkbox');
+    
+    if (smaCheckbox) smaCheckbox.checked = hasSma;
+    if (emaCheckbox) emaCheckbox.checked = hasEma;
+    
+    // Update other indicator checkboxes
+    const indicatorMappings = [
+        { checkbox: 'rsi-checkbox', indicator: 'rsi' },
+        { checkbox: 'macd-checkbox', indicator: 'macd' },
+        { checkbox: 'bbands-checkbox', indicator: 'bb_' },
+        { checkbox: 'stoch-checkbox', indicator: 'stoch_' },
+        { checkbox: 'volume-checkbox', indicator: 'volume_' },
+        { checkbox: 'atr-checkbox', indicator: 'atr' },
+        { checkbox: 'adx-checkbox', indicator: 'adx' },
+        { checkbox: 'supertrend-checkbox', indicator: 'supertrend' },
+        { checkbox: 'cci-checkbox', indicator: 'cci' },
+        { checkbox: 'williams-r-checkbox', indicator: 'williams_r' },
+        { checkbox: 'cmf-checkbox', indicator: 'cmf' },
+        { checkbox: 'ad-line-checkbox', indicator: 'ad_line' },
+        { checkbox: 'donchian-checkbox', indicator: 'dc_' },
+        { checkbox: 'keltner-checkbox', indicator: 'kc_' }
+    ];
+    
+    // Check/uncheck each checkbox based on indicator presence
+    indicatorMappings.forEach(mapping => {
+        const checkbox = document.getElementById(mapping.checkbox);
+        if (checkbox) {
+            const hasIndicator = availableIndicators.some(ind => 
+                ind === mapping.indicator || ind.startsWith(mapping.indicator));
+            checkbox.checked = hasIndicator;
+        }
+    });
+    
+    // Handle candlestick patterns separately
+    const patternCheckbox = document.getElementById('candlestick-patterns-checkbox');
+    const dojiCheckbox = document.getElementById('doji-checkbox');
+    const engulfingCheckbox = document.getElementById('engulfing-checkbox');
+    const hammerCheckbox = document.getElementById('hammer-checkbox');
+    const morningStarCheckbox = document.getElementById('morning-star-checkbox');
+    
+    const hasPatterns = availableIndicators.some(ind => 
+        ind === 'doji' || 
+        ind === 'bullish_engulfing' || 
+        ind === 'bearish_engulfing' || 
+        ind === 'hammer' || 
+        ind === 'inverted_hammer' ||
+        ind === 'morning_star' ||
+        ind === 'evening_star');
+    
+    if (patternCheckbox) {
+        patternCheckbox.checked = hasPatterns;
+    }
+    
+    // Set individual pattern checkboxes
+    if (dojiCheckbox) dojiCheckbox.checked = availableIndicators.includes('doji');
+    if (engulfingCheckbox) engulfingCheckbox.checked = availableIndicators.includes('bullish_engulfing') || availableIndicators.includes('bearish_engulfing');
+    if (hammerCheckbox) hammerCheckbox.checked = availableIndicators.includes('hammer') || availableIndicators.includes('inverted_hammer');
+    if (morningStarCheckbox) morningStarCheckbox.checked = availableIndicators.includes('morning_star') || availableIndicators.includes('evening_star');
+    
+    // Update the candlestick patterns container visibility
+    if (patternCheckbox && hasPatterns) {
+        const patternsContainer = document.querySelector('.patterns-container');
+        if (patternsContainer) {
+            patternsContainer.style.display = 'block';
+        }
+    }
+}
+>>>>>>> fix-indicator-issues

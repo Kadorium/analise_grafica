@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from indicators.volume import add_volume_indicators, detect_volume_breakouts
 from indicators.volatility import add_volatility_indicators, detect_volatility_breakouts
+from indicators.indicator_utils import normalize_signals_column
 
 class BreakoutStrategy:
     """
@@ -132,6 +133,8 @@ class BreakoutStrategy:
             
         result['position'] = positions
         
+        # Use the shared normalization utility for signals
+        result = normalize_signals_column(result)
         return result
     
     def backtest(self, data, initial_capital=10000.0, commission=0.001):

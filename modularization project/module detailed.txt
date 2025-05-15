@@ -1,0 +1,947 @@
+# Detailed Implementation Plan for Modularizing the Frontend
+
+## Phase 1: Setup and Preparation (1-2 days)
+
+### Step 1.1: Create Module Directory Structure
+```bash
+mkdir -p frontend/js/modules
+mkdir -p frontend/js/utils
+```
+
+### Step 1.2: Create Module Skeleton Files
+```bash
+# Create utility modules
+touch frontend/js/utils/api.js
+touch frontend/js/utils/ui.js
+touch frontend/js/utils/formatters.js
+touch frontend/js/utils/state.js
+
+# Create feature modules
+touch frontend/js/modules/dataManager.js
+touch frontend/js/modules/indicatorPanel.js
+touch frontend/js/modules/strategySelector.js
+touch frontend/js/modules/backtestView.js
+touch frontend/js/modules/optimizationPanel.js
+touch frontend/js/modules/seasonalityAnalyzer.js
+touch frontend/js/modules/resultsViewer.js
+touch frontend/js/modules/configManager.js
+
+# Create main entry point
+touch frontend/js/main.js
+```
+
+### Step 1.3: Backup Original Code
+```bash
+cp frontend/js/app.js frontend/js/app.js.backup
+```
+
+## Phase 2: Create Utility Modules (2-3 days)
+
+### Step 2.1: Implement API Module (frontend/js/utils/api.js)
+```javascript
+// frontend/js/utils/api.js
+
+// API endpoint definitions
+export const API_BASE_URL = '';
+export const API_ENDPOINTS = {
+    UPLOAD: '/api/upload',
+    PROCESS_DATA: '/api/process-data',
+    ADD_INDICATORS: '/api/add-indicators',
+    PLOT_INDICATORS: '/api/plot-indicators',
+    AVAILABLE_STRATEGIES: '/api/available-strategies',
+    STRATEGY_PARAMETERS: '/api/strategy-parameters',
+    RUN_BACKTEST: '/api/run-backtest',
+    OPTIMIZE_STRATEGY: '/api/optimize-strategy',
+    OPTIMIZATION_STATUS: '/api/optimization-status',
+    OPTIMIZATION_RESULTS: '/api/optimization-results',
+    COMPARE_STRATEGIES: '/api/compare-strategies',
+    SAVE_CONFIG: '/api/save-config',
+    LOAD_CONFIG: '/api/load-config',
+    EXPORT_RESULTS: '/api/export-results',
+    CURRENT_CONFIG: '/api/current-config',
+    ARRANGE_DATA: '/api/arrange-data',
+    DATA_STATUS: '/api/data-status',
+    SEASONALITY_DAY_OF_WEEK: '/api/seasonality/day-of-week',
+    SEASONALITY_MONTHLY: '/api/seasonality/monthly',
+    SEASONALITY_VOLATILITY: '/api/seasonality/volatility',
+    SEASONALITY_HEATMAP: '/api/seasonality/heatmap',
+    SEASONALITY_SUMMARY: '/api/seasonality/summary'
+};
+
+// Generic fetch wrapper with error handling
+export async function fetchApi(endpoint, options = {}) {
+    try {
+        console.log(`API call to ${endpoint}`, options);
+        const response = await fetch(endpoint, options);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Error: ${response.status}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error(`API error (${endpoint}):`, error);
+        throw error;
+    }
+}
+
+// Specific API call functions
+export async function uploadData(formData) {
+    return fetchApi(API_ENDPOINTS.UPLOAD, {
+        method: 'POST',
+        body: formData
+    });
+}
+
+export async function processData() {
+    return fetchApi(API_ENDPOINTS.PROCESS_DATA, {
+        method: 'POST'
+    });
+}
+
+export async function fetchDataStatus() {
+    return fetchApi(API_ENDPOINTS.DATA_STATUS);
+}
+
+export async function addIndicators(indicatorConfig) {
+    return fetchApi(API_ENDPOINTS.ADD_INDICATORS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(indicatorConfig)
+    });
+}
+
+export async function plotIndicators(plotConfig) {
+    return fetchApi(API_ENDPOINTS.PLOT_INDICATORS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(plotConfig)
+    });
+}
+
+export async function fetchAvailableStrategies() {
+    return fetchApi(API_ENDPOINTS.AVAILABLE_STRATEGIES);
+}
+
+export async function fetchStrategyParameters(strategyType) {
+    return fetchApi(`${API_ENDPOINTS.STRATEGY_PARAMETERS}?type=${strategyType}`);
+}
+
+export async function runBacktest(requestData) {
+    return fetchApi(API_ENDPOINTS.RUN_BACKTEST, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData)
+    });
+}
+
+export async function optimizeStrategy(requestData) {
+    return fetchApi(API_ENDPOINTS.OPTIMIZE_STRATEGY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData)
+    });
+}
+
+export async function checkOptimizationStatus() {
+    return fetchApi(API_ENDPOINTS.OPTIMIZATION_STATUS);
+}
+
+export async function fetchOptimizationResults(strategyType) {
+    return fetchApi(`${API_ENDPOINTS.OPTIMIZATION_RESULTS}/${strategyType}`);
+}
+
+export async function compareStrategies(requestData) {
+    return fetchApi(API_ENDPOINTS.COMPARE_STRATEGIES, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestData)
+    });
+}
+
+export async function saveConfig(configData) {
+    return fetchApi(API_ENDPOINTS.SAVE_CONFIG, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(configData)
+    });
+}
+
+export async function fetchCurrentConfig() {
+    return fetchApi(API_ENDPOINTS.CURRENT_CONFIG);
+}
+
+export async function runSeasonalityAnalysis(analysisType) {
+    const endpoint = API_ENDPOINTS[`SEASONALITY_${analysisType.toUpperCase().replace('-', '_')}`];
+    return fetchApi(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+}
+```
+
+### Step 2.2: Implement UI Module (frontend/js/utils/ui.js)
+```javascript
+// frontend/js/utils/ui.js
+import { appState } from '../main.js';
+
+// Error handling
+export function showError(message) {
+    const errorModal = new bootstrap.Modal(document.getElementById('error-modal'));
+    const errorMessage = document.getElementById('error-message');
+    errorMessage.textContent = message;
+    errorModal.show();
+}
+
+// Loading indicator
+export function showLoading(element) {
+    const spinnerHtml = `
+        <div class="spinner-container">
+            <div class="spinner-border text-primary spinner" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    element.innerHTML = spinnerHtml;
+}
+
+// Global loader
+export function showGlobalLoader(message = 'Loading...') {
+    let loaderEl = document.createElement('div');
+    loaderEl.id = 'global-loader';
+    loaderEl.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50';
+    loaderEl.style.zIndex = '9999';
+    loaderEl.innerHTML = `
+        <div class="bg-white p-3 rounded">
+            <div class="d-flex align-items-center">
+                <div class="spinner-border text-primary me-3"></div>
+                <span>${message}</span>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(loaderEl);
+}
+
+export function hideGlobalLoader() {
+    const loader = document.getElementById('global-loader');
+    if (loader) {
+        loader.remove();
+    }
+}
+
+// Success message
+export function showSuccessMessage(message) {
+    const successDiv = document.createElement('div');
+    successDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+    successDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    // Find a good place to show the message
+    const currentSection = document.querySelector('.content-section.active');
+    if (currentSection) {
+        currentSection.appendChild(successDiv);
+        
+        // Remove the message after 5 seconds
+        setTimeout(() => {
+            successDiv.remove();
+        }, 5000);
+    }
+}
+
+// Notification
+export function showNotification(message, type = 'info') {
+    // Create a Bootstrap alert
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.setAttribute('role', 'alert');
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    // Add to the current active section
+    const currentSection = document.querySelector('.content-section.active');
+    if (currentSection) {
+        currentSection.prepend(alertDiv);
+        
+        // Auto dismiss after 5 seconds
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+}
+
+// Tab navigation
+export function activateTab(tab, section, title) {
+    // DOM elements
+    const tabs = [
+        document.getElementById('data-tab'),
+        document.getElementById('indicators-tab'),
+        document.getElementById('strategies-tab'),
+        document.getElementById('backtest-tab'),
+        document.getElementById('optimization-tab'),
+        document.getElementById('seasonality-tab'),
+        document.getElementById('results-tab')
+    ];
+    
+    const sections = [
+        document.getElementById('data-section'),
+        document.getElementById('indicators-section'),
+        document.getElementById('strategies-section'),
+        document.getElementById('backtest-section'),
+        document.getElementById('optimization-section'),
+        document.getElementById('seasonality-section'),
+        document.getElementById('results-section')
+    ];
+    
+    const pageTitle = document.getElementById('page-title');
+    
+    // Deactivate all tabs and hide all sections
+    tabs.forEach(t => {
+        if (t) t.classList.remove('active');
+    });
+    
+    sections.forEach(s => {
+        if (s) s.classList.remove('active');
+    });
+    
+    // Activate the selected tab and show the corresponding section
+    if (tab) tab.classList.add('active');
+    if (section) section.classList.add('active');
+    if (pageTitle) pageTitle.textContent = title;
+    
+    // Save the active tab to session storage to persist across page reloads
+    sessionStorage.setItem('activeTab', tab.id);
+}
+```
+
+### Step 2.3: Implement Formatters Module (frontend/js/utils/formatters.js)
+```javascript
+// frontend/js/utils/formatters.js
+
+export function formatDate(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toISOString().split('T')[0];
+}
+
+export function formatNumber(num, decimals = 2) {
+    return Number(num).toFixed(decimals);
+}
+
+export function formatMetricName(metric) {
+    // Convert snake_case to Title Case with spaces
+    return metric
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+export function formatMetricValue(metric, value) {
+    if (typeof value === 'number') {
+        // Format percentages with 2 decimal places
+        if (metric.includes('return') || metric.includes('drawdown') || metric.includes('volatility') || metric.includes('rate')) {
+            return value.toFixed(2) + '%';
+        } 
+        // Format ratios with 2 decimal places
+        else if (metric.includes('ratio')) {
+            return value.toFixed(2);
+        }
+        // Format other numbers with 2 decimal places
+        return value.toFixed(2);
+    }
+    return value;
+}
+
+export function formatParamName(name) {
+    return name
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+```
+
+### Step 2.4: Implement State Module (frontend/js/utils/state.js)
+```javascript
+// frontend/js/utils/state.js
+
+// Initialize application state
+export const appState = {
+    dataUploaded: false,
+    dataProcessed: false,
+    availableIndicators: [],
+    selectedStrategy: 'trend_following',
+    currentConfig: {},
+    optimizationStatusInterval: null,
+    currentOptimizationStrategy: null,
+    
+    // Methods to update state
+    setDataUploaded(value) {
+        this.dataUploaded = value;
+        sessionStorage.setItem('dataUploaded', value);
+    },
+    
+    setDataProcessed(value) {
+        this.dataProcessed = value;
+        sessionStorage.setItem('dataProcessed', value);
+    },
+    
+    setAvailableIndicators(indicators) {
+        this.availableIndicators = indicators;
+    },
+    
+    setSelectedStrategy(strategy) {
+        this.selectedStrategy = strategy;
+    },
+    
+    setCurrentConfig(config) {
+        this.currentConfig = config;
+    },
+    
+    updateCurrentConfig(partialConfig) {
+        this.currentConfig = { ...this.currentConfig, ...partialConfig };
+    },
+    
+    // Restore state from session storage
+    restoreFromSession() {
+        if (sessionStorage.getItem('dataUploaded') === 'true') {
+            this.dataUploaded = true;
+        }
+        
+        if (sessionStorage.getItem('dataProcessed') === 'true') {
+            this.dataProcessed = true;
+        }
+    }
+};
+
+// Initialize state from session storage
+appState.restoreFromSession();
+```
+
+## Phase 3: Create Feature Modules (7-10 days)
+
+### Step 3.1: Implement DataManager Module (frontend/js/modules/dataManager.js)
+```javascript
+// frontend/js/modules/dataManager.js
+import { uploadData, processData, fetchDataStatus } from '../utils/api.js';
+import { showError, showLoading, showSuccessMessage } from '../utils/ui.js';
+import { appState } from '../utils/state.js';
+
+export function updateDataPreview(data) {
+    const dataInfo = document.getElementById('data-info');
+    const dataPreview = document.getElementById('data-preview');
+    
+    dataInfo.innerHTML = `
+        <p><strong>Rows:</strong> ${data.data_shape[0]} | <strong>Columns:</strong> ${data.data_shape[1]}</p>
+        ${data.date_range ? `<p><strong>Date Range:</strong> ${data.date_range.start} to ${data.date_range.end}</p>` : ''}
+    `;
+    
+    // Clear previous table data
+    const thead = dataPreview.querySelector('thead tr');
+    const tbody = dataPreview.querySelector('tbody');
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+    
+    if (data.data_sample && data.data_sample.length > 0) {
+        // Add table headers
+        Object.keys(data.data_sample[0]).forEach(header => {
+            const th = document.createElement('th');
+            th.textContent = header;
+            thead.appendChild(th);
+        });
+        
+        // Add table rows
+        data.data_sample.forEach(row => {
+            const tr = document.createElement('tr');
+            
+            Object.values(row).forEach(value => {
+                const td = document.createElement('td');
+                td.textContent = value;
+                tr.appendChild(td);
+            });
+            
+            tbody.appendChild(tr);
+        });
+    }
+}
+
+export async function uploadAndProcessData(formData) {
+    try {
+        // Get button reference
+        const uploadProcessBtn = document.getElementById('upload-process-btn');
+        uploadProcessBtn.disabled = true;
+        uploadProcessBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
+        
+        // Upload phase
+        const uploadData = await uploadData(formData);
+        
+        // Update UI with data preview from upload
+        updateDataPreview(uploadData);
+        
+        // Process phase
+        uploadProcessBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+        
+        const processData = await processData();
+        
+        // Update UI with processed data preview
+        updateDataPreview(processData);
+        
+        // Update app state
+        appState.setDataUploaded(true);
+        appState.setDataProcessed(true);
+        
+        // Show success message
+        const dataInfo = document.getElementById('data-info');
+        dataInfo.innerHTML += `<div class="alert alert-success mt-2">Data uploaded and processed successfully!</div>`;
+        
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        const uploadProcessBtn = document.getElementById('upload-process-btn');
+        uploadProcessBtn.disabled = false;
+        uploadProcessBtn.textContent = 'Upload and Process';
+    }
+}
+
+export async function arrangeData(fileInput) {
+    if (!fileInput.files.length) {
+        showError('Please select a file to arrange.');
+        return;
+    }
+    
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+        const arrangeBtn = document.getElementById('arrange-btn');
+        arrangeBtn.disabled = true;
+        arrangeBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Arranging...';
+        
+        // Call the API
+        const response = await fetch('/api/arrange-data', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.message || 'Error arranging data');
+        }
+        
+        // Update UI with arranged data preview
+        updateDataPreview(data);
+        
+        // Update app state
+        appState.setDataUploaded(true);
+        appState.setDataProcessed(true);
+        
+        // Show success message
+        const dataInfo = document.getElementById('data-info');
+        dataInfo.innerHTML += `<div class="alert alert-success mt-2">Data arranged successfully! Saved to ${data.output_file}</div>`;
+        
+    } catch (error) {
+        showError(error.message);
+    } finally {
+        const arrangeBtn = document.getElementById('arrange-btn');
+        arrangeBtn.disabled = false;
+        arrangeBtn.textContent = 'Arrange Data';
+    }
+}
+
+export async function checkDataStatus() {
+    try {
+        const response = await fetchDataStatus();
+        
+        console.log('Backend data status:', response);
+        
+        // Update app state based on backend status
+        if (response.uploaded) {
+            appState.setDataUploaded(true);
+        }
+        
+        if (response.processed) {
+            appState.setDataProcessed(true);
+        }
+        
+        return response;
+    } catch (error) {
+        console.error('Error checking data status:', error);
+        return { uploaded: false, processed: false };
+    }
+}
+
+export function initDataManager() {
+    // Set up event listeners
+    const uploadForm = document.getElementById('upload-form');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('csv-file');
+            const formData = new FormData();
+            
+            if (fileInput.files.length > 0) {
+                formData.append('file', fileInput.files[0]);
+            } else {
+                formData.append('file', '');
+            }
+            
+            await uploadAndProcessData(formData);
+        });
+    }
+    
+    const arrangeBtn = document.getElementById('arrange-btn');
+    if (arrangeBtn) {
+        arrangeBtn.addEventListener('click', async () => {
+            const fileInput = document.getElementById('csv-file');
+            await arrangeData(fileInput);
+        });
+    }
+}
+```
+
+### Step 3.2: Implement IndicatorPanel Module (frontend/js/modules/indicatorPanel.js)
+```javascript
+// frontend/js/modules/indicatorPanel.js
+import { addIndicators, plotIndicators } from '../utils/api.js';
+import { showError, showSuccessMessage } from '../utils/ui.js';
+import { appState } from '../utils/state.js';
+
+export function updateIndicatorDropdowns() {
+    const mainIndicatorsSelect = document.getElementById('main-indicators');
+    const subplotIndicatorsSelect = document.getElementById('subplot-indicators');
+    
+    // Implementation from app.js (updateIndicatorDropdowns function)
+    // ...
+}
+
+export function moveSelectedOptions(sourceId, targetId) {
+    // Implementation from app.js
+    // ...
+}
+
+export function removeSelectedOptions(selectId) {
+    // Implementation from app.js
+    // ...
+}
+
+export function updateCheckboxesFromAvailableIndicators() {
+    // Implementation from app.js
+    // ...
+}
+
+export async function addIndicatorsToData() {
+    // Logic from the indicators form submit handler in app.js
+    // ...
+}
+
+export async function plotChart() {
+    // Logic from the chart form submit handler in app.js
+    // ...
+}
+
+export function initIndicatorControls() {
+    // Add event listeners for indicator control buttons
+    document.getElementById('move-to-main').addEventListener('click', function() {
+        moveSelectedOptions('subplot-indicators', 'main-indicators');
+    });
+    
+    document.getElementById('move-to-subplot').addEventListener('click', function() {
+        moveSelectedOptions('main-indicators', 'subplot-indicators');
+    });
+    
+    document.getElementById('remove-main').addEventListener('click', function() {
+        removeSelectedOptions('main-indicators');
+    });
+    
+    document.getElementById('remove-subplot').addEventListener('click', function() {
+        removeSelectedOptions('subplot-indicators');
+    });
+    
+    // Initialize candlestick pattern master checkbox control
+    const candlestickPatternsCheckbox = document.getElementById('candlestick-patterns-checkbox');
+    if (candlestickPatternsCheckbox) {
+        // Implementation from app.js
+        // ...
+    }
+}
+
+export function initIndicatorPanel() {
+    // Set up event listeners for forms
+    const indicatorsForm = document.getElementById('indicators-form');
+    if (indicatorsForm) {
+        indicatorsForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            addIndicatorsToData();
+        });
+    }
+    
+    const chartForm = document.getElementById('chart-form');
+    if (chartForm) {
+        chartForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            plotChart();
+        });
+    }
+    
+    // Initialize controls
+    initIndicatorControls();
+}
+```
+
+### Step 3.3: Implement StrategySelector Module (frontend/js/modules/strategySelector.js)
+```javascript
+// frontend/js/modules/strategySelector.js
+import { fetchAvailableStrategies, fetchStrategyParameters } from '../utils/api.js';
+import { showError, showSuccessMessage } from '../utils/ui.js';
+import { formatParamName } from '../utils/formatters.js';
+import { appState } from '../utils/state.js';
+
+export function buildStrategySelections(container, strategies, selectedClass = 'selected-strategy') {
+    // Implementation from app.js
+    // ...
+}
+
+export async function loadStrategyParameters() {
+    // Implementation from app.js
+    // ...
+}
+
+export async function updateStrategyParameters(strategyType) {
+    // Implementation from app.js
+    // ...
+}
+
+export function initStrategySelector() {
+    // Add event listener for strategy type change
+    const strategyTypeSelect = document.getElementById('strategy-type');
+    if (strategyTypeSelect) {
+        strategyTypeSelect.addEventListener('change', loadStrategyParameters);
+    }
+    
+    // Add event listener for the update strategy button
+    const updateStrategyBtn = document.getElementById('update-strategy-btn');
+    if (updateStrategyBtn) {
+        updateStrategyBtn.addEventListener('click', () => {
+            // Implementation from app.js
+            // ...
+        });
+    }
+    
+    // Load strategy parameters initially
+    loadStrategyParameters();
+}
+```
+
+**Continue with all other feature modules using this same pattern**
+
+## Phase 4: Create Main Entry Point (1-2 days)
+
+### Step 4.1: Implement main.js
+```javascript
+// frontend/js/main.js
+import { appState } from './utils/state.js';
+import { activateTab } from './utils/ui.js';
+import { checkDataStatus, initDataManager } from './modules/dataManager.js';
+import { initIndicatorPanel } from './modules/indicatorPanel.js';
+import { initStrategySelector } from './modules/strategySelector.js';
+import { initBacktestView } from './modules/backtestView.js';
+import { initOptimizationPanel } from './modules/optimizationPanel.js';
+import { initSeasonalityAnalyzer } from './modules/seasonalityAnalyzer.js';
+import { initResultsViewer } from './modules/resultsViewer.js';
+import { initConfigManager } from './modules/configManager.js';
+import { fetchCurrentConfig } from './utils/api.js';
+
+// DOM Element References for tab navigation
+const dataTab = document.getElementById('data-tab');
+const indicatorsTab = document.getElementById('indicators-tab');
+const strategiesTab = document.getElementById('strategies-tab');
+const backtestTab = document.getElementById('backtest-tab');
+const optimizationTab = document.getElementById('optimization-tab');
+const seasonalityTab = document.getElementById('seasonality-tab');
+const resultsTab = document.getElementById('results-tab');
+
+const dataSection = document.getElementById('data-section');
+const indicatorsSection = document.getElementById('indicators-section');
+const strategiesSection = document.getElementById('strategies-section');
+const backtestSection = document.getElementById('backtest-section');
+const optimizationSection = document.getElementById('optimization-section');
+const seasonalitySection = document.getElementById('seasonality-section');
+const resultsSection = document.getElementById('results-section');
+
+function initTabNavigation() {
+    // Initialize tab navigation
+    dataTab.addEventListener('click', (e) => {
+        e.preventDefault();
+        activateTab(dataTab, dataSection, 'Data Upload');
+    });
+
+    indicatorsTab.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (!appState.dataProcessed) {
+            showError('Please upload and process data first.');
+            activateTab(dataTab, dataSection, 'Data Upload');
+            return;
+        }
+        activateTab(indicatorsTab, indicatorsSection, 'Technical Indicators');
+    });
+
+    // Repeat for other tabs
+    // ...
+}
+
+// Initialize the application
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        console.log("Document loaded, initializing app...");
+        
+        // Check if data is already processed
+        await checkDataStatus();
+        
+        // Initialize all modules
+        initDataManager();
+        initIndicatorPanel();
+        initStrategySelector();
+        initBacktestView();
+        initOptimizationPanel();
+        initSeasonalityAnalyzer();
+        initResultsViewer();
+        initConfigManager();
+        
+        // Initialize tab navigation
+        initTabNavigation();
+        
+        // If data is processed, get current config and update UI
+        if (appState.dataProcessed) {
+            const config = await fetchCurrentConfig();
+            appState.setCurrentConfig(config);
+            
+            // Update UI components based on the config
+            // ...
+        }
+        
+        // Restore active tab from session storage if available
+        const activeTabId = sessionStorage.getItem('activeTab');
+        if (activeTabId && appState.dataProcessed) {
+            const tabMap = {
+                'data-tab': { tab: dataTab, section: dataSection, title: 'Data Upload' },
+                'indicators-tab': { tab: indicatorsTab, section: indicatorsSection, title: 'Technical Indicators' },
+                'strategies-tab': { tab: strategiesTab, section: strategiesSection, title: 'Trading Strategies' },
+                'backtest-tab': { tab: backtestTab, section: backtestSection, title: 'Backtest' },
+                'optimization-tab': { tab: optimizationTab, section: optimizationSection, title: 'Strategy Optimization' },
+                'seasonality-tab': { tab: seasonalityTab, section: seasonalitySection, title: 'Seasonality Analysis' },
+                'results-tab': { tab: resultsTab, section: resultsSection, title: 'Analysis Results' }
+            };
+            
+            if (tabMap[activeTabId]) {
+                const { tab, section, title } = tabMap[activeTabId];
+                activateTab(tab, section, title);
+            }
+        } else {
+            // Default to first tab
+            activateTab(dataTab, dataSection, 'Data Upload');
+        }
+        
+        console.log("App initialization complete");
+    } catch (error) {
+        console.error("Error initializing app:", error);
+    }
+});
+```
+
+## Phase 5: Testing and Integration (7-10 days)
+
+### Step 5.1: Create a Testing Plan
+1. Identify critical user flows to test
+2. Test each module in isolation
+3. Test modules together
+4. Test the entire application
+5. Create test cases for each feature
+
+### Step 5.2: Update HTML to Use the New Modules
+```html
+<!-- In the index.html file -->
+<!-- Replace the original script tag -->
+<!-- <script src="frontend/js/app.js"></script> -->
+
+<!-- Add the new module script -->
+<script type="module" src="frontend/js/main.js"></script>
+```
+
+### Step 5.3: Test Each Module
+For each module, verify that:
+1. It initializes correctly
+2. All event listeners are working
+3. API calls function as expected
+4. UI updates properly
+5. Error handling works
+
+### Step 5.4: Incremental Testing
+1. Start with core modules (dataManager, api, ui)
+2. Add feature modules one by one
+3. Test the integration between modules at each step
+
+## Phase 6: Cleanup and Finalization (2-3 days)
+
+### Step 6.1: Code Cleanup
+1. Remove any console.log statements used for debugging
+2. Ensure consistent code style
+3. Add comments where needed for clarity
+4. Fix any remaining bugs
+
+### Step 6.2: Documentation
+1. Document each module's purpose and API
+2. Create a README explaining the architecture
+3. Document any known issues or limitations
+
+### Step 6.3: Performance Optimization
+1. Minimize DOM manipulations
+2. Optimize event listeners
+3. Consider lazy-loading modules when possible
+
+### Step 6.4: Remove the Old Code
+Once everything is working correctly, remove app.js from the project.
+
+## Timeline and Coordination
+
+### Week 1: Preparation and Utilities
+- Day 1-2: Setup directory structure, create skeleton files
+- Day 3-5: Implement utility modules (api.js, ui.js, formatters.js, state.js)
+
+### Week 2-3: Feature Modules
+- Day 1-2: Implement dataManager.js
+- Day 3-4: Implement indicatorPanel.js
+- Day 5-6: Implement strategySelector.js
+- Day 7-8: Implement backtestView.js
+- Day 9-10: Implement optimizationPanel.js, seasonalityAnalyzer.js, resultsViewer.js, configManager.js
+
+### Week 4: Integration
+- Day 1-2: Implement main.js
+- Day 3-7: Testing and debugging
+
+### Week 5: Finalization
+- Day 1-2: Code cleanup and optimization
+- Day 3: Documentation
+- Day 4-5: Final testing and removal of old code
+
+## Team Coordination Guidelines
+
+1. **Task Assignment**: Assign modules to team members based on expertise
+2. **Code Reviews**: Review each other's code before merging
+3. **Daily Sync**: Brief daily meetings to discuss progress and blockers
+4. **Central Repository**: Use a shared repository with proper branching
+5. **Consistent Coding Standards**: Follow the same coding style and patterns
+
+## Handling Challenges
+
+1. **Circular Dependencies**: Avoid circular imports between modules
+2. **Global State Management**: Use the state.js module for shared state
+3. **Cross-module Communication**: Use events or the state object for communication
+4. **Testing Complex Interactions**: Create small test cases for each interaction
+
+This plan provides a comprehensive roadmap for refactoring the app.js file into a modular structure. Following this systematic approach will ensure that the codebase becomes more maintainable, testable, and easier to extend with new features.
