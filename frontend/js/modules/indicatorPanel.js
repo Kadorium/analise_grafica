@@ -17,6 +17,90 @@ const moveToMainBtn = document.getElementById('move-to-main');
 const moveToSubplotBtn = document.getElementById('move-to-subplot');
 const removeMainBtn = document.getElementById('remove-main');
 const removeSubplotBtn = document.getElementById('remove-subplot');
+const selectAllIndicatorsCheckbox = document.getElementById('select-all-indicators');
+const groupSelectCheckboxes = document.querySelectorAll('.group-select');
+
+// Add functions to handle the group checkboxes
+function handleSelectAllIndicators(e) {
+    const isChecked = e.target.checked;
+    
+    // Find all indicator checkboxes
+    const allCheckboxes = indicatorForm.querySelectorAll('input[type="checkbox"]');
+    
+    // Skip the group header checkboxes and select all checkbox
+    allCheckboxes.forEach(checkbox => {
+        if (!checkbox.classList.contains('group-select') && checkbox.id !== 'select-all-indicators') {
+            checkbox.checked = isChecked;
+        }
+    });
+    
+    // Also update the group checkboxes
+    groupSelectCheckboxes.forEach(groupCheckbox => {
+        groupCheckbox.checked = isChecked;
+    });
+}
+
+function handleGroupSelect(e) {
+    const groupCheckbox = e.target;
+    const isChecked = groupCheckbox.checked;
+    const group = groupCheckbox.getAttribute('data-group');
+    
+    // Find checkboxes in this group
+    const groupCheckboxes = indicatorForm.querySelectorAll(`.${group}-checkbox`);
+    
+    // Select or deselect all checkboxes in the group
+    groupCheckboxes.forEach(checkbox => {
+        checkbox.checked = isChecked;
+    });
+    
+    // Update the "Select All" checkbox state
+    updateSelectAllCheckboxState();
+}
+
+function updateSelectAllCheckboxState() {
+    // Get all individual indicator checkboxes
+    const allIndicatorCheckboxes = indicatorForm.querySelectorAll('input[type="checkbox"]:not(.group-select):not(#select-all-indicators)');
+    const allChecked = Array.from(allIndicatorCheckboxes).every(checkbox => checkbox.checked);
+    const anyChecked = Array.from(allIndicatorCheckboxes).some(checkbox => checkbox.checked);
+    
+    // Update the select all checkbox
+    if (selectAllIndicatorsCheckbox) {
+        selectAllIndicatorsCheckbox.checked = allChecked;
+        selectAllIndicatorsCheckbox.indeterminate = anyChecked && !allChecked;
+    }
+}
+
+function updateGroupCheckboxState(group) {
+    // Get the group checkbox
+    const groupCheckbox = document.getElementById(`select-${group}`);
+    if (!groupCheckbox) return;
+    
+    // Get all checkboxes in this group
+    const groupCheckboxes = indicatorForm.querySelectorAll(`.${group}-checkbox`);
+    if (groupCheckboxes.length === 0) return;
+    
+    const allChecked = Array.from(groupCheckboxes).every(checkbox => checkbox.checked);
+    const anyChecked = Array.from(groupCheckboxes).some(checkbox => checkbox.checked);
+    
+    // Update the group checkbox state
+    groupCheckbox.checked = allChecked;
+    groupCheckbox.indeterminate = anyChecked && !allChecked;
+}
+
+function handleIndicatorCheckboxChange(e) {
+    const checkbox = e.target;
+    
+    // Find which group this checkbox belongs to
+    const groupClasses = Array.from(checkbox.classList)
+        .filter(cls => cls.endsWith('-checkbox'))
+        .map(cls => cls.replace('-checkbox', ''));
+    
+    // Update each group's checkbox state
+    groupClasses.forEach(updateGroupCheckboxState);
+    
+    // Update the "Select All" checkbox state
+    updateSelectAllCheckboxState();
+}
 
 // Update indicator dropdowns for chart plotting
 function updateIndicatorDropdowns() {
@@ -171,6 +255,40 @@ export function removeSelectedOptions(selectId) {
 
 // Initialize indicator control buttons and event listeners
 export function initializeIndicatorControls() {
+    // Add event listener to "Select All" checkbox
+    if (selectAllIndicatorsCheckbox) {
+        selectAllIndicatorsCheckbox.addEventListener('change', handleSelectAllIndicators);
+    }
+    
+    // Add event listeners to group select checkboxes
+    groupSelectCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', handleGroupSelect);
+    });
+    
+    // Add event listeners to all indicator checkboxes to update group states
+    const allIndicatorCheckboxes = indicatorForm.querySelectorAll('input[type="checkbox"]:not(.group-select):not(#select-all-indicators)');
+    allIndicatorCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', handleIndicatorCheckboxChange);
+    });
+    
+    // Initialize checkbox states based on current selections
+    updateSelectAllCheckboxState();
+    ['moving-averages', 'momentum', 'volatility', 'trend', 'volume', 'oscillator', 'patterns'].forEach(updateGroupCheckboxState);
+    
+    // The existing candlestick patterns checkbox should toggle all individual pattern checkboxes
+    const candlestickPatternsCheckbox = document.getElementById('candlestick-patterns-checkbox');
+    const patternCheckboxes = document.querySelectorAll('.pattern-checkbox');
+    
+    if (candlestickPatternsCheckbox) {
+        candlestickPatternsCheckbox.addEventListener('change', () => {
+            const isChecked = candlestickPatternsCheckbox.checked;
+            patternCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            updateGroupCheckboxState('patterns');
+        });
+    }
+
     // Indicator form submission
     if (indicatorForm) {
         indicatorForm.addEventListener('submit', async (e) => {
@@ -533,97 +651,98 @@ export function initializeIndicatorControls() {
     if (chartForm) {
         chartForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             // Get all indicators from the respective lists
             const selectedMainIndicators = Array.from(mainIndicatorsSelect.selectedOptions).map(opt => opt.value);
             const selectedSubplotIndicators = Array.from(subplotIndicatorsSelect.selectedOptions).map(opt => opt.value);
-            
             // If nothing is selected, use all options
             let mainIndicators = selectedMainIndicators.length > 0 ? 
                               selectedMainIndicators : 
                               Array.from(mainIndicatorsSelect.options).map(opt => opt.value);
-                              
             let subplotIndicators = selectedSubplotIndicators.length > 0 ? 
                                  selectedSubplotIndicators : 
                                  Array.from(subplotIndicatorsSelect.options).map(opt => opt.value);
-            
-            console.log("Using main indicators:", mainIndicators);
-            console.log("Using subplot indicators:", subplotIndicators);
-            
+            // Combine all selected indicators
+            const allIndicators = [...mainIndicators, ...subplotIndicators];
+            // Helper: parse indicator name to config
+            function buildIndicatorConfig(indicators) {
+                const config = {};
+                // Moving averages
+                const smaPeriods = [];
+                const emaPeriods = [];
+                indicators.forEach(ind => {
+                    if (/^sma_(\d+)$/.test(ind)) {
+                        smaPeriods.push(parseInt(ind.match(/^sma_(\d+)$/)[1]));
+                    } else if (/^ema_(\d+)$/.test(ind)) {
+                        emaPeriods.push(parseInt(ind.match(/^ema_(\d+)$/)[1]));
+                    } else if (ind === 'rsi') {
+                        config.rsi = { period: 14 };
+                    } else if (ind === 'macd' || ind === 'macd_signal' || ind === 'macd_histogram') {
+                        config.macd = { fast_period: 12, slow_period: 26, signal_period: 9 };
+                    } else if (ind.startsWith('bb_')) {
+                        config.bollinger_bands = { window: 20, num_std: 2 };
+                    } else if (ind === 'atr' || ind === 'atr_pct') {
+                        config.atr = { period: 14 };
+                    } else if (ind === 'obv' || ind === 'vpt' || ind.startsWith('volume_')) {
+                        config.volume = true;
+                    } else if (ind === 'ad_line') {
+                        config.ad_line = true;
+                    } else if (ind === 'vpt') {
+                        config.volume = true;
+                    } else if (ind === 'stoch_k' || ind === 'stoch_d') {
+                        config.stochastic = { k_period: 14, d_period: 3, slowing: 3 };
+                    } else if (ind === 'adx' || ind === 'plus_di' || ind === 'minus_di') {
+                        config.adx = { period: 14 };
+                    } else if (ind === 'supertrend') {
+                        config.supertrend = { atr_period: 10, multiplier: 3 };
+                    } else if (ind === 'cci') {
+                        config.cci = { period: 20 };
+                    } else if (ind === 'williams_r') {
+                        config.williams_r = { period: 14 };
+                    } else if (ind === 'cmf') {
+                        config.cmf = { period: 20 };
+                    } else if (ind === 'dc_upper' || ind === 'dc_middle' || ind === 'dc_lower' || ind.startsWith('donchian_')) {
+                        config.donchian_channels = { period: 20 };
+                    } else if (ind === 'kc_upper' || ind === 'kc_middle' || ind === 'kc_lower' || ind.startsWith('keltner_')) {
+                        config.keltner_channels = { ema_period: 20, atr_period: 10, multiplier: 1.5 };
+                    } else if ([
+                        'bullish_engulfing', 'bearish_engulfing', 'doji', 'hammer', 'inverted_hammer',
+                        'morning_star', 'evening_star'
+                    ].includes(ind)) {
+                        config.candlestick_patterns = true;
+                    }
+                });
+                if (smaPeriods.length > 0 || emaPeriods.length > 0) {
+                    config.moving_averages = { types: [], };
+                    if (smaPeriods.length > 0) {
+                        config.moving_averages.types.push('sma');
+                        config.moving_averages.sma_periods = smaPeriods;
+                    }
+                    if (emaPeriods.length > 0) {
+                        config.moving_averages.types.push('ema');
+                        config.moving_averages.ema_periods = emaPeriods;
+                    }
+                }
+                return config;
+            }
+            const indicatorConfig = buildIndicatorConfig(allIndicators);
             // Get date range
             const startDate = document.getElementById('chart-start-date')?.value || '';
             const endDate = document.getElementById('chart-end-date')?.value || '';
-            
             // Disable the plot button
             if (plotChartBtn) {
                 plotChartBtn.disabled = true;
                 plotChartBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Plotting...';
             }
-            
             try {
-                // Add indicators again with the proper configuration
-                const indicatorConfig = {};
-                
-                // SMA
-                const smaCheckbox = document.getElementById('sma-checkbox');
-                if (smaCheckbox && smaCheckbox.checked) {
-                    const periodsInput = document.getElementById('sma-periods');
-                    const periodsStr = periodsInput ? periodsInput.value : '20,50,200';
-                    const periods = periodsStr.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p) && p > 0);
-                    
-                    if (!indicatorConfig.moving_averages) {
-                        indicatorConfig.moving_averages = {
-                            types: []
-                        };
-                    }
-                    
-                    indicatorConfig.moving_averages.types.push('sma');
-                    indicatorConfig.moving_averages.sma_periods = periods;
-                }
-                
-                // EMA
-                const emaCheckbox = document.getElementById('ema-checkbox');
-                if (emaCheckbox && emaCheckbox.checked) {
-                    const periodsInput = document.getElementById('ema-periods');
-                    const periodsStr = periodsInput ? periodsInput.value : '12,26,50';
-                    const periods = periodsStr.split(',').map(p => parseInt(p.trim())).filter(p => !isNaN(p) && p > 0);
-                    
-                    if (!indicatorConfig.moving_averages) {
-                        indicatorConfig.moving_averages = {
-                            types: []
-                        };
-                    }
-                    
-                    indicatorConfig.moving_averages.types.push('ema');
-                    indicatorConfig.moving_averages.ema_periods = periods;
-                }
-                
-                // AD Line
-                const adLineCheckbox = document.getElementById('ad-line-checkbox');
-                if (adLineCheckbox && adLineCheckbox.checked) {
-                    indicatorConfig.ad_line = true;
-                }
-                
-                // Candlestick Patterns
-                const candlestickPatternsCheckbox = document.getElementById('candlestick-patterns-checkbox');
-                if (candlestickPatternsCheckbox && candlestickPatternsCheckbox.checked) {
-                    indicatorConfig.candlestick_patterns = true;
-                }
-                
-                // First, add the indicators to ensure they're available 
-                // in the expected format on the server
+                // Add indicators for all selected
                 console.log("Adding indicators with configuration:", indicatorConfig);
                 const addResponse = await addIndicators(indicatorConfig);
-                
                 if (!addResponse.success) {
                     throw new Error(addResponse.message || 'Error adding indicators');
                 }
-                
                 // Now plot using the available indicators (from server response)
-                // This avoids the naming mismatch issue
                 let availableMainIndicators = [];
                 let availableSubplotIndicators = [];
-                
                 if (addResponse.available_indicators) {
                     const mainIndicatorPrefixes = [
                         'sma_', 'ema_', 'bb_', 'typical_price', 
@@ -631,28 +750,20 @@ export function initializeIndicatorControls() {
                         'bullish_engulfing', 'bearish_engulfing', 'doji', 'hammer', 'inverted_hammer',
                         'morning_star', 'evening_star'
                     ];
-                    
                     const subplotIndicatorPrefixes = [
                         'rsi', 'macd', 'stoch', 'obv', 'vpt', 'volume_', 'atr',
                         'adx', 'plus_di', 'minus_di', 'cci', 'williams_r', 'cmf', 'ad_line'
                     ];
-                    
-                    // Categorize available indicators
                     availableMainIndicators = addResponse.available_indicators.filter(indicator => 
                         mainIndicatorPrefixes.some(type => indicator.startsWith(type) || indicator === type)
                     );
-                    
                     availableSubplotIndicators = addResponse.available_indicators.filter(indicator => 
                         subplotIndicatorPrefixes.some(type => indicator.startsWith(type) || indicator === type)
                     );
-                    
-                    // Update UI with available indicators
                     if (addResponse.available_indicators.length > 0) {
                         appState.availableIndicators = addResponse.available_indicators;
                     }
                 }
-                
-                // Prepare request data for plotting, using the available indicators
                 const plotConfig = {
                     main_indicators: availableMainIndicators.length > 0 ? availableMainIndicators : [],
                     subplot_indicators: availableSubplotIndicators.length > 0 ? availableSubplotIndicators : [],
@@ -660,18 +771,11 @@ export function initializeIndicatorControls() {
                     start_date: startDate,
                     end_date: endDate
                 };
-                
                 console.log("Plotting with configuration:", plotConfig);
-                
-                // Plot indicators
                 const response = await plotIndicators(plotConfig);
-                
-                // Check if the response indicates success, regardless of the message
                 if (!response.success && response.message !== 'Plot created successfully') {
                     throw new Error(response.message || 'Error plotting chart');
                 }
-                
-                // Display the chart
                 const chartImage = document.getElementById('chart-image');
                 if (response.chart_image && chartImage) {
                     chartImage.src = `data:image/png;base64,${response.chart_image}`;
@@ -681,8 +785,6 @@ export function initializeIndicatorControls() {
                 } else {
                     showError('No chart data returned from server');
                 }
-                
-                // Display indicator summary if available
                 if (response.indicator_summary) {
                     const indicatorSummary = document.getElementById('indicator-summary');
                     if (indicatorSummary) {
@@ -690,16 +792,12 @@ export function initializeIndicatorControls() {
                     }
                 }
             } catch (error) {
-                // Don't log or show "Plot created successfully" as an error
                 if (error.message !== 'Plot created successfully') {
                     console.error('Error plotting chart:', error);
                     showError('Error plotting chart: ' + error.message);
                 }
-                
-                // Clear the chart container
                 if (chartContainer) chartContainer.innerHTML = '';
             } finally {
-                // Re-enable the plot button
                 if (plotChartBtn) {
                     plotChartBtn.disabled = false;
                     plotChartBtn.textContent = 'Plot Chart';

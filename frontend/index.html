@@ -341,201 +341,309 @@
                                     </div>
                                     <div class="card-body">
                                         <form id="indicators-form">
-                                            <button type="submit" class="btn btn-primary mb-3" id="add-indicators-btn">Add Indicators</button>
-                                            
-                                            <div class="mb-3">
-                                                <h6>Moving Averages</h6>
+                                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                                <button type="submit" class="btn btn-primary" id="add-indicators-btn">Add Indicators</button>
                                                 <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="sma-checkbox" checked>
-                                                    <label class="form-check-label" for="sma-checkbox">Simple Moving Averages</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">SMA Periods</span>
-                                                    <input type="text" class="form-control" id="sma-periods" value="20,50,200">
-                                                </div>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="ema-checkbox" checked>
-                                                    <label class="form-check-label" for="ema-checkbox">Exponential Moving Averages</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">EMA Periods</span>
-                                                    <input type="text" class="form-control" id="ema-periods" value="12,26,50">
-                                                </div>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <h6>Momentum Indicators</h6>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="rsi-checkbox" checked>
-                                                    <label class="form-check-label" for="rsi-checkbox">RSI</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">Period</span>
-                                                    <input type="number" class="form-control" id="rsi-period" value="14">
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="macd-checkbox" checked>
-                                                    <label class="form-check-label" for="macd-checkbox">MACD</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">Fast/Slow/Signal</span>
-                                                    <input type="number" class="form-control" id="macd-fast" value="12">
-                                                    <input type="number" class="form-control" id="macd-slow" value="26">
-                                                    <input type="number" class="form-control" id="macd-signal" value="9">
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="stoch-checkbox">
-                                                    <label class="form-check-label" for="stoch-checkbox">Stochastic Oscillator</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">K/D/Slowing</span>
-                                                    <input type="number" class="form-control" id="stoch-k" value="14">
-                                                    <input type="number" class="form-control" id="stoch-d" value="3">
-                                                    <input type="number" class="form-control" id="stoch-slowing" value="3">
-                                                </div>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <h6>Volatility Indicators</h6>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="bbands-checkbox" checked>
-                                                    <label class="form-check-label" for="bbands-checkbox">Bollinger Bands</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">Period/StdDev</span>
-                                                    <input type="number" class="form-control" id="bbands-period" value="20">
-                                                    <input type="number" class="form-control" id="bbands-std" value="2">
-                                                </div>
-
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="atr-checkbox" checked>
-                                                    <label class="form-check-label" for="atr-checkbox">ATR</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">Period</span>
-                                                    <input type="number" class="form-control" id="atr-period" value="14" title="ATR Period">
-                                                </div>
-                                                
-                                                <!-- SuperTrend -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="supertrend-checkbox">
-                                                    <label class="form-check-label" for="supertrend-checkbox">SuperTrend</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">ATR Period/Multiplier</span>
-                                                    <input type="number" class="form-control" id="supertrend-atr-period" value="10" title="SuperTrend ATR Period">
-                                                    <input type="number" class="form-control" id="supertrend-multiplier" value="3" title="SuperTrend Multiplier">
-                                                </div>
-                                                
-                                                <!-- Donchian Channels -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="donchian-checkbox">
-                                                    <label class="form-check-label" for="donchian-checkbox">Donchian Channels</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">Period</span>
-                                                    <input type="number" class="form-control" id="donchian-period" value="20" title="Donchian Channels Period">
-                                                </div>
-                                                
-                                                <!-- Keltner Channels -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="keltner-checkbox">
-                                                    <label class="form-check-label" for="keltner-checkbox">Keltner Channels</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">EMA/ATR/Mult</span>
-                                                    <input type="number" class="form-control" id="keltner-ema-period" value="20" title="Keltner EMA Period">
-                                                    <input type="number" class="form-control" id="keltner-atr-period" value="10" title="Keltner ATR Period">
-                                                    <input type="number" class="form-control" id="keltner-multiplier" value="1.5" title="Keltner Multiplier">
+                                                    <input class="form-check-input" type="checkbox" id="select-all-indicators">
+                                                    <label class="form-check-label" for="select-all-indicators">Select All</label>
                                                 </div>
                                             </div>
                                             
-                                            <!-- ADX Indicator -->
-                                            <div class="mb-3">
-                                                <h6>Trend Indicators</h6>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="adx-checkbox">
-                                                    <label class="form-check-label" for="adx-checkbox">ADX (+DI, -DI)</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">Period</span>
-                                                    <input type="number" class="form-control" id="adx-period" value="14" title="ADX Period">
-                                                </div>
-                                            </div>
-
-                                            <div class="mb-3">
-                                                <h6>Volume Indicators</h6>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="volume-checkbox" checked>
-                                                    <label class="form-check-label" for="volume-checkbox">Volume Analysis (OBV, VPT)</label>
-                                                </div>
-                                                
-                                                <!-- Accumulation Distribution Line -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="ad-line-checkbox">
-                                                    <label class="form-check-label" for="ad-line-checkbox">Accumulation/Distribution Line</label>
-                                                </div>
-                                                
-                                                <!-- Chaikin Money Flow -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="cmf-checkbox">
-                                                    <label class="form-check-label" for="cmf-checkbox">Chaikin Money Flow</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">Period</span>
-                                                    <input type="number" class="form-control" id="cmf-period" value="20" title="CMF Period">
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Oscillator Indicators -->
-                                            <div class="mb-3">
-                                                <h6>Oscillator Indicators</h6>
-                                                <!-- CCI -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="cci-checkbox">
-                                                    <label class="form-check-label" for="cci-checkbox">Commodity Channel Index (CCI)</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">Period</span>
-                                                    <input type="number" class="form-control" id="cci-period" value="20" title="CCI Period">
-                                                </div>
-                                                
-                                                <!-- Williams %R -->
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="williams-r-checkbox">
-                                                    <label class="form-check-label" for="williams-r-checkbox">Williams %R</label>
-                                                </div>
-                                                <div class="input-group mb-3">
-                                                    <span class="input-group-text">Period</span>
-                                                    <input type="number" class="form-control" id="williams-r-period" value="14" title="Williams %R Period">
-                                                </div>
-                                            </div>
-                                            
-                                            <!-- Candlestick Patterns -->
-                                            <div class="mb-3">
-                                                <h6>Candlestick Patterns</h6>
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="candlestick-patterns-checkbox">
-                                                    <label class="form-check-label" for="candlestick-patterns-checkbox">Enable All Patterns</label>
-                                                </div>
-                                                <div class="patterns-container ps-4">
+                                            <!-- Moving Averages Group -->
+                                            <div class="card mb-3">
+                                                <div class="card-header d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0">
+                                                        <a href="#moving-averages-group" class="d-block text-dark text-decoration-none" data-bs-toggle="collapse" aria-expanded="true">
+                                                            Moving Averages
+                                                        </a>
+                                                    </h6>
                                                     <div class="form-check">
-                                                        <input class="form-check-input pattern-checkbox" type="checkbox" id="doji-checkbox">
-                                                        <label class="form-check-label" for="doji-checkbox">Doji</label>
+                                                        <input class="form-check-input group-select" type="checkbox" id="select-moving-averages" data-group="moving-averages">
+                                                        <label class="form-check-label" for="select-moving-averages">Select All</label>
                                                     </div>
-                                                    <div class="form-check">
-                                                        <input class="form-check-input pattern-checkbox" type="checkbox" id="engulfing-checkbox">
-                                                        <label class="form-check-label" for="engulfing-checkbox">Engulfing (Bullish/Bearish)</label>
+                                                </div>
+                                                <div id="moving-averages-group" class="collapse show">
+                                                    <div class="card-body">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input moving-averages-checkbox" type="checkbox" id="sma-checkbox" checked>
+                                                            <label class="form-check-label" for="sma-checkbox">Simple Moving Averages</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">SMA Periods</span>
+                                                            <input type="text" class="form-control" id="sma-periods" value="20,50,200" title="SMA Periods">
+                                                        </div>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input moving-averages-checkbox" type="checkbox" id="ema-checkbox" checked>
+                                                            <label class="form-check-label" for="ema-checkbox">Exponential Moving Averages</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">EMA Periods</span>
+                                                            <input type="text" class="form-control" id="ema-periods" value="12,26,50" title="EMA Periods">
+                                                        </div>
                                                     </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Momentum Indicators Group -->
+                                            <div class="card mb-3">
+                                                <div class="card-header d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0">
+                                                        <a href="#momentum-indicators-group" class="d-block text-dark text-decoration-none" data-bs-toggle="collapse" aria-expanded="true">
+                                                            Momentum Indicators
+                                                        </a>
+                                                    </h6>
                                                     <div class="form-check">
-                                                        <input class="form-check-input pattern-checkbox" type="checkbox" id="hammer-checkbox">
-                                                        <label class="form-check-label" for="hammer-checkbox">Hammer/Inverted Hammer</label>
+                                                        <input class="form-check-input group-select" type="checkbox" id="select-momentum" data-group="momentum">
+                                                        <label class="form-check-label" for="select-momentum">Select All</label>
                                                     </div>
+                                                </div>
+                                                <div id="momentum-indicators-group" class="collapse show">
+                                                    <div class="card-body">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input momentum-checkbox" type="checkbox" id="rsi-checkbox" checked>
+                                                            <label class="form-check-label" for="rsi-checkbox">RSI</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">Period</span>
+                                                            <input type="number" class="form-control" id="rsi-period" value="14" title="RSI Period">
+                                                        </div>
+
+                                                        <div class="form-check">
+                                                            <input class="form-check-input momentum-checkbox" type="checkbox" id="macd-checkbox" checked>
+                                                            <label class="form-check-label" for="macd-checkbox">MACD</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">Fast/Slow/Signal</span>
+                                                            <input type="number" class="form-control" id="macd-fast" value="12" title="MACD Fast Period">
+                                                            <input type="number" class="form-control" id="macd-slow" value="26" title="MACD Slow Period">
+                                                            <input type="number" class="form-control" id="macd-signal" value="9" title="MACD Signal Period">
+                                                        </div>
+
+                                                        <div class="form-check">
+                                                            <input class="form-check-input momentum-checkbox" type="checkbox" id="stoch-checkbox">
+                                                            <label class="form-check-label" for="stoch-checkbox">Stochastic Oscillator</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">K/D/Slowing</span>
+                                                            <input type="number" class="form-control" id="stoch-k" value="14" title="Stochastic %K">
+                                                            <input type="number" class="form-control" id="stoch-d" value="3" title="Stochastic %D">
+                                                            <input type="number" class="form-control" id="stoch-slowing" value="3" title="Stochastic Slowing">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Volatility Indicators Group -->
+                                            <div class="card mb-3">
+                                                <div class="card-header d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0">
+                                                        <a href="#volatility-indicators-group" class="d-block text-dark text-decoration-none" data-bs-toggle="collapse" aria-expanded="true">
+                                                            Volatility Indicators
+                                                        </a>
+                                                    </h6>
                                                     <div class="form-check">
-                                                        <input class="form-check-input pattern-checkbox" type="checkbox" id="morning-star-checkbox">
-                                                        <label class="form-check-label" for="morning-star-checkbox">Morning/Evening Star</label>
+                                                        <input class="form-check-input group-select" type="checkbox" id="select-volatility" data-group="volatility">
+                                                        <label class="form-check-label" for="select-volatility">Select All</label>
+                                                    </div>
+                                                </div>
+                                                <div id="volatility-indicators-group" class="collapse show">
+                                                    <div class="card-body">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input volatility-checkbox" type="checkbox" id="bbands-checkbox" checked>
+                                                            <label class="form-check-label" for="bbands-checkbox">Bollinger Bands</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">Period/StdDev</span>
+                                                            <input type="number" class="form-control" id="bbands-period" value="20" title="Bollinger Bands Period">
+                                                            <input type="number" class="form-control" id="bbands-std" value="2" title="Bollinger Bands Standard Deviations">
+                                                        </div>
+
+                                                        <div class="form-check">
+                                                            <input class="form-check-input volatility-checkbox" type="checkbox" id="atr-checkbox" checked>
+                                                            <label class="form-check-label" for="atr-checkbox">ATR</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">Period</span>
+                                                            <input type="number" class="form-control" id="atr-period" value="14" title="ATR Period">
+                                                        </div>
+                                                        
+                                                        <!-- SuperTrend -->
+                                                        <div class="form-check">
+                                                            <input class="form-check-input volatility-checkbox" type="checkbox" id="supertrend-checkbox">
+                                                            <label class="form-check-label" for="supertrend-checkbox">SuperTrend</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">ATR Period/Multiplier</span>
+                                                            <input type="number" class="form-control" id="supertrend-atr-period" value="10" title="SuperTrend ATR Period">
+                                                            <input type="number" class="form-control" id="supertrend-multiplier" value="3" title="SuperTrend Multiplier">
+                                                        </div>
+                                                        
+                                                        <!-- Donchian Channels -->
+                                                        <div class="form-check">
+                                                            <input class="form-check-input volatility-checkbox" type="checkbox" id="donchian-checkbox">
+                                                            <label class="form-check-label" for="donchian-checkbox">Donchian Channels</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">Period</span>
+                                                            <input type="number" class="form-control" id="donchian-period" value="20" title="Donchian Channels Period">
+                                                        </div>
+                                                        
+                                                        <!-- Keltner Channels -->
+                                                        <div class="form-check">
+                                                            <input class="form-check-input volatility-checkbox" type="checkbox" id="keltner-checkbox">
+                                                            <label class="form-check-label" for="keltner-checkbox">Keltner Channels</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">EMA/ATR/Mult</span>
+                                                            <input type="number" class="form-control" id="keltner-ema-period" value="20" title="Keltner EMA Period">
+                                                            <input type="number" class="form-control" id="keltner-atr-period" value="10" title="Keltner ATR Period">
+                                                            <input type="number" class="form-control" id="keltner-multiplier" value="1.5" title="Keltner Multiplier">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Trend Indicators Group -->
+                                            <div class="card mb-3">
+                                                <div class="card-header d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0">
+                                                        <a href="#trend-indicators-group" class="d-block text-dark text-decoration-none" data-bs-toggle="collapse" aria-expanded="false">
+                                                            Trend Indicators
+                                                        </a>
+                                                    </h6>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input group-select" type="checkbox" id="select-trend" data-group="trend">
+                                                        <label class="form-check-label" for="select-trend">Select All</label>
+                                                    </div>
+                                                </div>
+                                                <div id="trend-indicators-group" class="collapse">
+                                                    <div class="card-body">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input trend-checkbox" type="checkbox" id="adx-checkbox">
+                                                            <label class="form-check-label" for="adx-checkbox">ADX (+DI, -DI)</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">Period</span>
+                                                            <input type="number" class="form-control" id="adx-period" value="14" title="ADX Period">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Volume Indicators Group -->
+                                            <div class="card mb-3">
+                                                <div class="card-header d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0">
+                                                        <a href="#volume-indicators-group" class="d-block text-dark text-decoration-none" data-bs-toggle="collapse" aria-expanded="false">
+                                                            Volume Indicators
+                                                        </a>
+                                                    </h6>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input group-select" type="checkbox" id="select-volume" data-group="volume">
+                                                        <label class="form-check-label" for="select-volume">Select All</label>
+                                                    </div>
+                                                </div>
+                                                <div id="volume-indicators-group" class="collapse">
+                                                    <div class="card-body">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input volume-checkbox" type="checkbox" id="volume-checkbox" checked>
+                                                            <label class="form-check-label" for="volume-checkbox">Volume Analysis (OBV, VPT)</label>
+                                                        </div>
+                                                        
+                                                        <!-- Accumulation Distribution Line -->
+                                                        <div class="form-check">
+                                                            <input class="form-check-input volume-checkbox" type="checkbox" id="ad-line-checkbox">
+                                                            <label class="form-check-label" for="ad-line-checkbox">Accumulation/Distribution Line</label>
+                                                        </div>
+                                                        
+                                                        <!-- Chaikin Money Flow -->
+                                                        <div class="form-check">
+                                                            <input class="form-check-input volume-checkbox" type="checkbox" id="cmf-checkbox">
+                                                            <label class="form-check-label" for="cmf-checkbox">Chaikin Money Flow</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">Period</span>
+                                                            <input type="number" class="form-control" id="cmf-period" value="20" title="CMF Period">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Oscillator Indicators Group -->
+                                            <div class="card mb-3">
+                                                <div class="card-header d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0">
+                                                        <a href="#oscillator-indicators-group" class="d-block text-dark text-decoration-none" data-bs-toggle="collapse" aria-expanded="false">
+                                                            Oscillator Indicators
+                                                        </a>
+                                                    </h6>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input group-select" type="checkbox" id="select-oscillator" data-group="oscillator">
+                                                        <label class="form-check-label" for="select-oscillator">Select All</label>
+                                                    </div>
+                                                </div>
+                                                <div id="oscillator-indicators-group" class="collapse">
+                                                    <div class="card-body">
+                                                        <!-- CCI -->
+                                                        <div class="form-check">
+                                                            <input class="form-check-input oscillator-checkbox" type="checkbox" id="cci-checkbox">
+                                                            <label class="form-check-label" for="cci-checkbox">Commodity Channel Index (CCI)</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">Period</span>
+                                                            <input type="number" class="form-control" id="cci-period" value="20" title="CCI Period">
+                                                        </div>
+                                                        
+                                                        <!-- Williams %R -->
+                                                        <div class="form-check">
+                                                            <input class="form-check-input oscillator-checkbox" type="checkbox" id="williams-r-checkbox">
+                                                            <label class="form-check-label" for="williams-r-checkbox">Williams %R</label>
+                                                        </div>
+                                                        <div class="input-group mb-3">
+                                                            <span class="input-group-text">Period</span>
+                                                            <input type="number" class="form-control" id="williams-r-period" value="14" title="Williams %R Period">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Candlestick Patterns Group -->
+                                            <div class="card mb-3">
+                                                <div class="card-header d-flex justify-content-between align-items-center">
+                                                    <h6 class="mb-0">
+                                                        <a href="#candlestick-patterns-group" class="d-block text-dark text-decoration-none" data-bs-toggle="collapse" aria-expanded="false">
+                                                            Candlestick Patterns
+                                                        </a>
+                                                    </h6>
+                                                    <div class="form-check">
+                                                        <input class="form-check-input group-select" type="checkbox" id="select-patterns" data-group="patterns">
+                                                        <label class="form-check-label" for="select-patterns">Select All</label>
+                                                    </div>
+                                                </div>
+                                                <div id="candlestick-patterns-group" class="collapse">
+                                                    <div class="card-body">
+                                                        <div class="form-check">
+                                                            <input class="form-check-input patterns-checkbox" type="checkbox" id="candlestick-patterns-checkbox">
+                                                            <label class="form-check-label" for="candlestick-patterns-checkbox">Enable All Patterns</label>
+                                                        </div>
+                                                        <div class="patterns-container ps-4">
+                                                            <div class="form-check">
+                                                                <input class="form-check-input pattern-checkbox patterns-checkbox" type="checkbox" id="doji-checkbox">
+                                                                <label class="form-check-label" for="doji-checkbox">Doji</label>
+                                                            </div>
+                                                            <div class="form-check">
+                                                                <input class="form-check-input pattern-checkbox patterns-checkbox" type="checkbox" id="engulfing-checkbox">
+                                                                <label class="form-check-label" for="engulfing-checkbox">Engulfing (Bullish/Bearish)</label>
+                                                            </div>
+                                                            <div class="form-check">
+                                                                <input class="form-check-input pattern-checkbox patterns-checkbox" type="checkbox" id="hammer-checkbox">
+                                                                <label class="form-check-label" for="hammer-checkbox">Hammer/Inverted Hammer</label>
+                                                            </div>
+                                                            <div class="form-check">
+                                                                <input class="form-check-input pattern-checkbox patterns-checkbox" type="checkbox" id="morning-star-checkbox">
+                                                                <label class="form-check-label" for="morning-star-checkbox">Morning/Evening Star</label>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -819,7 +927,7 @@
                                         <form id="seasonality-form">
                                             <div class="mb-3">
                                                 <label for="seasonality-type" class="form-label">Seasonality Type</label>
-                                                <select class="form-select" id="seasonality-type" name="pattern_type">
+                                                <select class="form-select" id="seasonality-type" name="pattern_type" title="Select Seasonality Type">
                                                     <option value="day_of_week">Day of Week</option>
                                                     <option value="monthly">Monthly</option>
                                                     <option value="volatility">Volatility</option>
@@ -941,7 +1049,7 @@
                     <form id="save-config-form">
                         <div class="mb-3">
                             <label for="config-name" class="form-label">Configuration Name</label>
-                            <input type="text" class="form-control" id="config-name" placeholder="My Strategy Config">
+                            <input type="text" class="form-control" id="config-name" placeholder="My Strategy Config" title="Configuration Name">
                         </div>
                     </form>
                 </div>
