@@ -488,9 +488,6 @@ class Backtester:
         # Convert to base64
         buffer = io.BytesIO()
         plt.savefig(buffer, format='png', dpi=100)
-        # Also save to file for debugging
-        plt.savefig(r'C:\Users\ricar\Desktop\Python Works\Analise_Grafica\test_chart.png', format='png', dpi=100)
-        logger.info("Saved test_chart.png to project root.")
         buffer.seek(0)
         image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
         plt.close()
