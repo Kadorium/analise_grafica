@@ -81,4 +81,7 @@ venv.bak/
 data/sample/*.csv
 *.pkl
 results/
-.DS_Store 
+.DS_Store
+
+# Ignore the _archive folder
+_archive/ 
