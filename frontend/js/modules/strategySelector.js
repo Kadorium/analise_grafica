@@ -512,3 +512,60 @@ export function initializeStrategySelector() {
         loadStrategyParameters(strategySelect.value);
     }
 }
+
+// --- Download Buttons Logic ---
+document.addEventListener('DOMContentLoaded', () => {
+    // Chart download
+    const downloadChartBtn = document.getElementById('download-strategy-chart-btn');
+    if (downloadChartBtn) {
+        downloadChartBtn.addEventListener('click', () => {
+            // Try to find an <img> in the comparison chart container
+            const chartContainer = document.getElementById('comparison-chart-container');
+            if (!chartContainer) return;
+            const img = chartContainer.querySelector('img');
+            if (img && img.src && img.src.startsWith('data:image')) {
+                // Download the image
+                const a = document.createElement('a');
+                a.href = img.src;
+                a.download = 'strategy_comparison_chart.png';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } else {
+                // Optionally, handle canvas or show error
+                alert('No chart image found to download.');
+            }
+        });
+    }
+
+    // Data download
+    const downloadDataBtn = document.getElementById('download-strategy-data-btn');
+    if (downloadDataBtn) {
+        downloadDataBtn.addEventListener('click', () => {
+            // Try to find a table in #compare-results
+            const table = document.querySelector('#compare-results table');
+            if (table) {
+                let csv = '';
+                // Get headers
+                const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+                csv += headers.join(',') + '\n';
+                // Get rows
+                const rows = table.querySelectorAll('tbody tr');
+                rows.forEach(row => {
+                    const cells = Array.from(row.querySelectorAll('td')).map(td => '"' + td.textContent.trim().replace(/"/g, '""') + '"');
+                    csv += cells.join(',') + '\n';
+                });
+                // Download CSV
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'strategy_comparison_data.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } else {
+                alert('No comparison data table found to download.');
+            }
+        });
+    }
+});
