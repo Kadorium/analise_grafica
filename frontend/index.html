@@ -8,193 +8,84 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/css/style.css">
     
-    <!-- Sistema de logging aprimorado para debug -->
+    <!-- Simplified logging system -->
     <script>
-        // Definição do sistema de logging aprimorado
         window.AppLogger = {
-            // Níveis de log
             LEVELS: {
-                DEBUG: { value: 0, color: '#6c757d', prefix: '🔍 DEBUG' },
-                INFO: { value: 1, color: '#0d6efd', prefix: 'ℹ️ INFO' },
-                WARNING: { value: 2, color: '#ffc107', prefix: '⚠️ WARNING' },
-                ERROR: { value: 3, color: '#dc3545', prefix: '❌ ERROR' },
-                API: { value: 4, color: '#0dcaf0', prefix: '🔄 API' },
-                PERF: { value: 5, color: '#6f42c1', prefix: '⏱️ PERF' }
+                DEBUG: 0,
+                INFO: 1,
+                WARNING: 2,
+                ERROR: 3,
+                API: 4
             },
-            
-            // Nível de log atual (0 = todos os logs)
             currentLevel: 0,
-            
-            // Registra se o log está ativo
             enabled: true,
-            
-            // Armazena logs recentes para debug
             logs: [],
-            maxLogs: 500,
+            maxLogs: 100,
             
-            // Formata a data/hora
-            formatTime: function() {
-                const now = new Date();
-                return now.toISOString().split('T')[1].split('.')[0];
-            },
-            
-            // Método de log principal
             log: function(level, message, data = null) {
-                if (!this.enabled || level.value < this.currentLevel) return;
+                if (!this.enabled || level < this.currentLevel) return;
                 
-                // Formatar a mensagem com data/hora
-                const timestamp = this.formatTime();
-                const formattedMsg = `[${timestamp}] ${level.prefix}: ${message}`;
+                const now = new Date();
+                const timestamp = now.toISOString().split('T')[1].split('.')[0];
+                const prefix = ['🔍 DEBUG', 'ℹ️ INFO', '⚠️ WARNING', '❌ ERROR', '🔄 API'][level];
+                const formattedMsg = `[${timestamp}] ${prefix}: ${message}`;
                 
-                // Estilizar o log no console
-                console.log(
-                    `%c${formattedMsg}`, 
-                    `color: ${level.color}; font-weight: bold;`, 
-                    data || ''
-                );
+                console.log(formattedMsg, data || '');
                 
-                // Armazenar para referência futura
                 this.logs.push({
-                    timestamp: new Date(),
-                    level: level.prefix,
+                    timestamp: now,
+                    level: prefix,
                     message: message,
                     data: data
                 });
                 
-                // Limitar o número de logs armazenados
                 if (this.logs.length > this.maxLogs) {
                     this.logs.shift();
                 }
             },
             
-            // Métodos para cada nível
-            debug: function(message, data = null) {
-                this.log(this.LEVELS.DEBUG, message, data);
-            },
-            
-            info: function(message, data = null) {
-                this.log(this.LEVELS.INFO, message, data);
-            },
-            
-            warning: function(message, data = null) {
-                this.log(this.LEVELS.WARNING, message, data);
-            },
-            
-            error: function(message, data = null) {
-                this.log(this.LEVELS.ERROR, message, data);
-            },
-            
+            debug: function(message, data = null) { this.log(this.LEVELS.DEBUG, message, data); },
+            info: function(message, data = null) { this.log(this.LEVELS.INFO, message, data); },
+            warning: function(message, data = null) { this.log(this.LEVELS.WARNING, message, data); },
+            error: function(message, data = null) { this.log(this.LEVELS.ERROR, message, data); },
             api: function(method, endpoint, params = null, response = null) {
-                const message = `${method} ${endpoint}`;
-                const data = { params, response };
-                this.log(this.LEVELS.API, message, data);
+                this.log(this.LEVELS.API, `${method} ${endpoint}`, { params, response });
             },
             
-            perf: function(operation, timeMs) {
-                const message = `${operation}: ${timeMs.toFixed(2)}ms`;
-                this.log(this.LEVELS.PERF, message);
-            },
-            
-            // Tempo de operação
-            time: function(label) {
-                return {
-                    start: performance.now(),
-                    label: label,
-                    end: function() {
-                        const duration = performance.now() - this.start;
-                        AppLogger.perf(this.label, duration);
-                        return duration;
-                    }
-                };
-            },
-            
-            // Exportar logs para análise
-            exportLogs: function() {
-                const logsJSON = JSON.stringify(this.logs, null, 2);
-                const blob = new Blob([logsJSON], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `app_logs_${new Date().toISOString().replace(/:/g, '-')}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            },
-            
-            // Limpar logs
             clearLogs: function() {
                 this.logs = [];
                 console.clear();
-                this.info('Logs limpos');
+                this.info('Logs cleared');
             }
         };
         
-        // Inicializar o logger quando o documento estiver pronto
+        // Initialize logging and error handling
         document.addEventListener('DOMContentLoaded', function() {
-            AppLogger.info('Aplicação iniciada', { 
+            AppLogger.info('Application started', { 
                 userAgent: navigator.userAgent,
                 screenSize: `${window.innerWidth}x${window.innerHeight}`
             });
             
-            // Monitorar eventos de erro não capturados
-            window.addEventListener('error', function(event) {
-                AppLogger.error('Erro não capturado', {
-                    message: event.message,
-                    source: event.filename,
-                    lineno: event.lineno,
-                    colno: event.colno,
-                    error: event.error
-                });
-            });
+            // Error event handlers
+            window.addEventListener('error', e => 
+                AppLogger.error('Uncaught error', { message: e.message, source: e.filename }));
             
-            // Monitorar rejeições de promessas não tratadas
-            window.addEventListener('unhandledrejection', function(event) {
-                AppLogger.error('Promessa rejeitada não tratada', {
-                    reason: event.reason
-                });
-            });
+            window.addEventListener('unhandledrejection', e => 
+                AppLogger.error('Unhandled promise rejection', { reason: e.reason }));
             
-            // Configurar interceptor de requisições fetch para monitorar API
+            // Simple fetch interceptor
             const originalFetch = window.fetch;
             window.fetch = async function(url, options = {}) {
                 const method = (options.method || 'GET').toUpperCase();
                 const endpoint = url.toString();
                 
-                let requestBody = null;
-                if (options.body) {
-                    try {
-                        requestBody = JSON.parse(options.body);
-                    } catch (e) {
-                        requestBody = options.body;
-                    }
-                }
-                
-                AppLogger.api(`${method} - Início`, endpoint, requestBody);
-                const timer = AppLogger.time(`Fetch ${method} ${endpoint}`);
-                
+                AppLogger.api(`${method}`, endpoint, options.body ? options.body : null);
                 try {
                     const response = await originalFetch(url, options);
-                    const responseClone = response.clone();
-                    timer.end();
-                    
-                    try {
-                        const responseData = await responseClone.json();
-                        AppLogger.api(`${method} - Sucesso`, endpoint, requestBody, responseData);
-                    } catch (e) {
-                        AppLogger.api(`${method} - Resposta não-JSON`, endpoint, requestBody, {
-                            status: response.status,
-                            statusText: response.statusText
-                        });
-                    }
-                    
                     return response;
                 } catch (error) {
-                    timer.end();
-                    AppLogger.api(`${method} - Erro`, endpoint, requestBody, {
-                        error: error.toString()
-                    });
+                    AppLogger.error(`Fetch ${method} failed`, { url, error: error.toString() });
                     throw error;
                 }
             };
@@ -230,12 +121,7 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#strategies-section" id="strategies-tab">
-                                <i class="bi bi-lightbulb"></i> Strategies
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="#backtest-section" id="backtest-tab">
-                                <i class="bi bi-clipboard-data"></i> Backtest
+                                <i class="bi bi-lightbulb"></i> Strategies & Backtest
                             </a>
                         </li>
                         <li class="nav-item">
@@ -720,7 +606,7 @@
                     <div id="strategies-section" class="content-section">
                         <div class="row">
                             <div class="col-md-4">
-                                <div class="card">
+                                <div class="card mb-4">
                                     <div class="card-header">
                                         <h5>Select Strategy</h5>
                                     </div>
@@ -740,12 +626,59 @@
                                             <div id="strategy-parameters">
                                                 <!-- Strategy-specific parameters will be added dynamically -->
                                             </div>
-                                            <button type="button" class="btn btn-primary" id="update-strategy-btn">Update Strategy</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                
+                                <!-- Backtest Configuration (Moved from backtest section) -->
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5>Backtest Configuration</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form id="backtest-form">
+                                            <div class="mb-3">
+                                                <label for="initial-capital" class="form-label">Initial Capital</label>
+                                                <input type="number" class="form-control" id="initial-capital" value="100" title="Initial capital for backtest" placeholder="Enter initial capital">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="commission" class="form-label">Commission (decimal)</label>
+                                                <input type="number" class="form-control" id="commission" value="0.001" step="0.001">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="backtest-start-date" class="form-label">Start Date</label>
+                                                <input type="date" class="form-control" id="backtest-start-date">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="backtest-end-date" class="form-label">End Date</label>
+                                                <input type="date" class="form-control" id="backtest-end-date">
+                                            </div>
+                                            <div class="d-grid gap-2">
+                                                <button type="submit" class="btn btn-primary" id="run-backtest-btn">Run Backtest</button>
+                                                <button type="button" class="btn btn-secondary" id="update-strategy-btn">Update Strategy</button>
+                                            </div>
                                         </form>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-md-8">
+                                <!-- Backtest Results (Moved from backtest section) -->
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        <h5>Strategy Results</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="backtest-results">
+                                            <!-- Backtest results will be displayed here -->
+                                        </div>
+                                        <div id="equity-curve-container" style="margin-top: 20px; display: none;">
+                                            <h5>Equity Curve</h5>
+                                            <!-- Equity curve image will be shown here -->
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Strategy Comparison (Kept from strategies section) -->
                                 <div class="card">
                                     <div class="card-header">
                                         <h5>Strategy Comparison</h5>
@@ -789,64 +722,6 @@
                                         <div id="comparison-chart-container" style="margin-top: 20px; display: none;">
                                             <h5>Strategy Comparison</h5>
                                             <!-- Comparison chart image will be shown here -->
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Backtest Section -->
-                    <div id="backtest-section" class="content-section">
-                        <div class="row">
-                            <div class="col-md-4">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5>Backtest Configuration</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <form id="backtest-form">
-                                            <div class="mb-3">
-                                                <label for="backtest-strategy" class="form-label">Strategy</label>
-                                                <select class="form-select" id="backtest-strategy">
-                                                    <option value="trend_following">Trend Following (Moving Average Crossover)</option>
-                                                    <option value="mean_reversion">Mean Reversion (RSI)</option>
-                                                    <option value="breakout">Breakout (Price & Volume)</option>
-                                                </select>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="initial-capital" class="form-label">Initial Capital</label>
-                                                <input type="number" class="form-control" id="initial-capital" value="100" title="Initial capital for backtest" placeholder="Enter initial capital">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="commission" class="form-label">Commission (decimal)</label>
-                                                <input type="number" class="form-control" id="commission" value="0.001" step="0.001">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="backtest-start-date" class="form-label">Start Date</label>
-                                                <input type="date" class="form-control" id="backtest-start-date">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="backtest-end-date" class="form-label">End Date</label>
-                                                <input type="date" class="form-control" id="backtest-end-date">
-                                            </div>
-                                            <button type="submit" class="btn btn-primary" id="run-backtest-btn">Run Backtest</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-8">
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5>Backtest Results</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div id="backtest-results">
-                                            <!-- Backtest results will be displayed here -->
-                                        </div>
-                                        <div id="equity-curve-container" style="margin-top: 20px; display: none;">
-                                            <h5>Equity Curve</h5>
-                                            <!-- Equity curve image will be shown here -->
                                         </div>
                                     </div>
                                 </div>
@@ -1064,47 +939,37 @@
     <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Chart.js library - Load directly in the HTML -->
+    <!-- Chart.js library -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
     
     <!-- Application Scripts -->
     <script type="module" src="/static/js/main.js"></script>
     
-    <!-- Direct tab navigation fallback script -->
+    <!-- Tab navigation (simplified) -->
     <script>
-        // Simple backup script to ensure tabs work if the main.js implementation fails
         document.addEventListener('DOMContentLoaded', function() {
-            // Add click handlers to tab links
             const tabLinks = document.querySelectorAll('.nav-link');
+            const contentSections = document.querySelectorAll('.content-section');
             
-            tabLinks.forEach(function(tab) {
+            tabLinks.forEach(tab => {
                 tab.addEventListener('click', function(e) {
-                    // Try to activate tab directly if the main module doesn't handle it
-                    setTimeout(function() {
-                        const targetId = tab.getAttribute('href');
-                        if (targetId) {
-                            const targetSection = document.getElementById(targetId.substring(1));
-                            
-                            // Check if target section is visible
-                            if (targetSection && !targetSection.classList.contains('active')) {
-                                console.log('Fallback tab activation for', targetId);
-                                
-                                // Hide all sections
-                                document.querySelectorAll('.content-section').forEach(function(section) {
-                                    section.classList.remove('active');
-                                });
-                                
-                                // Show target section
-                                targetSection.classList.add('active');
-                                
-                                // Update active tab
-                                tabLinks.forEach(function(t) {
-                                    t.classList.remove('active');
-                                });
-                                tab.classList.add('active');
-                            }
+                    e.preventDefault();
+                    const targetId = this.getAttribute('href').substring(1);
+                    
+                    // Update active tab
+                    tabLinks.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Show target section
+                    contentSections.forEach(section => {
+                        section.classList.remove('active');
+                        if (section.id === targetId) {
+                            section.classList.add('active');
+                            document.getElementById('page-title').textContent = this.textContent.trim();
                         }
-                    }, 100); // Small delay to let the module code run first
+                    });
+                    
+                    AppLogger.debug(`Tab changed to ${targetId}`);
                 });
             });
         });

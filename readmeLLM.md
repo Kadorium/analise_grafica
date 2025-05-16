@@ -29,8 +29,9 @@ The AI-Powered Trading Analysis System is a modular trading analysis platform bu
                               +-------------------+       +-------------------+
                                                               |
                               +-------------------+       +-------------------+
-                              | Backtesting       |<----->| Strategies        |
-                              | (Performance)     |       | (Signal Gen)      |
+                              | Strategies        |<----->| Backtesting       |
+                              | (Signal Gen &     |       | (Performance      |
+                              |  Backtesting)     |       |  Evaluation)      |
                               +-------------------+       +-------------------+
                                       |
                               +-------------------+
@@ -50,8 +51,14 @@ data/                    # Data management
 indicators/              # Technical indicators implementation
 └── indicator_utils.py   # Contains indicator combination logic and utility functions for indicator processing. Includes `normalize_signals_column(df)` utility to standardize signal columns in strategies.
 optimization/            # Strategy optimization modules
-strategies/              # Trading strategy implementations
+strategies/              # Trading strategy implementations with integrated backtesting
 frontend/                # UI files
+└── js/
+    ├── modules/
+    │   ├── strategySelector.js # Combined strategy selection and backtesting UI handler
+    │   └── ... 
+    └── utils/
+        └── api.js      # API communication utilities
 ```
 
 ## Module Interaction Guidelines for LLMs
@@ -90,7 +97,9 @@ def calculate_new_indicator(df, period=14, column='close'):
     return result
 ```
 
-### 3. Creating New Strategies
+### 3. Creating New Strategies with Integrated Backtesting
+
+The strategies now also handle their backtesting functionality directly. When implementing new strategies, ensure they work properly with the backtester.
 
 ```python
 # Strategy implementation pattern
@@ -121,16 +130,38 @@ class NewStrategy:
         
     def get_parameters(self):
         return self.parameters
+    
+    # Optional method for customized backtesting behavior
+    def backtest(self, data, initial_capital, commission):
+        """Run a backtest for this strategy
+        
+        Args:
+            data (pd.DataFrame): DataFrame with OHLCV data
+            initial_capital (float): Starting capital
+            commission (float): Commission rate per trade
+            
+        Returns:
+            pd.DataFrame: DataFrame with signals and backtest results
+        """
+        signals = self.generate_signals(data)
+        # Implement backtest logic or use the backtester module
+        from backtesting.backtester import Backtester
+        backtester = Backtester(data, initial_capital, commission)
+        results = backtester.run_backtest(self)
+        return results
 ```
 
 ### 4. API Endpoint Pattern
 
 ```python
 # FastAPI endpoint pattern
-@app.post("/api/run-strategy")
-async def run_strategy(request: dict):
-    strategy_type = request.get("strategy_type")
-    parameters = request.get("parameters", {})
+@app.post("/api/run-backtest")
+async def run_backtest(request: dict):
+    strategy_config = request.get("strategy_config", {})
+    backtest_config = request.get("backtest_config", {})
+    
+    strategy_type = strategy_config.get("strategy_type")
+    parameters = strategy_config.get("parameters", {})
     
     # Create strategy instance
     strategy = create_strategy(strategy_type, parameters)
@@ -155,33 +186,18 @@ async def run_strategy(request: dict):
 3. **Type Hints**: Use Python type hints for improved code clarity
 4. **Error Handling**: Implement proper error handling with informative messages
 
-### Version Control
+### Frontend-Backend Integration
 
-1. **Committing Changes**: When the user indicates that the code is working correctly, perform a commit with a descriptive message.
-   - **Correction Commits**: If a correction you made is confirmed by the user as working, even partially (e.g., user says "great", "it's working", "perfect", "that's it", "exactly", "nice", or similar affirmations), you MUST immediately perform a commit and then push the changes. This action takes precedence; complete the commit and push *before* proceeding with any other requests or tasks, even if they are part of the same user message.
-2. **Pushing to Remote**: After committing, push the changes to the GitHub repository.
-3. **Tagging Major Releases**: After completing a significant set of changes or a major feature (and after the above committing and pushing steps):
-    *   Update the `version` field (e.g., from "1.0" to "1.1" or "2.0") within the `AUTO_UPDATE_CONFIG` JSON block in this `readmeLLM.md` file. Also update the `last_updated` field.
-    *   Create a new Git tag for the release (e.g., `v1.1`, `v2.0`).
-    *   Push the new tag to the GitHub repository.
+The frontend now presents strategies and backtesting in a unified interface. Key components:
 
-### Strategy Development
+1. **strategySelector.js**: Manages both strategy selection/configuration and backtesting
+2. **backtesting.py**: Handles the backend backtesting calculations
+3. **API Integration**: The `/api/run-backtest` endpoint processes combined strategy and backtest configurations
 
-When creating trading strategies:
-
-1. Follow the strategy interface pattern (implement `generate_signals` method)
-2. Document parameter ranges and descriptions
-3. Include basic validation of inputs
-4. Return standardized signal format (DataFrame with 'signal' column)
-
-### Indicator Development
-
-When implementing technical indicators:
-
-1. Place in the appropriate category file in the `indicators/` directory
-2. Document the mathematical formula being implemented
-3. Handle edge cases (insufficient data points, NaN values)
-4. Optimize for performance with vectorized operations
+When creating frontend extensions, ensure:
+1. New strategy parameters appear correctly in the UI
+2. Backtesting controls are properly linked to the selected strategy
+3. Results display includes both technical signals and performance metrics
 
 ## Testing Methods
 
@@ -330,8 +346,8 @@ class MLStrategy:
 
 ```json
 {
-  "version": "1.0",
-  "last_updated": "2025-05-13",
+  "version": "1.1",
+  "last_updated": "2024-07-31",
   "update_triggers": [
     "new_module_added",
     "api_change",

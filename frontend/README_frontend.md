@@ -336,6 +336,16 @@ These modules provide shared, reusable functionality across the different featur
 > - **New UI Elements/Parameters**: Select all checkbox, group select checkboxes, collapsible indicator groups.
 > - **Notes/Instructions**: All indicator selection logic is now managed via checkboxes and group controls for better UX.
 
+> **[2024-07-31] [AI Assistant]**
+> - **Summary**: Merged Strategies and Backtest tabs into a single unified interface for a more streamlined workflow.
+> - **Affected Files/Modules**:
+>   - `frontend/index.html`: Combined Strategies and Backtest sections, updated sidebar navigation.
+>   - `frontend/js/modules/strategySelector.js`: Enhanced to incorporate backtesting functionality.
+>   - `frontend/js/main.js`: Updated tab navigation logic to handle merged sections.
+>   - `frontend/js/utils/api.js`: Updated runBacktest API function to better handle modified request format.
+> - **New UI Structure**: Strategy selection and parameter configuration now appear alongside backtest controls in a single view.
+> - **Notes/Instructions**: Backtest tab has been removed from navigation; all backtesting functionality is now accessed through the "Strategies & Backtest" tab.
+
 ---
 
 ## Deprecated/Legacy Files

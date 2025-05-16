@@ -8,7 +8,6 @@ import { activateTab, showError } from './utils/ui.js';
 import { initializeDataManager, checkDataStatus } from './modules/dataManager.js';
 import { initializeIndicatorControls } from './modules/indicatorPanel.js';
 import { initializeStrategySelector, buildStrategySelections } from './modules/strategySelector.js';
-import { initializeBacktestView } from './modules/backtestView.js';
 import { initializeOptimizationPanel } from './modules/optimizationPanel.js';
 import { initializeSeasonalityAnalyzer } from './modules/seasonalityAnalyzer.js';
 import { initializeResultsViewer } from './modules/resultsViewer.js';
@@ -19,7 +18,6 @@ const tabLinks = document.querySelectorAll('.nav-link');
 const dataTab = document.getElementById('data-tab');
 const indicatorsTab = document.getElementById('indicators-tab');
 const strategiesTab = document.getElementById('strategies-tab');
-const backtestTab = document.getElementById('backtest-tab');
 const optimizationTab = document.getElementById('optimization-tab');
 const seasonalityTab = document.getElementById('seasonality-tab');
 const resultsTab = document.getElementById('results-tab');
@@ -184,11 +182,8 @@ export function initializeApp() {
     // Initialize indicator panel
     initializeIndicatorControls();
     
-    // Initialize strategy selector
+    // Initialize strategy selector (now includes backtest functionality)
     initializeStrategySelector();
-    
-    // Initialize backtest view
-    initializeBacktestView();
     
     // Initialize optimization panel
     initializeOptimizationPanel();
@@ -199,76 +194,25 @@ export function initializeApp() {
     // Initialize results viewer
     initializeResultsViewer();
     
-    // Initialize config manager
+    // Initialize configuration manager
     initializeConfigManager();
     
-    // Add event listener for data upload
-    document.addEventListener('data-uploaded', () => {
-        console.log('Data uploaded event received, enabling tabs');
-        // Enable all tabs that require data
-        const tabs = document.querySelectorAll('.nav-link');
-        tabs.forEach(tab => {
-            if (tab && tab.id !== 'data-tab') {
-                tab.classList.remove('disabled');
-            }
-        });
-    });
-    
-    // Check data status on page load
-    checkDataStatus().then(status => {
-        if (status.data_processed) {
-            console.log('Data already processed, enabling tabs');
-            // Enable tabs that require data
-            const tabs = document.querySelectorAll('.nav-link');
-            tabs.forEach(tab => {
-                if (tab && tab.id !== 'data-tab') {
-                    tab.classList.remove('disabled');
-                }
-            });
-        }
-    });
-    
-    // Set up tab navigation
+    // Initialize tab navigation
     initializeTabNavigation();
     
-    // Fetch available strategies for dropdowns
-    buildStrategySelections();
+    // Check data status
+    checkDataStatus();
     
-    // Initialize date fields from appState
-    if (appState.dateRange && appState.dateRange.startDate && appState.dateRange.endDate) {
-        const startDateInputs = document.querySelectorAll(
-            '#chart-start-date, #backtest-start-date, #optimization-start-date, #compare-start-date, #seasonality-start-date'
-        );
-        
-        const endDateInputs = document.querySelectorAll(
-            '#chart-end-date, #backtest-end-date, #optimization-end-date, #compare-end-date, #seasonality-end-date'
-        );
-        
-        // Update start date inputs
-        startDateInputs.forEach(input => {
-            if (input) input.value = appState.dateRange.startDate;
-        });
-        
-        // Update end date inputs
-        endDateInputs.forEach(input => {
-            if (input) input.value = appState.dateRange.endDate;
-        });
-        
-        console.log(`Date fields initialized from appState: ${appState.dateRange.startDate} - ${appState.dateRange.endDate}`);
-    }
-    
-    // Listen for global events
+    // Fetch current configuration
+    fetchCurrentConfig();
+
+    // Set up global event listeners
     setupGlobalEventListeners();
     
-    // Force a tab refresh after a short delay to ensure correct display
-    setTimeout(() => {
-        if (window.location.hash) {
-            // Manually trigger hash change to refresh the current tab
-            handleHashChange();
-        }
-    }, 500);
-    
-    console.log('Application initialized');
+    // Redirect any backtest tab requests to strategies tab
+    if (window.location.hash === '#backtest-section') {
+        window.location.hash = '#strategies-section';
+    }
 }
 
 // Set up global event listeners for cross-module communication

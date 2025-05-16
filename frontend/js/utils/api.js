@@ -158,10 +158,10 @@ export async function fetchStrategyParameters(strategyType) {
 }
 
 export async function runBacktest(requestData) {
-    // Transform request data into the expected format
-    const formattedData = {
+    // Allow for passing already formatted data
+    const formattedData = requestData.strategy_config ? requestData : {
         strategy_config: {
-            strategy_type: requestData.strategy || '',
+            strategy_type: requestData.strategy_type || requestData.strategy || '',
             parameters: requestData.parameters || {}
         },
         backtest_config: {
