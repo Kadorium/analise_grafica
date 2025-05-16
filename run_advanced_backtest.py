@@ -403,11 +403,11 @@ def main():
     # Step 4: Set backtest parameters
     print("\nStep 4: Set backtest parameters")
     try:
-        initial_capital = float(input("Enter initial capital (default: 10000): ") or 10000)
+        initial_capital = float(input("Enter initial capital (default: 100): ") or 100)
         commission = float(input("Enter commission rate (default: 0.001): ") or 0.001)
     except ValueError:
         print("Invalid input. Using default values.")
-        initial_capital = 10000
+        initial_capital = 100
         commission = 0.001
     
     # Add technical indicators

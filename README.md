@@ -4,6 +4,8 @@
 
 A comprehensive modular trading analysis platform with Python backend and HTML frontend that enables users to analyze stocks, implement technical indicators, backtest trading strategies, and optimize parameters without writing any code.
 
+**Note:** The frontend JavaScript is now fully modular. The main entry point is `frontend/js/main.js`, which imports and initializes all feature modules in `frontend/js/modules/` and shared utilities in `frontend/js/utils/`. Legacy files (such as the old `app.js`) are archived in `frontend/js/_archive/` and should not be modified. See `frontend/README_frontend.md` for details.
+
 ## 📋 Table of Contents
 
 - [Features](#-features)
@@ -125,23 +127,26 @@ The **AI-Powered Trading Analysis System** empowers traders, investors and finan
    - Click "Apply Indicators"
    - View the chart with indicators
 
-3. **Choose a Strategy**
-   - Go to the "Strategy" tab
-   - Select a trading strategy
-   - Customize parameters or use defaults
-   - Click "Apply Strategy"
+3. **Configure Strategy & Run Backtest**
+   - Go to the "Strategy & Backtest" tab (previously "Strategies" and "Backtest" tabs).
+   - Select a trading strategy from the dropdown.
+   - Customize its parameters as needed (or use defaults).
+   - Set backtesting parameters: initial capital, commission rate, and optional start/end dates.
+   - Click "Run Backtest" to see performance metrics, equity curve, and trade history.
 
-4. **Run Backtest**
-   - Go to the "Backtest" tab
-   - Set initial capital and commission rate
-   - Click "Run Backtest"
-   - View performance metrics and trade history
+4. **Compare Multiple Strategies**
+   - In the "Strategy & Backtest" tab, check the strategies you want to compare in the "Compare Strategies" section.
+   - Click "Compare Selected Strategies" to configure parameters for each selected strategy.
+   - Optionally enable "Optimize Parameters" to use grid search optimization.
+   - Click "Run Full Comparison" to see performance metrics, parameters, trades, and equity curves for all strategies.
+   - The best-performing strategy for each metric will be highlighted.
 
-5. **Optimize Strategy (Optional)**
-   - Navigate to the "Optimization" tab
-   - Set parameter ranges and optimization metric
-   - Click "Optimize Strategy"
-   - View and apply optimized parameters
+5. **Optimize Strategy**
+   - Go to the "Optimization" tab
+   - Select the strategy and performance metric to optimize for (e.g., Sharpe Ratio)
+   - Define parameter ranges for optimization
+   - Click "Start Optimization" to find the optimal parameters
+   - View optimization results as heatmaps, tables, and charts
 
 6. **Export Results**
    - Go to the "Results" tab
@@ -184,13 +189,15 @@ The system follows a client-server model with clear separation between component
 
 2. **Modular Backend Structure**: The backend is organized into distinct modules for data handling, indicators, strategies, backtesting, and optimization, promoting maintainability and scalability.
 
-3. **Factory Pattern**: Used in strategy creation (`strategies/__init__.py`) to instantiate strategy objects based on type.
+3. **Modular Frontend Structure**: The frontend is now fully modular, with all major features implemented as ES6 modules in `frontend/js/modules/` and shared logic in `frontend/js/utils/`. The main entry point is `frontend/js/main.js`. Legacy code is archived in `frontend/js/_archive/`.
 
-4. **Singleton Pattern**: Applied in configuration management (`config.py`) to ensure a single configuration instance across the application.
+4. **Factory Pattern**: Used in strategy creation (`strategies/__init__.py`) to instantiate strategy objects based on type.
 
-5. **Observer Pattern**: For status updates during optimization tasks.
+5. **Singleton Pattern**: Applied in configuration management (`config.py`) to ensure a single configuration instance across the application.
 
-6. **Adapter Pattern**: Used in `StrategyAdapter` class to make function-based strategies compatible with the backtesting engine.
+6. **Observer Pattern**: For status updates during optimization tasks.
+
+7. **Adapter Pattern**: Used in `StrategyAdapter` class to make function-based strategies compatible with the backtesting engine.
 
 ## 🗂️ Directory Structure
 
@@ -654,3 +661,15 @@ If you are an LLM or AI tool reading this:
 ## 📜 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🔍 Key Features
+
+- **Data Upload & Visualization**: Import market data with ease and visualize it with interactive charts.
+- **Technical Indicators**: Apply various indicators like Moving Averages, RSI, MACD, Bollinger Bands, and more.
+- **Trading Strategies**: Implement multiple trading strategies with customizable parameters.
+- **Strategy Comparison**: Compare multiple strategies with custom parameters to find the best approach. Optional parameter optimization through grid search.
+- **Backtesting Engine**: Test your strategies on historical data to evaluate their performance.
+- **Optimization Tools**: Fine-tune your strategy parameters for optimal results.
+- **Seasonality Analysis**: Identify seasonal patterns and trends in your data.
+- **Performance Metrics**: Detailed metrics including returns, drawdown, win rate, and more.
+- **Modular Architecture**: Easily extend the system with new indicators and strategies.

@@ -191,6 +191,9 @@ from optimization.status import (
 from indicators.seasonality import day_of_week_returns, monthly_returns, day_of_week_volatility, calendar_heatmap, seasonality_summary
 import config as cfg
 
+# Import the comparison module
+from comparison.routes import compare_strategies_endpoint, get_recent_comparisons_endpoint, ComparisonRequestModel
+
 # Global variables for other modules
 UPLOADED_DATA = None
 PROCESSED_DATA = None
@@ -338,7 +341,7 @@ class StrategyConfig(BaseModel):
     parameters: Dict[str, Any]
 
 class BacktestConfig(BaseModel):
-    initial_capital: float = 10000.0
+    initial_capital: float = 100.0
     commission: float = 0.001
     start_date: Optional[str] = None
     end_date: Optional[str] = None
@@ -836,64 +839,28 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
 
 @app.post("/api/compare-strategies")
 @endpoint_wrapper("POST /api/compare-strategies")
-async def compare_strategies(request: Request):
-    global PROCESSED_DATA, BACKTESTER
+async def compare_strategies(request_model: ComparisonRequestModel, request: Request):
+    """
+    Enhanced endpoint for comparing multiple trading strategies.
+    Supports strategy parameter optimization.
+    """
+    global PROCESSED_DATA, CURRENT_CONFIG
     
-    body = await request.json()
-    log_endpoint(f"{request.method} {request.url.path} - DETAILS", body_params=body)
-
-    if PROCESSED_DATA is None:
-        return JSONResponse(status_code=400, content={"success": False, "message": "No processed data."})
-    
-    strategy_types = body.get("strategy_types", [])
-    start_date_filter = body.get("start_date")
-    end_date_filter = body.get("end_date")
-        
-    if not strategy_types:
-        return JSONResponse(status_code=400, content={"success": False, "message": "No strategy types."})
-            
-    valid_strategy_types_list = [s['type'] for s in AVAILABLE_STRATEGIES]
-    invalid_strategies = [s_type for s_type in strategy_types if s_type not in valid_strategy_types_list]
-    if invalid_strategies:
-        return JSONResponse(status_code=422, content={"success": False, "message": f"Invalid types: {invalid_strategies}"})
-        
-    strategies_list = []
-    for s_type_item in strategy_types:
-        params = CURRENT_CONFIG.get('strategies', {}).get(s_type_item, {})
-        strategy_instance = create_strategy(s_type_item, **params)
-        strategies_list.append(strategy_instance)
-        
-    current_backtester = Backtester(
-        data=PROCESSED_DATA.copy(),
-        initial_capital=CURRENT_CONFIG['backtest']['initial_capital'],
-        commission=CURRENT_CONFIG['backtest']['commission']
+    # Call the modularized endpoint with the necessary dependencies
+    return await compare_strategies_endpoint(
+        request_model=request_model,
+        request=request,
+        processed_data=PROCESSED_DATA,
+        current_config=CURRENT_CONFIG
     )
-        
-    results_comparison = current_backtester.compare_strategies(
-        strategies=strategies_list,
-        start_date=start_date_filter,
-        end_date=end_date_filter
-    )
-    
-    equity_curve_image_b64 = current_backtester.plot_equity_curves()
-            
-    best_strategy_name = "Unknown"
-    if results_comparison:
-        try:
-            best_strategy_name = max(
-                results_comparison.items(), 
-                key=lambda x: x[1].get('sharpe_ratio', -float('inf')) if isinstance(x[1], dict) else -float('inf')
-            )[0]
-        except (ValueError, TypeError) as e_max:
-            logger.error(f"Error finding best strategy in comparison: {str(e_max)}")
-            best_strategy_name = "Error determining best"
 
-    log_endpoint(f"{request.method} {request.url.path} - COMPARISON_SUMMARY", best_strategy=best_strategy_name, count=len(strategies_list))
-    return {
-        "success": True, "message": "Comparison completed.",
-        "best_strategy": best_strategy_name, "results": results_comparison,
-        "chart_image": equity_curve_image_b64
-    }
+@app.get("/api/recent-comparisons")
+@endpoint_wrapper("GET /api/recent-comparisons")
+async def recent_comparisons(request: Request):
+    """
+    Retrieve recent strategy comparison results.
+    """
+    return await get_recent_comparisons_endpoint(request)
 
 @app.post("/api/save-config")
 @endpoint_wrapper("POST /api/save-config")
@@ -1134,7 +1101,7 @@ async def get_seasonality_summary(request: Request):
     return JSONResponse(content={"success": True, "plot": img_str_b64, "data": results_data})
 
 # Helper functions (restored)
-def calculate_performance_metrics(signals_df, initial_capital=10000.0, commission=0.001):
+def calculate_performance_metrics(signals_df, initial_capital=100.0, commission=0.001):
     """
     Calculate performance metrics from signals DataFrame.
     Args:
@@ -1237,7 +1204,7 @@ def calculate_performance_metrics(signals_df, initial_capital=10000.0, commissio
     signals_df['cumulative_market_return'] = df['cumulative_market_return']
     return metrics
 
-def plot_backtest_results(signals_df, strategy_name='Strategy', initial_capital=10000.0):
+def plot_backtest_results(signals_df, strategy_name='Strategy', initial_capital=100.0):
     """
     Generate HTML chart for backtest results.
     Args:
@@ -1317,7 +1284,7 @@ def plot_backtest_results(signals_df, strategy_name='Strategy', initial_capital=
     """
     return chart_html
 
-def extract_trades(signals_df, commission=0.001, initial_capital=10000.0):
+def extract_trades(signals_df, commission=0.001, initial_capital=100.0):
     """
     Extract individual trades from signals DataFrame.
     Args:

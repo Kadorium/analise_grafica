@@ -38,7 +38,7 @@ class StrategyAdapter:
         self.strategy_func = strategy_func
         self.parameters = parameters
     
-    def backtest(self, data, initial_capital=10000.0, commission=0.001):
+    def backtest(self, data, initial_capital=100.0, commission=0.001):
         """Run backtest using the strategy function"""
         # Call the strategy function to get signals
         result_df = self.strategy_func(data, **self.parameters)
@@ -138,9 +138,9 @@ class StrategyAdapter:
         if 'date' in df.columns and not pd.api.types.is_datetime64_any_dtype(df['date']):
             df['date'] = pd.to_datetime(df['date'])
         
-        initial_capital_for_calc = self.parameters.get('initial_capital', 10000.0)
+        initial_capital_for_calc = self.parameters.get('initial_capital', 100.0)
         if not isinstance(initial_capital_for_calc, (int, float)) or initial_capital_for_calc <= 0:
-            initial_capital_for_calc = 10000.0 # Default if invalid
+            initial_capital_for_calc = 100.0 # Default if invalid
 
         # Ensure 'equity' and 'daily_return' columns are numeric and exist
         if 'equity' in df.columns:

@@ -94,7 +94,7 @@ The `indicators/` module contains all technical indicator logic for the backend.
 6. **Test your indicator by adding it via the frontend and checking the results.**
 7. **Update this file (`readme_be_indicators.md`) to document your new indicator and any new parameters.**
 
-**If you change indicator parameters, config structure, or add/remove indicators, you MUST update this file and the frontend documentation (`frontend/README_frontend.md`).**
+**If you change indicator parameters, config structure, or add/remove indicators, you MUST update this file and the frontend documentation (`frontend/README_frontend.md`). Legacy files are in `frontend/js/_archive/` and should not be modified.**
 
 ---
 
@@ -110,7 +110,7 @@ The `indicators/` module contains all technical indicator logic for the backend.
 ## Frontend Integration: UI and Workflow
 
 - **Frontend UI (Indicators tab) is defined in `frontend/index.html`.**
-- **Frontend logic for indicators is in `frontend/js/app.js` (and may be modularized in `frontend/js/modules/indicatorPanel.js`).**
+- **Frontend logic for indicators is in `frontend/js/modules/indicatorPanel.js` and related modules. Legacy files (such as the old `app.js`) are archived in `frontend/js/_archive/` and should not be modified.**
 - **Workflow:**
   1. User selects indicators and parameters in the UI.
   2. On submit, frontend sends config to `/api/add-indicators`.

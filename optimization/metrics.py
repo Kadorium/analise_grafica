@@ -5,14 +5,14 @@ import traceback
 
 logger = logging.getLogger(__name__)
 
-def calculate_advanced_metrics(signals_df, initial_capital=10000.0, base_metrics=None):
+def calculate_advanced_metrics(signals_df, initial_capital=100.0, base_metrics=None):
     """
     Calculate additional performance metrics using the signals DataFrame and base metrics.
     
     Args:
         signals_df (pd.DataFrame): DataFrame with trading signals and equity curve.
                                    Should contain 'date', 'equity', 'daily_return', 'trade_profit'.
-        initial_capital (float, optional): Initial capital for the backtest. Defaults to 10000.0.
+        initial_capital (float, optional): Initial capital for the backtest. Defaults to 100.0.
         base_metrics (dict, optional): Dictionary of pre-calculated base metrics from StrategyAdapter.
                                        Expected keys: 'annual_return' (raw ratio), 'max_drawdown' (raw ratio).
         

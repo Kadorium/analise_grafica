@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/strategyComparison.css">
     
     <!-- Simplified logging system -->
     <script>
@@ -121,7 +122,7 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" href="#strategies-section" id="strategies-tab">
-                                <i class="bi bi-lightbulb"></i> Strategies & Backtest
+                                <i class="bi bi-lightbulb"></i> Strategy & Backtest
                             </a>
                         </li>
                         <li class="nav-item">
@@ -602,128 +603,114 @@
                         </div>
                     </div>
 
-                    <!-- Strategies Section -->
+                    <!-- Strategy Section -->
                     <div id="strategies-section" class="content-section">
+                        <h4>Select and Configure Strategy</h4>
                         <div class="row">
-                            <div class="col-md-4">
-                                <div class="card mb-4">
-                                    <div class="card-header">
-                                        <h5>Select Strategy</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <form id="strategy-form">
-                                            <div class="mb-3">
-                                                <label for="strategy-type" class="form-label">Strategy Type</label>
-                                                <select class="form-select" id="strategy-type">
-                                                    <option value="trend_following">Trend Following (Moving Average Crossover)</option>
-                                                    <option value="mean_reversion">Mean Reversion (RSI)</option>
-                                                    <option value="breakout">Breakout (Price & Volume)</option>
-                                                </select>
-                                            </div>
-                                            <div id="strategy-description" class="mb-3">
-                                                <p>Buys when fast MA crosses above slow MA (golden cross) and sells when fast MA crosses below slow MA (death cross).</p>
-                                            </div>
-                                            <div id="strategy-parameters">
-                                                <!-- Strategy-specific parameters will be added dynamically -->
-                                            </div>
-                                        </form>
+                            <div class="col-lg-5 col-md-6"> <!-- Column for Strategy Selection & Params -->
+                                <div class="row mb-3">
+                                    <div class="col-md-12"> <!-- Full width within its column -->
+                                        <label for="strategy-select" class="form-label">Strategy</label>
+                                        <select id="strategy-select" class="form-select"></select>
                                     </div>
                                 </div>
-                                
-                                <!-- Backtest Configuration (Moved from backtest section) -->
+                                <div id="strategy-description" class="mb-3">
+                                    <p><em>Select a strategy to see its description and configure parameters.</em></p>
+                                </div>
+                                <div id="strategy-parameters-form" class="mb-3">
+                                    <!-- Strategy parameters will be loaded here, now in a narrower column -->
+                                </div>
+                            </div>
+                            <div class="col-lg-7 col-md-6"> <!-- Column for Strategy Comparison -->
                                 <div class="card">
                                     <div class="card-header">
-                                        <h5>Backtest Configuration</h5>
+                                        <h5>Compare Strategies</h5>
                                     </div>
                                     <div class="card-body">
-                                        <form id="backtest-form">
-                                            <div class="mb-3">
-                                                <label for="initial-capital" class="form-label">Initial Capital</label>
-                                                <input type="number" class="form-control" id="initial-capital" value="100" title="Initial capital for backtest" placeholder="Enter initial capital">
+                                        <div class="mb-3">
+                                            <label>Select strategies to compare:</label>
+                                            <div id="strategy-comparison-checkboxes" class="mt-2 mb-3 strategy-checkboxes">
+                                                <!-- Checkboxes will be populated here by JS -->
                                             </div>
-                                            <div class="mb-3">
-                                                <label for="commission" class="form-label">Commission (decimal)</label>
-                                                <input type="number" class="form-control" id="commission" value="0.001" step="0.001">
+                                            <button type="button" class="btn btn-info" id="compare-strategies-btn">Compare Selected Strategies</button>
+                                        </div>
+                                        
+                                        <div id="strategy-comparison-results" class="mt-3">
+                                            <!-- Strategy parameters will be displayed here after selection -->
+                                        </div>
+                                        
+                                        <div id="comparison-options" class="mt-3 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="optimize-comparison-checkbox">
+                                                <label class="form-check-label" for="optimize-comparison-checkbox">
+                                                    Optimize Parameters (Grid Search)
+                                                </label>
                                             </div>
-                                            <div class="mb-3">
-                                                <label for="backtest-start-date" class="form-label">Start Date</label>
-                                                <input type="date" class="form-control" id="backtest-start-date">
+                                            <div class="mt-3">
+                                                <button type="button" class="btn btn-primary" id="run-full-comparison-btn">Run Full Comparison</button>
                                             </div>
-                                            <div class="mb-3">
-                                                <label for="backtest-end-date" class="form-label">End Date</label>
-                                                <input type="date" class="form-control" id="backtest-end-date">
-                                            </div>
-                                            <div class="d-grid gap-2">
-                                                <button type="submit" class="btn btn-primary" id="run-backtest-btn">Run Backtest</button>
-                                                <button type="button" class="btn btn-secondary" id="update-strategy-btn">Update Strategy</button>
-                                            </div>
-                                        </form>
+                                        </div>
+                                        
+                                        <div id="comparison-results-display" class="mt-4 pt-3 border-top d-none">
+                                            <h5>Comparison Results</h5>
+                                            <p><em>This is a placeholder for actual comparison results. In a full implementation, this would show performance metrics side by side.</em></p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-8">
-                                <!-- Backtest Results (Moved from backtest section) -->
-                                <div class="card mb-4">
-                                    <div class="card-header">
-                                        <h5>Strategy Results</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <div id="backtest-results">
-                                            <!-- Backtest results will be displayed here -->
-                                        </div>
-                                        <div id="equity-curve-container" style="margin-top: 20px; display: none;">
-                                            <h5>Equity Curve</h5>
-                                            <!-- Equity curve image will be shown here -->
-                                        </div>
-                                    </div>
+                        </div>
+                        
+                        <hr class="my-4">
+
+                        <h4>Backtest Configuration & Execution</h4>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="initial-capital" class="form-label">Initial Capital</label>
+                                <input type="number" class="form-control" id="initial-capital" value="100">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="commission" class="form-label">Commission Rate (e.g., 0.001 for 0.1%)</label>
+                                <input type="number" step="0.0001" class="form-control" id="commission" value="0.001">
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                             <div class="col-md-4">
+                                <label for="backtest-start-date" class="form-label">Backtest Start Date</label>
+                                <input type="date" class="form-control" id="backtest-start-date">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="backtest-end-date" class="form-label">Backtest End Date</label>
+                                <input type="date" class="form-control" id="backtest-end-date">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-success mt-3" id="run-backtest-btn">Run Backtest</button>
+
+                        <div id="backtest-results" class="mt-4">
+                            <h5>Backtest Results</h5>
+                            <div id="backtest-summary" class="mb-3"></div>
+                            <div class="row">
+                                <div class="col-md-12" id="backtest-charts">
+                                     <!-- Chart.js expects a canvas; backtestView.js creates it or I can pre-define it -->
+                                     <!-- Content of backtest-charts (like equity curve canvas) will be populated by backtestView.js --> 
                                 </div>
-                                
-                                <!-- Strategy Comparison (Kept from strategies section) -->
-                                <div class="card">
-                                    <div class="card-header">
-                                        <h5>Strategy Comparison</h5>
-                                    </div>
-                                    <div class="card-body">
-                                        <form id="compare-strategies-form" class="mb-3">
-                                            <div class="row">
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Select Strategies to Compare</label>
-                                                        <div class="form-check">
-                                                            <input class="form-check-input" type="checkbox" id="trend-following-check" value="trend_following" checked>
-                                                            <label class="form-check-label" for="trend-following-check">Trend Following</label>
-                                                        </div>
-                                                        <div class="form-check">
-                                                            <input class="form-check-input" type="checkbox" id="mean-reversion-check" value="mean_reversion" checked>
-                                                            <label class="form-check-label" for="mean-reversion-check">Mean Reversion</label>
-                                                        </div>
-                                                        <div class="form-check">
-                                                            <input class="form-check-input" type="checkbox" id="breakout-check" value="breakout" checked>
-                                                            <label class="form-check-label" for="breakout-check">Breakout</label>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label for="compare-start-date" class="form-label">Start Date</label>
-                                                        <input type="date" class="form-control" id="compare-start-date">
-                                                    </div>
-                                                    <div class="mb-3">
-                                                        <label for="compare-end-date" class="form-label">End Date</label>
-                                                        <input type="date" class="form-control" id="compare-end-date">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <button type="submit" class="btn btn-primary" id="compare-strategies-btn">Compare Strategies</button>
-                                        </form>
-                                        <div id="compare-results">
-                                            <!-- Comparison results will be displayed here -->
-                                        </div>
-                                        <div id="comparison-chart-container" style="margin-top: 20px; display: none;">
-                                            <h5>Strategy Comparison</h5>
-                                            <!-- Comparison chart image will be shown here -->
-                                        </div>
-                                    </div>
+                            </div>
+                            <div id="trade-history" class="mt-3">
+                                <h6>Trade History</h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-striped" id="trade-history-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Type</th>
+                                                <th>Price</th>
+                                                <th>Amount</th>
+                                                <th>Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- Trade history rows will be inserted here -->
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -944,35 +931,5 @@
     
     <!-- Application Scripts -->
     <script type="module" src="/static/js/main.js"></script>
-    
-    <!-- Tab navigation (simplified) -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const tabLinks = document.querySelectorAll('.nav-link');
-            const contentSections = document.querySelectorAll('.content-section');
-            
-            tabLinks.forEach(tab => {
-                tab.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const targetId = this.getAttribute('href').substring(1);
-                    
-                    // Update active tab
-                    tabLinks.forEach(t => t.classList.remove('active'));
-                    this.classList.add('active');
-                    
-                    // Show target section
-                    contentSections.forEach(section => {
-                        section.classList.remove('active');
-                        if (section.id === targetId) {
-                            section.classList.add('active');
-                            document.getElementById('page-title').textContent = this.textContent.trim();
-                        }
-                    });
-                    
-                    AppLogger.debug(`Tab changed to ${targetId}`);
-                });
-            });
-        });
-    </script>
 </body>
 </html> 

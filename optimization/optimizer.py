@@ -119,7 +119,7 @@ PARAM_RANGES = {
     }
 }
 
-def grid_search(data, strategy_type, param_grid, initial_capital=10000.0, commission=0.001, 
+def grid_search(data, strategy_type, param_grid, initial_capital=100.0, commission=0.001, 
                metric='sharpe_ratio', start_date=None, end_date=None, max_workers=None):
     """
     Perform a grid search to find the optimal parameters for a strategy.
@@ -128,7 +128,7 @@ def grid_search(data, strategy_type, param_grid, initial_capital=10000.0, commis
         data (pandas.DataFrame): DataFrame containing the price data.
         strategy_type (str): Type of strategy.
         param_grid (dict): Dictionary mapping parameter names to lists of values to try.
-        initial_capital (float, optional): Initial capital for backtesting. Defaults to 10000.0.
+        initial_capital (float, optional): Initial capital for backtesting. Defaults to 100.0.
         commission (float, optional): Commission rate per trade. Defaults to 0.001 (0.1%).
         metric (str, optional): The metric to optimize for. Defaults to 'sharpe_ratio'.
         start_date (str, optional): Start date for backtesting. Format: 'YYYY-MM-DD'.
@@ -288,7 +288,7 @@ def _evaluate_params(data, strategy_type, params, initial_capital, commission, m
         'metric_debug_logs': metric_debug_logs # Add the debug logs here
     }
 
-def optimize_strategy(data, strategy_type, param_ranges=None, initial_capital=10000.0, commission=0.001,
+def optimize_strategy(data, strategy_type, param_ranges=None, initial_capital=100.0, commission=0.001,
                      metric='sharpe_ratio', start_date=None, end_date=None, max_workers=None):
     """
     Optimize a strategy's parameters.
@@ -298,7 +298,7 @@ def optimize_strategy(data, strategy_type, param_ranges=None, initial_capital=10
         strategy_type (str): Type of strategy.
         param_ranges (dict, optional): Dictionary mapping parameter names to lists of values to try.
                                     If None, default ranges are used.
-        initial_capital (float, optional): Initial capital for backtesting. Defaults to 10000.0.
+        initial_capital (float, optional): Initial capital for backtesting. Defaults to 100.0.
         commission (float, optional): Commission rate per trade. Defaults to 0.001 (0.1%).
         metric (str, optional): The metric to optimize for. Defaults to 'sharpe_ratio'.
         start_date (str, optional): Start date for backtesting. Format: 'YYYY-MM-DD'.
@@ -384,7 +384,7 @@ def optimize_strategy(data, strategy_type, param_ranges=None, initial_capital=10
     
     return best_params, optimized_performance_metrics, all_results, optimized_metric_debug_logs, final_signals_df # Return the actual DataFrame
 
-def compare_optimized_strategies(data, strategy_types=None, param_ranges=None, initial_capital=10000.0, 
+def compare_optimized_strategies(data, strategy_types=None, param_ranges=None, initial_capital=100.0, 
                                commission=0.001, metric='sharpe_ratio', start_date=None, end_date=None,
                                max_workers=None):
     """
@@ -396,7 +396,7 @@ def compare_optimized_strategies(data, strategy_types=None, param_ranges=None, i
                                       If None, all available strategies are used.
         param_ranges (dict, optional): Dictionary mapping strategy types to parameter ranges.
                                     If None, default ranges are used.
-        initial_capital (float, optional): Initial capital for backtesting. Defaults to 10000.0.
+        initial_capital (float, optional): Initial capital for backtesting. Defaults to 100.0.
         commission (float, optional): Commission rate per trade. Defaults to 0.001 (0.1%).
         metric (str, optional): The metric to optimize for. Defaults to 'sharpe_ratio'.
         start_date (str, optional): Start date for backtesting. Format: 'YYYY-MM-DD'.
@@ -453,7 +453,7 @@ def compare_optimized_strategies(data, strategy_types=None, param_ranges=None, i
     return results
 
 # Helper function for calculating performance metrics from signals
-def calculate_performance_metrics(signals_df, initial_capital=10000.0, commission=0.001):
+def calculate_performance_metrics(signals_df, initial_capital=100.0, commission=0.001):
     """
     Calculate performance metrics from signals DataFrame.
     

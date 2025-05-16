@@ -12,7 +12,7 @@ import traceback
 
 logger = logging.getLogger(__name__)
 
-def plot_optimization_comparison(default_signals, optimized_signals, strategy_type, initial_capital=10000.0):
+def plot_optimization_comparison(default_signals, optimized_signals, strategy_type, initial_capital=100.0):
     """
     Generate a comparison chart of default vs optimized strategy performance.
     

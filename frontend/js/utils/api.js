@@ -14,17 +14,20 @@ export const API_ENDPOINTS = {
     OPTIMIZATION_STATUS: '/api/optimization-status',
     OPTIMIZATION_RESULTS: '/api/optimization-results',
     COMPARE_STRATEGIES: '/api/compare-strategies',
+    RECENT_COMPARISONS: '/api/recent-comparisons',
+    CHECK_OPTIMIZATION_DIR: '/api/check-optimization-directory',
     SAVE_CONFIG: '/api/save-config',
     LOAD_CONFIG: '/api/load-config',
     EXPORT_RESULTS: '/api/export-results',
     CURRENT_CONFIG: '/api/current-config',
     ARRANGE_DATA: '/api/arrange-data',
     DATA_STATUS: '/api/data-status',
-    SEASONALITY_DAY_OF_WEEK: '/api/seasonality/day-of-week',
+    SEASONALITY_DOW: '/api/seasonality/day-of-week',
     SEASONALITY_MONTHLY: '/api/seasonality/monthly',
     SEASONALITY_VOLATILITY: '/api/seasonality/volatility',
     SEASONALITY_HEATMAP: '/api/seasonality/heatmap',
-    SEASONALITY_SUMMARY: '/api/seasonality/summary'
+    SEASONALITY_SUMMARY: '/api/seasonality/summary',
+    DEBUG_INFO: '/api/debug-info'
 };
 
 // Generic fetch wrapper with error handling
@@ -158,10 +161,10 @@ export async function fetchStrategyParameters(strategyType) {
 }
 
 export async function runBacktest(requestData) {
-    // Allow for passing already formatted data
-    const formattedData = requestData.strategy_config ? requestData : {
+    // Transform request data into the expected format
+    const formattedData = {
         strategy_config: {
-            strategy_type: requestData.strategy_type || requestData.strategy || '',
+            strategy_type: requestData.strategy || '',
             parameters: requestData.parameters || {}
         },
         backtest_config: {

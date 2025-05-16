@@ -22,7 +22,7 @@ Options:
     --strategy <name>       Strategy to test/optimize (default: all)
                             Options: adaptive_trend, hybrid_momentum_volatility, pattern_recognition, all
     --optimize              Run parameter optimization
-    --initial_capital <num> Initial capital (default: 10000)
+    --initial_capital <num> Initial capital (default: 100)
     --commission <num>      Commission rate (default: 0.001)
     --start_date <date>     Start date (YYYY-MM-DD)
     --end_date <date>       End date (YYYY-MM-DD)
@@ -71,7 +71,7 @@ def load_data(data_file):
     return data
 
 
-def run_backtest(data, strategy_type, params=None, initial_capital=10000.0, 
+def run_backtest(data, strategy_type, params=None, initial_capital=100.0, 
                commission=0.001, start_date=None, end_date=None, add_indicators=True):
     """Run a backtest for a specific strategy"""
     # Create a copy of the data to avoid modifying the original
@@ -104,7 +104,7 @@ def run_backtest(data, strategy_type, params=None, initial_capital=10000.0,
     return backtester, result
 
 
-def compare_strategies(data, strategy_types, initial_capital=10000.0, commission=0.001, 
+def compare_strategies(data, strategy_types, initial_capital=100.0, commission=0.001, 
                      start_date=None, end_date=None):
     """Compare multiple strategies"""
     print("Comparing strategies...")
@@ -155,7 +155,7 @@ def compare_strategies(data, strategy_types, initial_capital=10000.0, commission
     return backtester, results
 
 
-def optimize_strategies(data, strategy_types, metric='sharpe_ratio', initial_capital=10000.0,
+def optimize_strategies(data, strategy_types, metric='sharpe_ratio', initial_capital=100.0,
                       commission=0.001, start_date=None, end_date=None):
     """Optimize multiple strategies"""
     print("Running optimization...")
@@ -343,7 +343,7 @@ def main():
                       choices=["adaptive_trend", "hybrid_momentum_volatility", "pattern_recognition", "all"],
                       help="Strategy to test/optimize")
     parser.add_argument("--optimize", action="store_true", help="Run parameter optimization")
-    parser.add_argument("--initial_capital", type=float, default=10000.0, help="Initial capital")
+    parser.add_argument("--initial_capital", type=float, default=100.0, help="Initial capital")
     parser.add_argument("--commission", type=float, default=0.001, help="Commission rate")
     parser.add_argument("--start_date", help="Start date (YYYY-MM-DD)")
     parser.add_argument("--end_date", help="End date (YYYY-MM-DD)")

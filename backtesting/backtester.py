@@ -29,13 +29,13 @@ class Backtester:
     A class for backtesting trading strategies.
     """
     
-    def __init__(self, data=None, initial_capital=10000.0, commission=0.001):
+    def __init__(self, data=None, initial_capital=100.0, commission=0.001):
         """
         Initialize the Backtester.
         
         Args:
             data (pandas.DataFrame, optional): DataFrame containing the price data. Defaults to None.
-            initial_capital (float, optional): Initial capital for the backtest. Defaults to 10000.0.
+            initial_capital (float, optional): Initial capital for the backtest. Defaults to 100.0.
             commission (float, optional): Commission rate per trade. Defaults to 0.001 (0.1%).
         """
         self.data = data
@@ -415,7 +415,7 @@ class Backtester:
         self.results = loaded_results
         return loaded_results
     
-    def plot_price_with_trade_signals(self, signals_df, strategy_name='Strategy', initial_capital=10000.0):
+    def plot_price_with_trade_signals(self, signals_df, strategy_name='Strategy', initial_capital=100.0):
         """
         Plot price with buy/sell/exit signals and equity as a subplot.
         Args:

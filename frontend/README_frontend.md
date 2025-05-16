@@ -105,15 +105,15 @@ The system employs a classic client-server architecture where the browser (clien
 
 ### Tabbed Interface
 - The UI is organized into a series of tabs accessible via the sidebar (defined in `frontend/index.html`).
-- Each tab corresponds to a major workflow step or feature set (e.g., Data, Indicators, Strategies, Backtest, Optimization, Seasonality, Results).
-- Clicking a tab updates the main content area to show the relevant section.
+- Each tab corresponds to a major workflow step or feature set (e.g., Data, Indicators, Strategy & Backtest, Optimization, Seasonality, Results).
+- Clicking a tab updates the main content area to show the relevant section. The "Strategies" and "Backtest" tabs have been merged into a single "Strategy & Backtest" tab. This tab allows users to select a strategy, configure its parameters, set up backtesting parameters (initial capital, commission, date range), run the backtest, and view its results, all in one integrated section.
 
 ### Dynamic Content Loading
 - **Section Visibility**: `frontend/js/main.js` manages the visibility of these sections. When a tab is clicked:
     1.  The previously active section is hidden.
     2.  The target section (e.g., `div#data-section`) corresponding to the clicked tab is displayed.
     3.  The URL hash is updated (e.g., `myapp.com/#data-section`) to reflect the current view, allowing for bookmarking and direct navigation.
-- **Conditional Navigation**: `main.js` includes logic (in `canActivateTab`) to prevent navigation to certain tabs if prerequisites are not met (e.g., data must be loaded and processed before indicator or strategy tabs can be accessed). This relies on the `appState`.
+- **Conditional Navigation**: `main.js` includes logic (in `canActivateTab`) to prevent navigation to certain tabs if prerequisites are not met (e.g., data must be loaded and processed before the "Strategy & Backtest" or "Indicators" tabs can be accessed). This relies on the `appState`.
 - **Page Title**: The main page title (H1 tag) is dynamically updated to reflect the currently active tab/section.
 
 ---
@@ -126,8 +126,8 @@ The frontend leverages ES6 modules for better organization, maintainability, and
 Each file in this directory typically manages a specific section of the `frontend/index.html` and its associated functionality:
 - `dataManager.js`: Handles CSV file upload, interaction with the "Arrange Data" feature, data processing requests, and displaying data previews/summaries in the "Data" section.
 - `indicatorPanel.js`: Manages the "Indicators" section, allowing users to select indicators, configure their parameters, send requests to add them to the processed data, and trigger chart plotting.
-- `strategySelector.js`: Populates strategy choices in relevant dropdowns, displays descriptions, and handles parameter configuration for selected strategies in the "Strategies" (and other related) sections.
-- `backtestView.js`: Manages the "Backtest" section, taking strategy configurations and backtest settings, running backtests via API calls, and displaying performance metrics and equity curve charts.
+- `strategySelector.js`: Populates strategy choices in relevant dropdowns, displays descriptions, and handles parameter configuration for selected strategies in the "Strategy & Backtest" section. It works in conjunction with `backtestView.js` for the backtesting part of this combined section.
+- `backtestView.js`: Manages the backtesting functionality within the "Strategy & Backtest" section. This includes handling inputs for backtest settings (initial capital, commission, date range), initiating backtest runs via API calls (using strategy configurations provided via `appState` by `strategySelector.js`), and displaying performance metrics and equity curve charts in the designated areas within the "Strategy & Backtest" tab. Its initialization is still handled in `main.js`, and it operates on the DOM elements now part of the `#strategies-section`.
 - `optimizationPanel.js`: Handles the "Optimization" section, allowing users to configure strategy parameter optimization, run optimization tasks, and view results.
 - `seasonalityAnalyzer.js`: Manages the "Seasonality" section, enabling various seasonality analyses and displaying their corresponding charts and data.
 - `resultsViewer.js`: Aggregates and displays detailed results, performance metrics, and trade history, typically in the "Results" section.
@@ -185,7 +185,7 @@ These modules provide shared, reusable functionality across the different featur
 ### 1. **Adding a New UI Section/Feature**
 1.  **HTML (`frontend/index.html`):**
     *   Add a new list item (`<li>`) to the sidebar navigation.
-    *   Add a new `div` with class `content-section` and a unique `id` in the main content area. Populate this `div` with the necessary HTML structure (forms, placeholders for results, etc.) for your new feature.
+    *   Add a new `div` with class `content-section` and a unique `id` in the main content area. Populate this `div` with the necessary HTML structure (forms, placeholders for results, etc.) for your new feature. Note: If adding features related to strategy configuration or backtesting, consider if they fit within the existing "Strategy & Backtest" tab.
 2.  **JavaScript Module (`frontend/js/modules/`):**
     *   Create a new `.js` file (e.g., `newFeatureManager.js`).
     *   Implement the logic for your feature in this module: event listeners for inputs, functions to gather data from the form, etc.
@@ -201,7 +201,7 @@ These modules provide shared, reusable functionality across the different featur
 
 ### 2. **Modifying Existing Features or Parameters**
 1.  **HTML (`frontend/index.html`):**
-    *   Locate the relevant section and modify its HTML (e.g., add a new input field to a form, change a display area).
+    *   Locate the relevant section (e.g., `#strategies-section` for strategy and backtesting features) and modify its HTML.
 2.  **JavaScript Module (`frontend/js/modules/`):**
     *   Identify the module responsible for the feature.
     *   Update its JavaScript to handle the new/changed input fields, modify how data is processed or sent to the API, or change how results are displayed.
@@ -328,23 +328,15 @@ These modules provide shared, reusable functionality across the different featur
 
 ## Changelog Template
 
-> **[2024-06-09] [AI Assistant]**
-> - **Summary**: Improved Indicators tab UI: added select all/group checkboxes, collapsible groups, and better usability for indicator selection.
+> **[LATEST_DATE] [AI Assistant - Gemini]**
+> - **Summary**: Merged the "Strategies" and "Backtest" tabs into a single "Strategy & Backtest" tab. This consolidates strategy selection, parameter configuration, backtest setup, execution, and results viewing into one streamlined workflow.
 > - **Affected Files/Modules**:
->   - `frontend/index.html`: Refactored indicator form structure.
->   - `frontend/js/modules/indicatorPanel.js`: Added logic for select all/group checkboxes and state sync.
-> - **New UI Elements/Parameters**: Select all checkbox, group select checkboxes, collapsible indicator groups.
-> - **Notes/Instructions**: All indicator selection logic is now managed via checkboxes and group controls for better UX.
-
-> **[2024-07-31] [AI Assistant]**
-> - **Summary**: Merged Strategies and Backtest tabs into a single unified interface for a more streamlined workflow.
-> - **Affected Files/Modules**:
->   - `frontend/index.html`: Combined Strategies and Backtest sections, updated sidebar navigation.
->   - `frontend/js/modules/strategySelector.js`: Enhanced to incorporate backtesting functionality.
->   - `frontend/js/main.js`: Updated tab navigation logic to handle merged sections.
->   - `frontend/js/utils/api.js`: Updated runBacktest API function to better handle modified request format.
-> - **New UI Structure**: Strategy selection and parameter configuration now appear alongside backtest controls in a single view.
-> - **Notes/Instructions**: Backtest tab has been removed from navigation; all backtesting functionality is now accessed through the "Strategies & Backtest" tab.
+>   - `frontend/index.html`: Removed "Backtest" tab from sidebar, renamed "Strategies" tab, and merged HTML content of backtest section into strategy section. Adjusted element IDs for consistency.
+>   - `frontend/js/main.js`: Removed DOM reference to the old `backtest-tab`. Tab navigation logic now handles the merged tab. `initializeBacktestView()` is still called.
+>   - `frontend/js/modules/strategySelector.js`: Continues to manage strategy selection and parameterization. Implicitly works with `backtestView.js` via `appState` for providing strategy details to the backtest.
+>   - `frontend/js/modules/backtestView.js`: Continues to manage backtest execution and results display, now operating on DOM elements within the merged `#strategies-section`. Relies on `appState` for strategy details.
+> - **New UI Elements/Parameters**: The UI elements for backtesting are now part of the "Strategy & Backtest" tab. No new parameters, but existing ones are relocated.
+> - **Notes/Instructions**: The primary interaction for strategy definition and testing now occurs within the "Strategy & Backtest" tab.
 
 ---
 

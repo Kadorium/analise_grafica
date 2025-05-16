@@ -97,7 +97,7 @@ optimization/
 
 ### a. Frontend Modules (Modular Structure)
 
-> **Note:** The frontend is now fully modular. The main entry point is `frontend/js/main.js`, which imports and initializes all feature modules. All optimization UI logic, parameter selection, and results display are handled by dedicated modules. Do **not** reference or modify `frontend/js/app.js` (deprecated).
+> **Note:** The frontend is now fully modular. The main entry point is `frontend/js/main.js`, which imports and initializes all feature modules in `frontend/js/modules/` and shared utilities in `frontend/js/utils/`. Legacy files (such as the old `app.js`) are archived in `frontend/js/_archive/` and should not be modified. See `frontend/README_frontend.md` for details.
 
 **Key frontend modules for optimization:**
 - `frontend/js/main.js`: **Entry point**; initializes the app and all modules.

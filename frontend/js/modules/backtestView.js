@@ -79,7 +79,7 @@ export async function runBacktest(params = {}) {
         if (!requestParams.initial_capital) {
             const capitalInput = document.getElementById('initial-capital');
             if (capitalInput) {
-                requestParams.initial_capital = parseFloat(capitalInput.value) || 10000.0;
+                requestParams.initial_capital = parseFloat(capitalInput.value) || 100.0;
             }
         }
         
@@ -575,62 +575,54 @@ function displayBacktestSummary(metrics, container) {
 
 // Initialize backtest component
 export function initializeBacktestView() {
-    // Initialize backtest form
-    if (backtestForm) {
-        // Get the run backtest button
-        const runBacktestBtn = document.querySelector('#backtest-form button[type="submit"]');
-        if (runBacktestBtn) {
-            runBacktestBtn.id = 'run-backtest-form-btn';
-        }
-        
-        backtestForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            // Get form values
-            const formData = new FormData(backtestForm);
+    console.log('Initializing Backtest View...');
+    const runBacktestButton = document.getElementById('run-backtest-btn');
+
+    if (runBacktestButton) {
+        console.log('Run Backtest button found, attaching click listener.');
+        runBacktestButton.addEventListener('click', async () => {
+            console.log('Run Backtest button clicked.');
+            // Gather parameters for the backtest manually since there is no form
             const params = {};
-            
-            // Convert form data to params object
-            for (const [key, value] of formData.entries()) {
-                // Skip empty values
-                if (value === '') continue;
-                
-                // Handle numeric values
-                if (!isNaN(value)) {
-                    params[key] = parseFloat(value);
-                } else {
-                    params[key] = value;
-                }
-                
-                // Convert field IDs to expected parameter names
-                if (key === 'initial-capital') {
-                    params['initial_capital'] = params[key];
-                    delete params[key];
-                } else if (key === 'backtest-start-date') {
-                    params['start_date'] = params[key];
-                    delete params[key];
-                } else if (key === 'backtest-end-date') {
-                    params['end_date'] = params[key];
-                    delete params[key];
-                }
+
+            const initialCapitalInput = document.getElementById('initial-capital');
+            if (initialCapitalInput) {
+                params.initial_capital = parseFloat(initialCapitalInput.value) || 100.0;
             }
-            
-            // Add selected strategy
-            if (appState.selectedStrategy) {
-                params.strategy = appState.selectedStrategy;
+
+            const commissionInput = document.getElementById('commission'); // Matches the ID in index.html
+            if (commissionInput) {
+                params.commission = parseFloat(commissionInput.value) || 0.001;
             }
-            
-            // Add strategy parameters from appState 
-            if (appState.strategyParameters && Object.keys(appState.strategyParameters).length > 0) {
-                params.parameters = JSON.parse(JSON.stringify(appState.strategyParameters));
-                console.log('Using strategy parameters from appState:', params.parameters);
-            } else {
-                console.warn('No strategy parameters found in appState');
+
+            const startDateInput = document.getElementById('backtest-start-date');
+            if (startDateInput && startDateInput.value) {
+                params.start_date = startDateInput.value;
             }
+
+            const endDateInput = document.getElementById('backtest-end-date');
+            if (endDateInput && endDateInput.value) {
+                params.end_date = endDateInput.value;
+            }
+
+            // Strategy and its parameters will be picked up from appState by the runBacktest function
+            // as per its existing logic: appState.selectedStrategy and appState.strategyParameters
+            console.log('Manually gathered backtest config params:', params);
             
-            console.log('Submitting backtest with form data:', params);
-            // Run backtest with form params
-            await runBacktest(params);
+            // Call the main runBacktest function (which handles API call and result display)
+            await runBacktest(params); 
         });
+    } else {
+        console.error('Run Backtest button (id: run-backtest-btn) not found. Backtest functionality will not be triggered.');
+    }
+    
+    // Any other initializations for backtest view can go here
+    // For example, if there are default displays or states to set up for the results area.
+    const backtestResultsContainer = document.getElementById('backtest-results');
+    if (backtestResultsContainer) {
+        // Ensure it is clear or shows a placeholder if no results yet.
+        // displayBacktestResults will populate it when results are available.
+        // For now, ensure it doesn't show stale data if any.
+        // backtestResultsContainer.innerHTML = '<p><em>Run a backtest to see results here.</em></p>';
     }
 }

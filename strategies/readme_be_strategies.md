@@ -102,20 +102,46 @@ Each strategy must implement a `generate_signals(data: pd.DataFrame) -> pd.DataF
 
 ### 4.1. UI Structure
 
-- **`frontend/index.html`**: Contains the main UI, including the "Strategies" tab for selecting and configuring strategies.
-- **`frontend/js/main.js`**: Initializes the app, manages tab navigation, and coordinates feature modules.
-- **`frontend/js/modules/strategySelector.js`**: Handles strategy selection, parameter forms, and communication with the backend for strategies.
+- **`frontend/index.html`**: Contains the main UI, including the "Strategy & Backtest" tab (formerly separate "Strategies" and "Backtest" tabs) for selecting, configuring strategies, and running backtests.
+- **`frontend/js/main.js`**: Initializes the app, manages tab navigation (now with the merged "Strategy & Backtest" tab), and coordinates feature modules.
+- **`frontend/js/modules/strategySelector.js`**: Handles strategy selection, parameter forms, and communication with the backend for strategies within the "Strategy & Backtest" tab. It now works alongside `backtestView.js` logic which is also triggered within this combined tab.
+- **`frontend/js/modules/backtestView.js`**: Handles the backtesting execution and results display components, which are now part of the "Strategy & Backtest" tab UI. It is initialized by `main.js` and picks up strategy details from `appState`.
 
 ### 4.2. Workflow
 
-1. **User selects a strategy** in the UI ("Strategies" tab).
-2. **Frontend fetches available strategies** and their parameters from `/api/available-strategies` and `/api/strategy-parameters/{strategy_type}`.
-3. **User customizes parameters** (if desired).
-4. **User runs a backtest** or optimization, which sends a request to `/api/run-backtest` or `/api/optimize-strategy`.
-5. **Backend processes the request** using the selected strategy, runs the backtest/optimization, and returns results.
-6. **Frontend displays results** (metrics, equity curve, trade history, etc.).
+1. **User navigates to the "Strategy & Backtest" tab** in the UI.
+2. **Frontend fetches available strategies** and their parameters from `/api/available-strategies` and `/api/strategy-parameters/{strategy_type}` for the strategy selection part.
+3. **User selects a strategy** and customizes its parameters.
+4. **User configures backtest settings** (initial capital, commission, date range) within the same tab.
+5. **User runs a backtest** or optimization, which sends a request to `/api/run-backtest` or `/api/optimize-strategy` respectively. The `/api/run-backtest` call will include both strategy configuration and backtest settings.
+6. **Backend processes the request** using the selected strategy, runs the backtest/optimization, and returns results.
+7. **Frontend displays results** (metrics, equity curve, trade history, etc.) within the "Strategy & Backtest" tab.
 
-### 4.3. Adding/Modifying Strategies and UI
+### 4.3. Strategy Comparison
+
+The "Strategy & Backtest" tab now includes advanced strategy comparison functionality:
+
+- **Multi-strategy Selection:** Users can select multiple strategies via checkboxes and customize parameters for each.
+- **Parameter Configuration:** Each selected strategy displays its configurable parameters in a compact form.
+- **Optimized Comparison:** Option to automatically optimize each strategy's parameters using grid search before comparison.
+- **Comprehensive Results:** Comparison provides:
+  - Performance metrics table comparing key metrics across strategies
+  - Parameter values used for each strategy
+  - Trade-by-trade breakdown for each strategy
+  - Equity curve visualization
+  - Identification of best strategy for each metric
+
+The comparison feature helps traders rapidly evaluate multiple strategies to identify the most promising ones for their specific market conditions and trading goals.
+
+### 4.4. API Endpoints
+
+- **`/api/available-strategies`**: GET - Returns a list of available strategies.
+- **`/api/strategy-parameters/{strategy_type}`**: GET - Returns the parameters for a specific strategy.
+- **`/api/run-backtest`**: POST - Runs a backtest for a specific strategy configuration.
+- **`/api/compare-strategies`**: POST - Enhanced endpoint that compares multiple strategies with optional optimization.
+- **`/api/recent-comparisons`**: GET - Returns recent strategy comparison results.
+
+### 4.5. Adding/Modifying Strategies and UI
 
 - When a new strategy is added to the backend, it is automatically available in the UI (if it follows the naming convention and is registered in `__init__.py`).
 - To customize how strategies appear in the UI, update the `strategy_descriptions` dictionary in `strategies/__init__.py`.

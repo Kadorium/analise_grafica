@@ -1,0 +1,76 @@
+/* Strategy Comparison Styles */
+
+.strategy-checkboxes {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 10px;
+    border: 1px solid #eee;
+    border-radius: 5px;
+}
+
+.strategy-compare-item {
+    background-color: #f8f9fa;
+    border-left: 4px solid #6c757d;
+    transition: all 0.2s ease-in-out;
+}
+
+.strategy-compare-item:hover {
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-left-color: #007bff;
+}
+
+.strategy-compare-item h6 {
+    color: #495057;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+}
+
+.best-strategies-container {
+    background-color: #f0f8ff;
+    padding: 10px 15px;
+    border-radius: 5px;
+    border-left: 4px solid #0d6efd;
+}
+
+/* Tabbed comparison results */
+#comparison-tabs .nav-link {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+}
+
+#comparison-tabs .nav-link.active {
+    font-weight: bold;
+    background-color: #f8f9fa;
+    border-bottom-color: #f8f9fa;
+}
+
+/* Styles for metric tables */
+#comparison-metrics-container .table th {
+    background-color: #f1f1f1;
+}
+
+/* Trade table styling */
+#comparison-trades-container .table-sm td,
+#comparison-trades-container .table-sm th {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.9rem;
+}
+
+/* Style for optimization checkbox */
+#comparison-options {
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+    .strategy-compare-item .row {
+        flex-direction: column;
+    }
+    
+    .strategy-compare-item .col-auto {
+        width: 100%;
+    }
+} 
