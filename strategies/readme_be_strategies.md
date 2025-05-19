@@ -231,7 +231,52 @@ The comparison feature helps traders rapidly evaluate multiple strategies to ide
 
 ---
 
-## 10. References
+## 10. Strategy Documentation
+
+### Seasonality Strategy
+
+The seasonality strategy (`strategies/seasonality_strategy.py`) is a calendar-based trading approach that automatically analyzes and trades based on historical seasonal patterns.
+
+**Parameters:**
+
+- `auto_optimize` (bool): When True, automatically analyzes historical data to determine optimal trading days/months
+- `significance_threshold` (float): Minimum statistical significance level (0-1) for considering a pattern valid
+- `return_threshold` (float): Minimum average return percentage for considering a pattern valid
+- `day_of_week_filter` (list): Optional override to manually specify days to enter positions (0-6, where 0 is Monday)
+- `month_of_year_filter` (list): Optional override to manually specify months to enter positions (1-12)
+- `day_of_month_filter` (list): Optional override to manually specify days of month to enter positions (1-31)
+- `exit_after_days` (int): Exit position after specified number of days
+- `combined_seasonality` (bool): If True, all conditions must be met; if False, any condition can generate a signal
+
+**Example Configuration:**
+```python
+{
+    'auto_optimize': True,
+    'significance_threshold': 0.6,
+    'return_threshold': 0.1,
+    'day_of_week_filter': None,  # Will be auto-determined
+    'month_of_year_filter': None,  # Will be auto-determined
+    'day_of_month_filter': None,
+    'exit_after_days': 3,
+    'combined_seasonality': False
+}
+```
+
+**Implementation Details:**
+- Automatically analyzes historical data using the built-in seasonality functions
+- Identifies statistically significant positive and negative seasonal patterns
+- Goes long (buy) on positive seasonality periods and short (sell) on negative seasonality periods
+- Exits positions after a specified number of days or when the seasonal pattern ends
+- Provides diagnostic information about discovered patterns during strategy execution
+
+**How to Use:**
+1. Simply select the Seasonality strategy in the UI
+2. Use the default auto-optimize setting or adjust the significance and return thresholds
+3. The strategy will automatically discover and trade the statistically significant seasonal patterns in your data
+
+---
+
+## 11. References
 
 - [Project README.md](../README.md)
 - [LLM Guide (readmeLLM.md)](../readmeLLM.md)

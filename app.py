@@ -823,7 +823,36 @@ async def run_backtest(strategy_config: StrategyConfig, backtest_config: Backtes
                                 initial_capital=backtest_config.initial_capital)
     })
     
+    # Save the current config
     CURRENT_CONFIG['strategy'] = {'type': strategy_config.strategy_type, 'parameters': strategy_config.parameters}
+    
+    # If the strategy is using auto-optimization (like seasonality), get the actual optimized parameters
+    if hasattr(strategy, 'get_parameters'):
+        # For strategy adapters, we can get the parameters which may have been updated
+        # during the auto-optimization process
+        print("=================================================================")
+        print(f"DEBUG: Strategy {strategy_config.strategy_type} has get_parameters method")
+        actual_parameters = strategy.get_parameters()
+        print(f"DEBUG: Retrieved parameters: {list(actual_parameters.keys())}")
+        
+        # Update the result data with the actual parameters used (especially useful for auto-optimizing strategies)
+        result_data["actual_parameters"] = clean_for_json(actual_parameters)
+        print(f"DEBUG: Added actual_parameters to result_data")
+        
+        # If the strategy has produced a summary for UI display, include it
+        if 'summary' in actual_parameters:
+            print(f"DEBUG: Found summary in parameters: {actual_parameters['summary']}")
+            result_data["optimization_summary"] = actual_parameters['summary']
+            print(f"DEBUG: Added optimization_summary to result_data")
+        else:
+            print(f"DEBUG: No summary found in parameters")
+        
+        # Also update the current config to show the actual parameters that were used
+        CURRENT_CONFIG['strategy']['actual_parameters'] = actual_parameters
+        print("=================================================================")
+    else:
+        print(f"DEBUG: Strategy {strategy_config.strategy_type} does NOT have get_parameters method")
+    
     indicator_columns = [col for col in data.columns if col not in ['date', 'open', 'high', 'low', 'close', 'volume']]
     CURRENT_CONFIG['indicators'] = indicator_columns
     

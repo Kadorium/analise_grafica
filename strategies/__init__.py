@@ -47,6 +47,28 @@ class StrategyAdapter:
         if 'signal' not in result_df.columns:
             raise ValueError("Strategy must provide a 'signal' column")
         
+        # Check if the strategy function returned auto-optimized parameters
+        # This is particularly useful for strategies like seasonality that do auto-optimization
+        if hasattr(result_df, 'attrs') and 'seasonality_params' in result_df.attrs:
+            # Enhanced debugging for seasonality parameters
+            print("=====================================================")
+            print(f"SEASONALITY PARAMETERS DETECTED for strategy: {self.name}")
+            print("-----------------------------------------------------")
+            print(f"Parameters keys: {list(result_df.attrs['seasonality_params'].keys())}")
+            print(f"Summary included: {'summary' in result_df.attrs['seasonality_params']}")
+            if 'summary' in result_df.attrs['seasonality_params']:
+                print(f"Summary: {result_df.attrs['seasonality_params']['summary']}")
+            print("=====================================================")
+            
+            # Update our parameters with the auto-optimized ones
+            optimized_params = result_df.attrs['seasonality_params']
+            # Only update our parameters dict for displaying in the UI, don't change the computed results
+            self.parameters.update(optimized_params)
+        else:
+            print(f"Note: No seasonality parameters found for strategy: {self.name}")
+            if hasattr(result_df, 'attrs'):
+                print(f"Available attributes: {list(result_df.attrs.keys())}")
+        
         # Calculate positions, equity, returns, and drawdowns
         df = result_df.copy()
         
@@ -359,7 +381,17 @@ def get_default_parameters(strategy_type):
         'candlestick': {},
         'adaptive_trend': {'fast_period': 10, 'slow_period': 30, 'signal_period': 9},
         'hybrid_momentum_volatility': {'rsi_period': 14, 'bb_period': 20, 'std_dev': 2.0},
-        'pattern_recognition': {'lookback': 5}
+        'pattern_recognition': {'lookback': 5},
+        'seasonality': {
+            'auto_optimize': True,
+            'significance_threshold': 0.6,
+            'return_threshold': 0.1,
+            'day_of_week_filter': None,
+            'month_of_year_filter': None,
+            'day_of_month_filter': None,
+            'exit_after_days': 3,
+            'combined_seasonality': False
+        }
     }
     
     # Check if it's one of the new strategies
@@ -435,7 +467,8 @@ strategy_descriptions = {
     'candlestick': 'Candlestick Patterns: Identifies common candlestick patterns for potential reversals or continuations.',
     'adaptive_trend': 'Adaptive Trend: Dynamically adjusts to market conditions using multiple indicators.',
     'hybrid_momentum_volatility': 'Hybrid Momentum/Volatility: Combines momentum and volatility indicators.',
-    'pattern_recognition': 'Pattern Recognition: Identifies chart patterns for potential trading signals.'
+    'pattern_recognition': 'Pattern Recognition: Identifies chart patterns for potential trading signals.',
+    'seasonality': 'Seasonality: Auto-analyzes historical data to identify and trade statistically significant seasonal patterns in day of week, month, and day of month.'
 }
 
 # Add all new strategies from STRATEGY_REGISTRY to AVAILABLE_STRATEGIES

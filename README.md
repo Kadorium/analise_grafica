@@ -673,3 +673,21 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **Seasonality Analysis**: Identify seasonal patterns and trends in your data.
 - **Performance Metrics**: Detailed metrics including returns, drawdown, win rate, and more.
 - **Modular Architecture**: Easily extend the system with new indicators and strategies.
+
+## 📚 Module-Level Documentation Policy
+
+This project uses detailed documentation files for each major module or directory. When making changes to any code, you MUST:
+
+1. **Read the relevant module-level documentation file** before making changes. These files contain architecture, workflow, and update policies specific to each module.
+2. **Update the relevant module-level documentation file** to reflect any changes, additions, or removals in that module.
+3. **Keep this main README and the LLM guide (`readmeLLM.md`) in sync** with the structure and update policies of all module-level documentation files.
+
+### Module-Level Documentation Files
+
+- `indicators/readme_be_indicators.md` — Backend indicators system
+- `optimization/readme_be_optimization.md` — Backend optimization system
+- `comparison/readme_be_comparison.md` — Backend comparison system
+- `strategies/readme_be_strategies.md` — Backend strategies system
+- `frontend/README_frontend.md` — Frontend architecture and workflow
+
+**Always consult and update these files as part of your workflow.**

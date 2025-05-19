@@ -183,6 +183,24 @@ When implementing technical indicators:
 3. Handle edge cases (insufficient data points, NaN values)
 4. Optimize for performance with vectorized operations
 
+### 📖 LLM Documentation Update Workflow
+
+Whenever you modify, extend, or create any file or folder in a module or directory, you MUST:
+
+- **Read the relevant module-level documentation file** (see list below) before making changes.
+- **Update that documentation file** to reflect your changes.
+- **If a new module or folder is created**, create a corresponding documentation file and add it to this list and to the main `README.md`.
+
+#### Canonical List of Module-Level Documentation Files
+
+- `indicators/readme_be_indicators.md`
+- `optimization/readme_be_optimization.md`
+- `comparison/readme_be_comparison.md`
+- `strategies/readme_be_strategies.md`
+- `frontend/README_frontend.md`
+
+**When asked to "read the readmeLLM.md and readme.md", you should also check for and, if relevant, read the appropriate module-level documentation file(s) for the user's query.**
+
 ## Testing Methods
 
 1. **Quick Strategy Testing**: Use `run_advanced_backtest.py` with sample data
