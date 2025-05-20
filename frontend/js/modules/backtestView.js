@@ -355,6 +355,27 @@ export function displayBacktestResults(results) {
         const tradesContainer = backtestResultsContainer.querySelector('#backtest-trades');
         displayTrades(results.trades, tradesContainer);
     }
+    
+    // Add Export to Excel button
+    if (!backtestResultsContainer.querySelector('#export-backtest-btn')) {
+        const exportBtnContainer = document.createElement('div');
+        exportBtnContainer.className = 'mt-4 text-center';
+        
+        const exportBtn = document.createElement('button');
+        exportBtn.id = 'export-backtest-btn';
+        exportBtn.className = 'btn btn-success';
+        exportBtn.innerHTML = '<i class="bi bi-file-earmark-excel"></i> Export to Excel';
+        
+        exportBtn.addEventListener('click', () => {
+            exportBacktestResults(results);
+        });
+        
+        exportBtnContainer.appendChild(exportBtn);
+        backtestResultsContainer.appendChild(exportBtnContainer);
+    }
+    
+    // Store the results in appState for access by the export function
+    appState.lastBacktestResults = results;
 }
 
 // Display seasonality auto-optimization results
@@ -1175,5 +1196,100 @@ export function initializeBacktestView() {
         // displayBacktestResults will populate it when results are available.
         // For now, ensure it doesn't show stale data if any.
         // backtestResultsContainer.innerHTML = '<p><em>Run a backtest to see results here.</em></p>';
+    }
+}
+
+// Function to export backtest results to Excel/CSV
+function exportBacktestResults(results) {
+    if (!results) {
+        console.error('No backtest results to export');
+        showError('No backtest results to export');
+        return;
+    }
+    
+    try {
+        // Create CSV content
+        let csvContent = "";
+        
+        // Add strategy information
+        csvContent += "Strategy Information\n";
+        if (results.actual_parameters) {
+            for (const [key, value] of Object.entries(results.actual_parameters)) {
+                csvContent += `${key};${value}\n`;
+            }
+        }
+        csvContent += "\n";
+        
+        // Add metrics
+        if (results.metrics) {
+            csvContent += "Performance Metrics\n";
+            for (const [key, value] of Object.entries(results.metrics)) {
+                const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                csvContent += `${formattedKey};${value}\n`;
+            }
+            csvContent += "\n";
+        }
+        
+        // Add trades
+        if (results.trades && results.trades.length > 0) {
+            csvContent += "Trades\n";
+            
+            // Header row
+            const tradeKeys = Object.keys(results.trades[0]);
+            csvContent += tradeKeys.join(";") + "\n";
+            
+            // Data rows
+            results.trades.forEach(trade => {
+                csvContent += tradeKeys.map(key => trade[key]).join(";") + "\n";
+            });
+            csvContent += "\n";
+        }
+        
+        // Add price and signals data
+        if (results.charts_data && results.charts_data.price_signals) {
+            const priceSignals = results.charts_data.price_signals;
+            
+            csvContent += "Price and Signals\n";
+            
+            // Create header row
+            csvContent += "Date;Close;Signal\n";
+            
+            // Create data rows
+            for (let i = 0; i < priceSignals.dates.length; i++) {
+                let signal = "hold";
+                
+                if (priceSignals.buy_signals.includes(i)) {
+                    signal = "buy";
+                } else if (priceSignals.sell_signals.includes(i)) {
+                    signal = "sell";
+                } else if (priceSignals.exit_signals && priceSignals.exit_signals.includes(i)) {
+                    signal = "exit";
+                }
+                
+                csvContent += `${priceSignals.dates[i]};${priceSignals.close[i]};${signal}\n`;
+            }
+        }
+        
+        // Trigger download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create virtual link element and trigger download
+        const link = document.createElement("a");
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-").substring(0, 19);
+        const strategyType = results.actual_parameters?.strategy_type || "strategy";
+        
+        link.setAttribute("href", url);
+        link.setAttribute("download", `backtest_${strategyType}_${timestamp}.csv`);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showSuccessMessage('Backtest results exported successfully');
+    } catch (error) {
+        console.error('Error exporting backtest results:', error);
+        showError('Failed to export backtest results: ' + error.message);
     }
 }
