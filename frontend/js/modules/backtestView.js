@@ -725,43 +725,100 @@ function createEquityCurveChart(chartsData) {
         return;
     }
     
-    new Chart(equityCtx, {
-        type: 'line',
-        data: {
-            labels: equityCurve.dates,
-            datasets: [
-                {
-                    label: 'Strategy',
-                    data: equityCurve.equity,
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                    tension: 0.1,
-                    fill: true
-                },
-                {
-                    label: 'Buy & Hold',
-                    data: equityCurve.buy_and_hold,
-                    borderColor: 'rgb(192, 75, 75)',
-                    backgroundColor: 'rgba(192, 75, 75, 0.1)',
-                    borderDash: [5, 5],
-                    tension: 0.1,
-                    fill: true
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { display: false },
-                tooltip: { mode: 'index', intersect: false }
+    try {
+        new Chart(equityCtx, {
+            type: 'line',
+            data: {
+                labels: equityCurve.dates,
+                datasets: [
+                    {
+                        label: 'Strategy',
+                        data: equityCurve.equity,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    },
+                    {
+                        label: 'Buy & Hold',
+                        data: equityCurve.buy_and_hold,
+                        borderColor: 'rgb(192, 75, 75)',
+                        backgroundColor: 'rgba(192, 75, 75, 0.1)',
+                        borderDash: [5, 5],
+                        tension: 0.1,
+                        fill: true
+                    }
+                ]
             },
-            scales: {
-                x: { display: true, title: { display: true, text: 'Date' }, ticks: { maxTicksLimit: 12 } },
-                y: { display: true, title: { display: true, text: 'Equity ($)' } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: { display: false },
+                    tooltip: { 
+                        mode: 'index', 
+                        intersect: false 
+                    }
+                },
+                scales: {
+                    x: { 
+                        type: 'category',
+                        display: true, 
+                        title: { 
+                            display: true, 
+                            text: 'Date' 
+                        }, 
+                        ticks: { 
+                            maxTicksLimit: 12,
+                            autoSkip: true
+                        }
+                    },
+                    y: { 
+                        display: true, 
+                        title: { 
+                            display: true, 
+                            text: 'Equity ($)' 
+                        } 
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('Error creating equity curve chart:', error);
+        
+        // Create a simplified chart as fallback
+        try {
+            new Chart(equityCtx, {
+                type: 'line',
+                data: {
+                    labels: equityCurve.dates,
+                    datasets: [
+                        {
+                            label: 'Strategy',
+                            data: equityCurve.equity,
+                            borderColor: 'rgb(75, 192, 192)',
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        } catch (fallbackError) {
+            console.error('Fallback equity chart creation failed:', fallbackError);
+            // Display error message on the chart container
+            const container = equityCtx.parentNode;
+            if (container) {
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        Error creating equity chart. Please check the console for details.
+                    </div>
+                `;
             }
         }
-    });
+    }
 }
 
 // Create price chart with signals
@@ -779,89 +836,145 @@ function createPriceChart(chartsData) {
         return;
     }
     
-    // Prepare buy/sell/exit markers
-    const buyPoints = priceSignals.buy_signals.map(i => ({ x: i, y: priceSignals.close[i], r: 7 }));
-    const sellPoints = priceSignals.sell_signals.map(i => ({ x: i, y: priceSignals.close[i], r: 7 }));
-    const exitPoints = priceSignals.exit_signals ? priceSignals.exit_signals.map(i => ({ x: i, y: priceSignals.close[i], r: 6 })) : [];
+    console.log('Creating price chart with signals:', priceSignals);
     
-    new Chart(priceCtx, {
-        type: 'line',
-        data: {
-            labels: priceSignals.dates,
-            datasets: [
-                {
-                    label: 'Price',
-                    data: priceSignals.close,
-                    borderColor: 'rgb(100, 100, 100)',
-                    backgroundColor: 'rgba(100, 100, 100, 0.1)',
-                    tension: 0.1,
-                    fill: false,
-                    pointRadius: 0
-                },
-                {
-                    label: 'Buy',
-                    data: buyPoints,
-                    backgroundColor: 'rgba(75, 192, 75, 0.8)',
-                    borderColor: 'rgba(75, 192, 75, 1)',
-                    type: 'bubble',
-                    pointStyle: 'triangle',
-                    pointRadius: 8,
-                    pointHoverRadius: 10
-                },
-                {
-                    label: 'Sell',
-                    data: sellPoints,
-                    backgroundColor: 'rgba(192, 75, 75, 0.8)',
-                    borderColor: 'rgba(192, 75, 75, 1)',
-                    type: 'bubble',
-                    pointStyle: 'triangle',
-                    pointRadius: 8,
-                    pointRotation: 180,
-                    pointHoverRadius: 10
-                },
-                {
-                    label: 'Exit',
-                    data: exitPoints,
-                    backgroundColor: 'rgba(75, 75, 192, 0.8)',
-                    borderColor: 'rgba(75, 75, 192, 1)',
-                    type: 'bubble',
-                    pointStyle: 'circle',
-                    pointRadius: 7,
-                    pointHoverRadius: 9
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            if (context.dataset.label === 'Buy') {
-                                return 'BUY @ ' + context.parsed.y;
-                            } else if (context.dataset.label === 'Sell') {
-                                return 'SELL @ ' + context.parsed.y;
-                            } else if (context.dataset.label === 'Exit') {
-                                return 'EXIT @ ' + context.parsed.y;
+    try {
+        // Create the chart with indexed data
+        new Chart(priceCtx, {
+            type: 'line',
+            data: {
+                labels: priceSignals.dates,
+                datasets: [
+                    {
+                        label: 'Price',
+                        data: priceSignals.close,
+                        borderColor: 'rgb(100, 100, 100)',
+                        backgroundColor: 'rgba(100, 100, 100, 0.1)',
+                        tension: 0.1,
+                        fill: false,
+                        pointRadius: 0
+                    },
+                    {
+                        label: 'Buy',
+                        data: priceSignals.close.map((value, index) => 
+                            priceSignals.buy_signals.includes(index) ? value : null),
+                        backgroundColor: 'rgba(75, 192, 75, 0.8)',
+                        borderColor: 'rgba(75, 192, 75, 1)',
+                        pointStyle: 'triangle',
+                        pointRadius: 8,
+                        pointHoverRadius: 10,
+                        showLine: false,
+                        spanGaps: true
+                    },
+                    {
+                        label: 'Sell',
+                        data: priceSignals.close.map((value, index) => 
+                            priceSignals.sell_signals.includes(index) ? value : null),
+                        backgroundColor: 'rgba(192, 75, 75, 0.8)',
+                        borderColor: 'rgba(192, 75, 75, 1)',
+                        pointStyle: 'triangle',
+                        pointRadius: 8,
+                        pointRotation: 180,
+                        pointHoverRadius: 10,
+                        showLine: false,
+                        spanGaps: true
+                    },
+                    {
+                        label: 'Exit',
+                        data: priceSignals.close.map((value, index) => 
+                            priceSignals.exit_signals && priceSignals.exit_signals.includes(index) ? value : null),
+                        backgroundColor: 'rgba(75, 75, 192, 0.8)',
+                        borderColor: 'rgba(75, 75, 192, 1)',
+                        pointStyle: 'circle',
+                        pointRadius: 7,
+                        pointHoverRadius: 9,
+                        showLine: false,
+                        spanGaps: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'nearest', intersect: false },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                if (context.dataset.label === 'Buy') {
+                                    return 'BUY @ ' + context.parsed.y;
+                                } else if (context.dataset.label === 'Sell') {
+                                    return 'SELL @ ' + context.parsed.y;
+                                } else if (context.dataset.label === 'Exit') {
+                                    return 'EXIT @ ' + context.parsed.y;
+                                }
+                                return context.dataset.label + ': ' + context.parsed.y;
                             }
-                            return context.dataset.label + ': ' + context.parsed.y;
+                        }
+                    },
+                    legend: {
+                        labels: {
+                            usePointStyle: true
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'category',
+                        title: {
+                            display: true,
+                            text: 'Date'
+                        },
+                        ticks: {
+                            maxTicksLimit: 12,
+                            autoSkip: true
+                        }
+                    },
+                    y: { 
+                        title: { 
+                            display: true, 
+                            text: 'Price' 
                         }
                     }
                 }
-            },
-            scales: {
-                x: {
-                    ticks: {
-                        maxTicksLimit: 12,
-                        callback: function(value) { return priceSignals.dates[value]; }
-                    }
+            }
+        });
+    } catch (error) {
+        console.error('Error creating price chart:', error);
+        
+        // Create a simplified chart without time scaling as fallback
+        try {
+            new Chart(priceCtx, {
+                type: 'line',
+                data: {
+                    labels: priceSignals.dates,
+                    datasets: [
+                        {
+                            label: 'Price',
+                            data: priceSignals.close,
+                            borderColor: 'rgb(100, 100, 100)',
+                            fill: false
+                        }
+                    ]
                 },
-                y: { title: { display: true, text: 'Price' } }
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        } catch (fallbackError) {
+            console.error('Fallback chart creation failed:', fallbackError);
+            // Display error message on the chart container
+            const container = priceCtx.parentNode;
+            if (container) {
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        Error creating chart. Please check the console for details.
+                    </div>
+                `;
             }
         }
-    });
+    }
 }
 
 // Display strategy-specific explanation
