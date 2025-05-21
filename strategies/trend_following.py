@@ -97,13 +97,13 @@ class TrendFollowingStrategy:
         print("[TrendFollowingStrategy] Signals DataFrame after generate_signals (head):\n", result[['date', 'close', 'signal', 'position']].head())
         return result
     
-    def backtest(self, data, initial_capital=10000.0, commission=0.001):
+    def backtest(self, data, initial_capital=100.0, commission=0.001):
         """
         Run a backtest of the strategy.
         
         Args:
             data (pandas.DataFrame): DataFrame containing price data.
-            initial_capital (float): Initial capital for the backtest. Default is 10000.0.
+            initial_capital (float): Initial capital for the backtest. Default is 100.0.
             commission (float): Commission rate per trade. Default is 0.001 (0.1%).
             
         Returns:

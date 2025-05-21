@@ -948,7 +948,7 @@ async function runBacktest() {
         }
         
         // Get backtest parameters
-        const initialCapital = parseFloat(document.getElementById('initial-capital').value || 10000);
+        const initialCapital = parseFloat(document.getElementById('initial-capital').value || 100);
         const commission = parseFloat(document.getElementById('commission').value || 0.001);
         const startDate = document.getElementById('backtest-start-date').value;
         const endDate = document.getElementById('backtest-end-date').value;
@@ -1683,7 +1683,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             // Get strategy type and create appropriate parameters
             const strategyType = document.getElementById('backtest-strategy').value;
-            const initialCapital = parseFloat(document.getElementById('initial-capital').value || 10000);
+            const initialCapital = parseFloat(document.getElementById('initial-capital').value || 100);
             const commission = parseFloat(document.getElementById('commission').value || 0.001);
             const startDate = document.getElementById('backtest-start-date').value;
             const endDate = document.getElementById('backtest-end-date').value;

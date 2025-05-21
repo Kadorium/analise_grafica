@@ -74,6 +74,104 @@ main {
     overflow-y: auto;
 }
 
+/* Optimization Panel Styling */
+#optimization-parameters .table {
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+#optimization-parameters .table th,
+#optimization-parameters .table td {
+    padding: 10px 8px;
+    vertical-align: middle;
+}
+
+#optimization-parameters .table thead th {
+    background-color: #f8f9fa;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 2px solid #dee2e6;
+}
+
+#optimization-parameters .form-control-sm {
+    width: 100%;
+    min-width: 60px;
+}
+
+#optimization-parameters .form-check {
+    margin-bottom: 0.5rem;
+}
+
+#optimization-parameters .form-check:last-child {
+    margin-bottom: 0;
+}
+
+#optimization-parameters .opt-checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+/* Optimization buttons styling */
+.param-buttons-container {
+    margin-top: 1.5rem !important;
+}
+
+.param-buttons-container button {
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.param-buttons-container button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.param-buttons-container button i {
+    margin-right: 0.5rem;
+}
+
+#use-default-params:hover {
+    background-color: #e2e6ea;
+    border-color: #dae0e5;
+}
+
+#use-optimized-params:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+/* Pulse animation for button feedback */
+@keyframes pulse-animation {
+    0% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(40, 167, 69, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(40, 167, 69, 0);
+    }
+}
+
+.pulse-animation {
+    animation: pulse-animation 1s cubic-bezier(0.24, 0, 0.38, 1);
+}
+
+/* Optimization responsive layout */
+@media (max-width: 992px) {
+    #optimization-section .col-md-4,
+    #optimization-section .col-md-8 {
+        width: 100%;
+    }
+    
+    #optimization-parameters .table-responsive {
+        max-height: 300px;
+    }
+}
+
 /* Forms */
 .form-label {
     font-weight: 500;

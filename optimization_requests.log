@@ -12070,3 +12070,5153 @@
   ]
 }
 
+{
+  "timestamp": "2025-05-20 14:20:05",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.75350632594984,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.365936123105655,
+    "calmar_ratio": 0.35586755093846567,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.365936123105655, 'calmar_ratio': 0.35586755093846567, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 14:26:44",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.75350632594984,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.365936123105655,
+    "calmar_ratio": 0.35586755093846567,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.365936123105655, 'calmar_ratio': 0.35586755093846567, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 14:26:57",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_type": [
+        "sma"
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_type": [
+      "sma"
+    ]
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.75350632594984,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.365936123105655,
+    "calmar_ratio": 0.35586755093846567,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (SMA20/SMA50)",
+    "total_return": 11.402850291224787,
+    "market_return": 215.02637334362484,
+    "annual_return": 2.105445304009401,
+    "volatility": 16.850598506594817,
+    "sharpe_ratio": 0.12494780545542009,
+    "max_drawdown": 33.46079222763262,
+    "trades": 26,
+    "win_rate": 1265.3846153846152,
+    "percent_profitable_days": 0.25191424196018375,
+    "annual_volatility_percent": 16.844142208563472,
+    "sortino_ratio": 13.009823543723408,
+    "calmar_ratio": 0.06292275716863274,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.1249,
+      "improvement": "-75.32%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 11.4029,
+      "improvement": "-78.19%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 33.4608,
+      "improvement": "40.87%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 1265.3846,
+      "improvement": "-10.68%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.2519,
+      "improvement": "-3.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.0629,
+      "improvement": "-82.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_type": {
+      "default": "ema",
+      "optimized": "sma"
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_type": "sma"
+      },
+      "value": 0.12494780545542009,
+      "all_metrics": {
+        "strategy_name": "Trend Following (SMA20/SMA50)",
+        "total_return": 11.402850291224787,
+        "market_return": 215.02637334362484,
+        "annual_return": 2.105445304009401,
+        "volatility": 16.850598506594817,
+        "sharpe_ratio": 0.12494780545542009,
+        "max_drawdown": 33.46079222763262,
+        "trades": 26,
+        "win_rate": 1265.3846153846152
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.365936123105655, 'calmar_ratio': 0.35586755093846567, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.25191424196018375, 'annual_volatility_percent': 16.844142208563472, 'sortino_ratio': 13.009823543723408, 'calmar_ratio': 0.06292275716863274, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 14:39:19",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.75350632594984,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.365936123105655,
+    "calmar_ratio": 0.35586755093846567,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.365936123105655, 'calmar_ratio': 0.35586755093846567, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 14:44:02",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.75350632594984,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.365936123105655,
+    "calmar_ratio": 0.35586755093846567,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.365936123105655, 'calmar_ratio': 0.35586755093846567, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 14:57:18",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.75350632594984,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.365936123105655,
+    "calmar_ratio": 0.35586755093846567,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.365936123105655, 'calmar_ratio': 0.35586755093846567, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 14:58:11",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.75350632594984,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.365936123105655,
+    "calmar_ratio": 0.35586755093846567,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.365936123105655, 'calmar_ratio': 0.35586755093846567, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 15:29:32",
+  "strategy_type": "mean_reversion",
+  "api_request_details": {
+    "strategy_type": "mean_reversion",
+    "param_ranges": {
+      "overbought": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "overbought": "101 values from 0 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Mean Reversion (RSI14: 30/70)",
+    "total_return": 0.19009865244784407,
+    "market_return": 2.1502637334362484,
+    "annual_return": 0.03415147393725371,
+    "volatility": 0.1844401258324798,
+    "sharpe_ratio": 0.18516292907039242,
+    "max_drawdown": 0.2567109858220919,
+    "trades": 120,
+    "win_rate": 2.0083333333333333,
+    "profit_factor": 1.078667590304545,
+    "percent_profitable_days": 0.18453292496171517,
+    "annual_volatility_percent": 18.436946664990977,
+    "sortino_ratio": 0.17400090429701148,
+    "calmar_ratio": 0.13303471928903604,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Mean Reversion (RSI14: 30/47)",
+    "total_return": 0.4964023549021048,
+    "market_return": 2.1502637334362484,
+    "annual_return": 0.08087771768167973,
+    "volatility": 0.16065740715005405,
+    "sharpe_ratio": 0.5034172971940218,
+    "max_drawdown": 0.14681700003837195,
+    "trades": 142,
+    "win_rate": 1.3943661971830985,
+    "profit_factor": 1.1945066288237345,
+    "percent_profitable_days": 0.15160796324655437,
+    "annual_volatility_percent": 16.059591864786835,
+    "sortino_ratio": 0.41069039084877307,
+    "calmar_ratio": 0.5508743378528481,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.1852,
+      "optimized": 0.5034,
+      "improvement": "171.88%"
+    },
+    "total_return": {
+      "default": 0.1901,
+      "optimized": 0.4964,
+      "improvement": "161.13%"
+    },
+    "max_drawdown": {
+      "default": 0.2567,
+      "optimized": 0.1468,
+      "improvement": "-42.81%"
+    },
+    "win_rate": {
+      "default": 2.0083,
+      "optimized": 1.3944,
+      "improvement": "-30.57%"
+    },
+    "profit_factor": {
+      "default": 1.0787,
+      "optimized": 1.1945,
+      "improvement": "10.74%"
+    },
+    "percent_profitable_days": {
+      "default": 0.1845,
+      "optimized": 0.1516,
+      "improvement": "-17.84%"
+    },
+    "calmar_ratio": {
+      "default": 0.133,
+      "optimized": 0.5509,
+      "improvement": "314.08%"
+    }
+  },
+  "parameter_changes": {
+    "overbought": {
+      "default": 70,
+      "optimized": 47
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "overbought": 47
+      },
+      "value": 0.5034172971940218,
+      "all_metrics": {
+        "strategy_name": "Mean Reversion (RSI14: 30/47)",
+        "total_return": 0.4964023549021048,
+        "market_return": 2.1502637334362484,
+        "annual_return": 0.08087771768167973,
+        "volatility": 0.16065740715005405,
+        "sharpe_ratio": 0.5034172971940218,
+        "max_drawdown": 0.14681700003837195,
+        "trades": 142,
+        "win_rate": 1.3943661971830985,
+        "profit_factor": 1.1945066288237345
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "overbought": 41
+      },
+      "value": 0.4895092773955572,
+      "all_metrics": {
+        "strategy_name": "Mean Reversion (RSI14: 30/41)",
+        "total_return": 0.3961926668423974,
+        "market_return": 2.1502637334362484,
+        "annual_return": 0.06651757365875799,
+        "volatility": 0.13588623695278243,
+        "sharpe_ratio": 0.4895092773955572,
+        "max_drawdown": 0.1901759738164854,
+        "trades": 168,
+        "win_rate": 0.8452380952380952,
+        "profit_factor": 1.2215625032185975
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "overbought": 46
+      },
+      "value": 0.44161740001243743,
+      "all_metrics": {
+        "strategy_name": "Mean Reversion (RSI14: 30/46)",
+        "total_return": 0.41429601799046245,
+        "market_return": 2.1502637334362484,
+        "annual_return": 0.06917204730581972,
+        "volatility": 0.15663342817532008,
+        "sharpe_ratio": 0.44161740001243743,
+        "max_drawdown": 0.14867821923370766,
+        "trades": 150,
+        "win_rate": 1.18,
+        "profit_factor": 1.181179602545565
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.18453292496171517, 'annual_volatility_percent': 18.436946664990977, 'sortino_ratio': 0.17400090429701148, 'calmar_ratio': 0.13303471928903604, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.15160796324655437, 'annual_volatility_percent': 16.059591864786835, 'sortino_ratio': 0.41069039084877307, 'calmar_ratio': 0.5508743378528481, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 15:44:45",
+  "strategy_type": "mean_reversion",
+  "api_request_details": {
+    "strategy_type": "mean_reversion",
+    "param_ranges": {
+      "oversold": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "oversold": "101 values from 0 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Mean Reversion (RSI14: 30/70)",
+    "total_return": 0.19009865244784407,
+    "market_return": 2.1502637334362484,
+    "annual_return": 0.03415147393725371,
+    "volatility": 0.1844401258324798,
+    "sharpe_ratio": 0.18516292907039242,
+    "max_drawdown": 0.2567109858220919,
+    "trades": 120,
+    "win_rate": 2.0083333333333333,
+    "profit_factor": 1.078667590304545,
+    "percent_profitable_days": 0.18453292496171517,
+    "annual_volatility_percent": 18.436946664990977,
+    "sortino_ratio": 0.17400090429701148,
+    "calmar_ratio": 0.13303471928903604,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Mean Reversion (RSI14: 67/70)",
+    "total_return": 0.5365220485556248,
+    "market_return": 2.1502637334362484,
+    "annual_return": 0.08640987243819409,
+    "volatility": 0.23298000678119005,
+    "sharpe_ratio": 0.37088964685003395,
+    "max_drawdown": 0.3361700647106658,
+    "trades": 211,
+    "win_rate": 2.071090047393365,
+    "profit_factor": 1.1028933508095076,
+    "percent_profitable_days": 0.3346094946401225,
+    "annual_volatility_percent": 23.28908043009831,
+    "sortino_ratio": 0.46577540145062585,
+    "calmar_ratio": 0.2570421388131783,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.1852,
+      "optimized": 0.3709,
+      "improvement": "100.3%"
+    },
+    "total_return": {
+      "default": 0.1901,
+      "optimized": 0.5365,
+      "improvement": "182.23%"
+    },
+    "max_drawdown": {
+      "default": 0.2567,
+      "optimized": 0.3362,
+      "improvement": "30.95%"
+    },
+    "win_rate": {
+      "default": 2.0083,
+      "optimized": 2.0711,
+      "improvement": "3.12%"
+    },
+    "profit_factor": {
+      "default": 1.0787,
+      "optimized": 1.1029,
+      "improvement": "2.25%"
+    },
+    "percent_profitable_days": {
+      "default": 0.1845,
+      "optimized": 0.3346,
+      "improvement": "81.33%"
+    },
+    "calmar_ratio": {
+      "default": 0.133,
+      "optimized": 0.257,
+      "improvement": "93.21%"
+    }
+  },
+  "parameter_changes": {
+    "oversold": {
+      "default": 30,
+      "optimized": 67
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "oversold": 67
+      },
+      "value": 0.37088964685003395,
+      "all_metrics": {
+        "strategy_name": "Mean Reversion (RSI14: 67/70)",
+        "total_return": 0.5365220485556248,
+        "market_return": 2.1502637334362484,
+        "annual_return": 0.08640987243819409,
+        "volatility": 0.23298000678119005,
+        "sharpe_ratio": 0.37088964685003395,
+        "max_drawdown": 0.3361700647106658,
+        "trades": 211,
+        "win_rate": 2.071090047393365,
+        "profit_factor": 1.1028933508095076
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "oversold": 69
+      },
+      "value": 0.3603816629712616,
+      "all_metrics": {
+        "strategy_name": "Mean Reversion (RSI14: 69/70)",
+        "total_return": 0.48928132745183484,
+        "market_return": 2.1502637334362484,
+        "annual_return": 0.07988331162581264,
+        "volatility": 0.22166308620475753,
+        "sharpe_ratio": 0.3603816629712616,
+        "max_drawdown": 0.24242041833330835,
+        "trades": 224,
+        "win_rate": 1.8348214285714286,
+        "profit_factor": 1.102994643768714
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "oversold": 68
+      },
+      "value": 0.3509896953131545,
+      "all_metrics": {
+        "strategy_name": "Mean Reversion (RSI14: 68/70)",
+        "total_return": 0.4885552679677041,
+        "market_return": 2.1502637334362484,
+        "annual_return": 0.07978170661980788,
+        "volatility": 0.22730498269650423,
+        "sharpe_ratio": 0.3509896953131545,
+        "max_drawdown": 0.26377872089631216,
+        "trades": 214,
+        "win_rate": 1.9018691588785046,
+        "profit_factor": 1.1013864126075719
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.18453292496171517, 'annual_volatility_percent': 18.436946664990977, 'sortino_ratio': 0.17400090429701148, 'calmar_ratio': 0.13303471928903604, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.3346094946401225, 'annual_volatility_percent': 23.28908043009831, 'sortino_ratio': 0.46577540145062585, 'calmar_ratio': 0.2570421388131783, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 15:45:41",
+  "strategy_type": "macd_crossover",
+  "api_request_details": {
+    "strategy_type": "macd_crossover",
+    "param_ranges": {
+      "slow_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "slow_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "total_return": 0.012749892099999771,
+    "annual_return": 0.002534291420648538,
+    "sharpe_ratio": 0.8333872163475119,
+    "max_drawdown": 0.002058318815183893,
+    "number_of_trades": 44,
+    "win_rate": 0.5454545454545454,
+    "profit_factor": 2.317846337237863,
+    "avg_win_raw": 9.343619291666682,
+    "avg_loss_raw": 4.837397099999982,
+    "expectancy_raw": 2.897702750000016,
+    "percent_profitable_days": 0.018376722817764167,
+    "annual_volatility_percent": 0.2938529987426575,
+    "sortino_ratio": 0.41546453707475484,
+    "calmar_ratio": 1.2312433826837077,
+    "max_consecutive_wins": 3,
+    "max_consecutive_losses": 4
+  },
+  "full_optimized_performance": {
+    "total_return": 1.6417237600000067,
+    "annual_return": 0.21418569867196258,
+    "sharpe_ratio": 1.143573778660396,
+    "max_drawdown": 0.06379401426499,
+    "number_of_trades": 42,
+    "win_rate": 0.5238095238095238,
+    "profit_factor": 3.1486264989044495,
+    "avg_win_raw": 10.935474227272742,
+    "avg_loss_raw": 3.8204028499999803,
+    "expectancy_raw": 3.908866095238113,
+    "percent_profitable_days": 0.016845329249617153,
+    "annual_volatility_percent": 17.665764806758382,
+    "sortino_ratio": 1.12136599853405,
+    "calmar_ratio": 3.357457610086581,
+    "max_consecutive_wins": 5,
+    "max_consecutive_losses": 3
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.8334,
+      "optimized": 1.1436,
+      "improvement": "37.22%"
+    },
+    "total_return": {
+      "default": 0.0127,
+      "optimized": 1.6417,
+      "improvement": "12776.37%"
+    },
+    "max_drawdown": {
+      "default": 0.0021,
+      "optimized": 0.0638,
+      "improvement": "2999.33%"
+    },
+    "win_rate": {
+      "default": 0.5455,
+      "optimized": 0.5238,
+      "improvement": "-3.97%"
+    },
+    "profit_factor": {
+      "default": 2.3178,
+      "optimized": 3.1486,
+      "improvement": "35.84%"
+    },
+    "percent_profitable_days": {
+      "default": 0.0184,
+      "optimized": 0.0168,
+      "improvement": "-8.33%"
+    },
+    "calmar_ratio": {
+      "default": 1.2312,
+      "optimized": 3.3575,
+      "improvement": "172.69%"
+    }
+  },
+  "parameter_changes": {
+    "slow_period": {
+      "default": 26,
+      "optimized": 19
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "slow_period": 19
+      },
+      "value": 1.143573778660396,
+      "all_metrics": {
+        "total_return": 1.6417237600000067,
+        "annual_return": 0.21418569867196258,
+        "sharpe_ratio": 1.143573778660396,
+        "max_drawdown": 0.06379401426499,
+        "number_of_trades": 42,
+        "win_rate": 0.5238095238095238,
+        "profit_factor": 3.1486264989044495,
+        "avg_win_raw": 10.935474227272742,
+        "avg_loss_raw": 3.8204028499999803,
+        "expectancy_raw": 3.908866095238113
+      },
+      "metric_debug_logs": [
+        "\n[DEBUG] StrategyAdapter.get_performance_metrics entry",
+        "[DEBUG] Input DataFrame shape: (1306, 25)",
+        "[DEBUG] Unique trade_profit values: [ 0.       14.739684  4.740806  0.772439 14.220702  2.485791 -5.086273\n  6.288723 -2.930718 12.027929 -2.490456 15.964053 -4.962939 -4.369463\n  4.852386 17.026952 -5.925962 11.008546 -6.830838 32.697467 -3.760597\n -5.707543 22.617843  8.637125 -2.452675 -1.591425 -1.189241  6.293902\n -2.084063  1.040343 -3.274686 -1.119019 12.620458 -2.4495   -4.574804\n -7.920034 19.893564 -0.074251  6.856079  1.053935 -7.61357   1.068399\n 23.673307]",
+        "[DEBUG] trade_profit_series (first 5):\n1857    0.0\n1858    0.0\n1859    0.0\n1860    0.0\n1861    0.0\nName: trade_profit, dtype: float64",
+        "[DEBUG] trades_df (actual trades) shape: (42, 25)",
+        "[DEBUG] Calculated num_trades: 42",
+        "[DEBUG] num_winning_trades: 22",
+        "[DEBUG] num_losing_trades: 20",
+        "[DEBUG] Calculated win_rate_ratio (raw): 0.5238095238095238",
+        "[DEBUG] total_profit_from_wins: 240.58043300000034",
+        "[DEBUG] total_loss_from_losses: 76.4080569999996",
+        "[DEBUG] Calculated profit_factor: 3.1486264989044495",
+        "[DEBUG] Sanitized metrics being returned: {'total_return': 1.6417237600000067, 'annual_return': 0.21418569867196258, 'sharpe_ratio': 1.143573778660396, 'max_drawdown': 0.06379401426499, 'number_of_trades': 42, 'win_rate': 0.5238095238095238, 'profit_factor': 3.1486264989044495, 'avg_win_raw': 10.935474227272742, 'avg_loss_raw': 3.8204028499999803, 'expectancy_raw': 3.908866095238113}"
+      ]
+    },
+    {
+      "params": {
+        "slow_period": 18
+      },
+      "value": 1.1065657730025396,
+      "all_metrics": {
+        "total_return": 1.618685090000008,
+        "annual_return": 0.21206279559620866,
+        "sharpe_ratio": 1.1065657730025396,
+        "max_drawdown": 0.08911541752172633,
+        "number_of_trades": 43,
+        "win_rate": 0.5116279069767442,
+        "profit_factor": 2.9316113198501985,
+        "avg_win_raw": 11.1667381818182,
+        "avg_loss_raw": 3.9904633809523617,
+        "expectancy_raw": 3.7643839302325772
+      },
+      "metric_debug_logs": [
+        "\n[DEBUG] StrategyAdapter.get_performance_metrics entry",
+        "[DEBUG] Input DataFrame shape: (1306, 25)",
+        "[DEBUG] Unique trade_profit values: [ 0.       14.739684  4.740806  0.772439 14.220702  2.485791 -5.086273\n  9.48852  -2.930718 12.819137 -2.490456 15.964053 -4.962939 -4.369463\n  4.852386 17.026952 -5.925962 11.008546 -9.419644 -6.830838 32.697467\n -3.760597 -5.707543 23.764695  8.637125 -2.452675 -1.591425 -1.189241\n  6.243852 -2.084063  1.040343 -3.274686 -1.119019 12.620458 -2.4495\n -4.574804 -5.892064 19.893564 -0.074251  6.856079  1.053935 -7.61357\n  1.068399 23.673307]",
+        "[DEBUG] trade_profit_series (first 5):\n1857    0.0\n1858    0.0\n1859    0.0\n1860    0.0\n1861    0.0\nName: trade_profit, dtype: float64",
+        "[DEBUG] trades_df (actual trades) shape: (43, 25)",
+        "[DEBUG] Calculated num_trades: 43",
+        "[DEBUG] num_winning_trades: 22",
+        "[DEBUG] num_losing_trades: 21",
+        "[DEBUG] Calculated win_rate_ratio (raw): 0.5116279069767442",
+        "[DEBUG] total_profit_from_wins: 245.6682400000004",
+        "[DEBUG] total_loss_from_losses: 83.7997309999996",
+        "[DEBUG] Calculated profit_factor: 2.9316113198501985",
+        "[DEBUG] Sanitized metrics being returned: {'total_return': 1.618685090000008, 'annual_return': 0.21206279559620866, 'sharpe_ratio': 1.1065657730025396, 'max_drawdown': 0.08911541752172633, 'number_of_trades': 43, 'win_rate': 0.5116279069767442, 'profit_factor': 2.9316113198501985, 'avg_win_raw': 11.1667381818182, 'avg_loss_raw': 3.9904633809523617, 'expectancy_raw': 3.7643839302325772}"
+      ]
+    },
+    {
+      "params": {
+        "slow_period": 17
+      },
+      "value": 1.0922629762823386,
+      "all_metrics": {
+        "total_return": 1.597472270000008,
+        "annual_return": 0.21009487872610944,
+        "sharpe_ratio": 1.0922629762823386,
+        "max_drawdown": 0.08911541752172633,
+        "number_of_trades": 46,
+        "win_rate": 0.4782608695652174,
+        "profit_factor": 2.859233514856273,
+        "avg_win_raw": 11.1667381818182,
+        "avg_loss_raw": 3.580042208333317,
+        "expectancy_raw": 3.4727658043478438
+      },
+      "metric_debug_logs": [
+        "\n[DEBUG] StrategyAdapter.get_performance_metrics entry",
+        "[DEBUG] Input DataFrame shape: (1306, 25)",
+        "[DEBUG] Unique trade_profit values: [ 0.       14.739684  4.740806  0.772439 14.220702  2.485791 -5.086273\n  9.48852  -2.930718 12.819137 -2.490456 15.964053 -4.962939 -4.369463\n  4.852386 17.026952 -5.925962 11.008546 -9.419644 -6.830838 32.697467\n -4.827676 -3.760597 -5.707543 23.764695 -2.557431  8.637125 -2.452675\n -1.591425 -1.189241  6.243852 -0.687461  1.040343 -1.226678 -3.274686\n -1.119019 12.620458 -2.4495   -4.574804 -5.892064 19.893564 -0.074251\n  6.856079  1.053935 -2.519669  1.068399 23.673307]",
+        "[DEBUG] trade_profit_series (first 5):\n1857    0.0\n1858    0.0\n1859    0.0\n1860    0.0\n1861    0.0\nName: trade_profit, dtype: float64",
+        "[DEBUG] trades_df (actual trades) shape: (46, 25)",
+        "[DEBUG] Calculated num_trades: 46",
+        "[DEBUG] num_winning_trades: 22",
+        "[DEBUG] num_losing_trades: 24",
+        "[DEBUG] Calculated win_rate_ratio (raw): 0.4782608695652174",
+        "[DEBUG] total_profit_from_wins: 245.6682400000004",
+        "[DEBUG] total_loss_from_losses: 85.9210129999996",
+        "[DEBUG] Calculated profit_factor: 2.859233514856273",
+        "[DEBUG] Sanitized metrics being returned: {'total_return': 1.597472270000008, 'annual_return': 0.21009487872610944, 'sharpe_ratio': 1.0922629762823386, 'max_drawdown': 0.08911541752172633, 'number_of_trades': 46, 'win_rate': 0.4782608695652174, 'profit_factor': 2.859233514856273, 'avg_win_raw': 11.1667381818182, 'avg_loss_raw': 3.580042208333317, 'expectancy_raw': 3.4727658043478438}"
+      ]
+    }
+  ],
+  "default_base_metric_debug_logs": [
+    "\n[DEBUG] StrategyAdapter.get_performance_metrics entry",
+    "[DEBUG] Input DataFrame shape: (1306, 25)",
+    "[DEBUG] Unique trade_profit values: [  0.        14.21421    6.721823   0.772439  -1.511151  14.220702\n   0.807114  -4.954141   6.288723  -2.930718   9.032132  19.576417\n  -4.049026  -4.369463   4.007542  17.026952  -5.758795   5.683256\n -17.780439  28.803365  -4.02733   -8.719528  22.093319   5.803294\n  -2.452675  -1.591425  -3.803624   7.591603   1.040343   0.388634\n  -1.119019  11.597482  -2.901569  -1.406544  -7.490717  -9.016129\n  19.903554  -1.774043  -4.146704   0.573101   2.176763   0.604486\n  -6.944902   1.905561  23.414048]",
+    "[DEBUG] trade_profit_series (first 5):\n1857    0.0\n1858    0.0\n1859    0.0\n1860    0.0\n1861    0.0\nName: trade_profit, dtype: float64",
+    "[DEBUG] trades_df (actual trades) shape: (44, 25)",
+    "[DEBUG] Calculated num_trades: 44",
+    "[DEBUG] num_winning_trades: 24",
+    "[DEBUG] num_losing_trades: 20",
+    "[DEBUG] Calculated win_rate_ratio (raw): 0.5454545454545454",
+    "[DEBUG] total_profit_from_wins: 224.24686300000036",
+    "[DEBUG] total_loss_from_losses: 96.74794199999964",
+    "[DEBUG] Calculated profit_factor: 2.317846337237863",
+    "[DEBUG] Sanitized metrics being returned: {'total_return': 0.012749892099999771, 'annual_return': 0.002534291420648538, 'sharpe_ratio': 0.8333872163475119, 'max_drawdown': 0.002058318815183893, 'number_of_trades': 44, 'win_rate': 0.5454545454545454, 'profit_factor': 2.317846337237863, 'avg_win_raw': 9.343619291666682, 'avg_loss_raw': 4.837397099999982, 'expectancy_raw': 2.897702750000016}"
+  ],
+  "default_advanced_metric_debug_logs": [
+    "\n[DEBUG] calculate_advanced_metrics - Consecutive Wins/Losses",
+    "[DEBUG] trade_profit_series (first 5 for consecutive calc):\n1857    0.0\n1858    0.0\n1859    0.0\n1860    0.0\n1861    0.0\nName: trade_profit, dtype: float64",
+    "[DEBUG] actual_trades (non-zero profit) for consecutive calc (first 5):\n1925    14.214210\n1949     6.721823\n1963     0.772439\n1965    -1.511151\n1997    14.220702\nName: trade_profit, dtype: float64",
+    "[DEBUG] Number of actual_trades for streak calc: 44",
+    "[DEBUG] trade_results_bool (first 5):\n1925     True\n1949     True\n1963     True\n1965    False\n1997     True\nName: trade_profit, dtype: bool",
+    "[DEBUG] Streak loop iter 0: is_win=True, cur_W=1, cur_L=0, max_W=0, max_L=0",
+    "[DEBUG] Streak loop iter 1: is_win=True, cur_W=2, cur_L=0, max_W=0, max_L=0",
+    "[DEBUG] Streak loop iter 2: is_win=True, cur_W=3, cur_L=0, max_W=0, max_L=0",
+    "[DEBUG] Streak loop iter 3: is_win=False, cur_W=0, cur_L=1, max_W=3, max_L=0",
+    "[DEBUG] Streak loop iter 4: is_win=True, cur_W=1, cur_L=0, max_W=3, max_L=1",
+    "[DEBUG] Streak loop iter 40: is_win=True, cur_W=3, cur_L=0, max_W=3, max_L=4",
+    "[DEBUG] Streak loop iter 41: is_win=False, cur_W=0, cur_L=1, max_W=3, max_L=4",
+    "[DEBUG] Streak loop iter 42: is_win=True, cur_W=1, cur_L=0, max_W=3, max_L=4",
+    "[DEBUG] Streak loop iter 43: is_win=True, cur_W=2, cur_L=0, max_W=3, max_L=4",
+    "[DEBUG] Final streaks: max_W=3, max_L=4",
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.018376722817764167, 'annual_volatility_percent': 0.2938529987426575, 'sortino_ratio': 0.41546453707475484, 'calmar_ratio': 1.2312433826837077, 'max_consecutive_wins': 3, 'max_consecutive_losses': 4}"
+  ],
+  "optimized_base_metric_debug_logs": [
+    "\n[DEBUG] StrategyAdapter.get_performance_metrics entry",
+    "[DEBUG] Input DataFrame shape: (1306, 25)",
+    "[DEBUG] Unique trade_profit values: [ 0.       14.739684  4.740806  0.772439 14.220702  2.485791 -5.086273\n  6.288723 -2.930718 12.027929 -2.490456 15.964053 -4.962939 -4.369463\n  4.852386 17.026952 -5.925962 11.008546 -6.830838 32.697467 -3.760597\n -5.707543 22.617843  8.637125 -2.452675 -1.591425 -1.189241  6.293902\n -2.084063  1.040343 -3.274686 -1.119019 12.620458 -2.4495   -4.574804\n -7.920034 19.893564 -0.074251  6.856079  1.053935 -7.61357   1.068399\n 23.673307]",
+    "[DEBUG] trade_profit_series (first 5):\n1857    0.0\n1858    0.0\n1859    0.0\n1860    0.0\n1861    0.0\nName: trade_profit, dtype: float64",
+    "[DEBUG] trades_df (actual trades) shape: (42, 25)",
+    "[DEBUG] Calculated num_trades: 42",
+    "[DEBUG] num_winning_trades: 22",
+    "[DEBUG] num_losing_trades: 20",
+    "[DEBUG] Calculated win_rate_ratio (raw): 0.5238095238095238",
+    "[DEBUG] total_profit_from_wins: 240.58043300000034",
+    "[DEBUG] total_loss_from_losses: 76.4080569999996",
+    "[DEBUG] Calculated profit_factor: 3.1486264989044495",
+    "[DEBUG] Sanitized metrics being returned: {'total_return': 1.6417237600000067, 'annual_return': 0.21418569867196258, 'sharpe_ratio': 1.143573778660396, 'max_drawdown': 0.06379401426499, 'number_of_trades': 42, 'win_rate': 0.5238095238095238, 'profit_factor': 3.1486264989044495, 'avg_win_raw': 10.935474227272742, 'avg_loss_raw': 3.8204028499999803, 'expectancy_raw': 3.908866095238113}"
+  ],
+  "optimized_advanced_metric_debug_logs": [
+    "\n[DEBUG] calculate_advanced_metrics - Consecutive Wins/Losses",
+    "[DEBUG] trade_profit_series (first 5 for consecutive calc):\n1857    0.0\n1858    0.0\n1859    0.0\n1860    0.0\n1861    0.0\nName: trade_profit, dtype: float64",
+    "[DEBUG] actual_trades (non-zero profit) for consecutive calc (first 5):\n1924    14.739684\n1948     4.740806\n1963     0.772439\n1997    14.220702\n2031     2.485791\nName: trade_profit, dtype: float64",
+    "[DEBUG] Number of actual_trades for streak calc: 42",
+    "[DEBUG] trade_results_bool (first 5):\n1924    True\n1948    True\n1963    True\n1997    True\n2031    True\nName: trade_profit, dtype: bool",
+    "[DEBUG] Streak loop iter 0: is_win=True, cur_W=1, cur_L=0, max_W=0, max_L=0",
+    "[DEBUG] Streak loop iter 1: is_win=True, cur_W=2, cur_L=0, max_W=0, max_L=0",
+    "[DEBUG] Streak loop iter 2: is_win=True, cur_W=3, cur_L=0, max_W=0, max_L=0",
+    "[DEBUG] Streak loop iter 3: is_win=True, cur_W=4, cur_L=0, max_W=0, max_L=0",
+    "[DEBUG] Streak loop iter 4: is_win=True, cur_W=5, cur_L=0, max_W=0, max_L=0",
+    "[DEBUG] Streak loop iter 38: is_win=True, cur_W=2, cur_L=0, max_W=5, max_L=3",
+    "[DEBUG] Streak loop iter 39: is_win=False, cur_W=0, cur_L=1, max_W=5, max_L=3",
+    "[DEBUG] Streak loop iter 40: is_win=True, cur_W=1, cur_L=0, max_W=5, max_L=3",
+    "[DEBUG] Streak loop iter 41: is_win=True, cur_W=2, cur_L=0, max_W=5, max_L=3",
+    "[DEBUG] Final streaks: max_W=5, max_L=3",
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.016845329249617153, 'annual_volatility_percent': 17.665764806758382, 'sortino_ratio': 1.12136599853405, 'calmar_ratio': 3.357457610086581, 'max_consecutive_wins': 5, 'max_consecutive_losses': 3}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 15:48:08",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.75350632594984,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.365936123105655,
+    "calmar_ratio": 0.35586755093846567,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.365936123105655, 'calmar_ratio': 0.35586755093846567, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 15:54:29",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.75350632594984,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.365936123105655,
+    "calmar_ratio": 0.35586755093846567,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.365936123105655, 'calmar_ratio': 0.35586755093846567, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 15:55:39",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.753506325949843,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.36593612310567,
+    "calmar_ratio": 0.3558675509384656,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.36593612310567, 'calmar_ratio': 0.3558675509384656, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 16:07:04",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.753506325949843,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.36593612310567,
+    "calmar_ratio": 0.3558675509384656,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.36593612310567, 'calmar_ratio': 0.3558675509384656, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 16:07:52",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.753506325949843,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.36593612310567,
+    "calmar_ratio": 0.3558675509384656,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.36593612310567, 'calmar_ratio': 0.3558675509384656, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 16:08:26",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.753506325949843,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.36593612310567,
+    "calmar_ratio": 0.3558675509384656,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.36593612310567, 'calmar_ratio': 0.3558675509384656, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 16:14:37",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.753506325949843,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.36593612310567,
+    "calmar_ratio": 0.3558675509384656,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.36593612310567, 'calmar_ratio': 0.3558675509384656, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 16:17:59",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.753506325949843,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.36593612310567,
+    "calmar_ratio": 0.3558675509384656,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.36593612310567, 'calmar_ratio': 0.3558675509384656, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 16:19:02",
+  "strategy_type": "mean_reversion",
+  "api_request_details": {
+    "strategy_type": "mean_reversion",
+    "param_ranges": {
+      "overbought": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "overbought": "101 values from 0 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Mean Reversion (RSI14: 30/70)",
+    "total_return": 0.19009865244784407,
+    "market_return": 2.1502637334362484,
+    "annual_return": 0.03415147393725371,
+    "volatility": 0.1844401258324798,
+    "sharpe_ratio": 0.18516292907039242,
+    "max_drawdown": 0.25671098582209195,
+    "trades": 120,
+    "win_rate": 2.0083333333333333,
+    "profit_factor": 1.078667590304545,
+    "percent_profitable_days": 0.18453292496171517,
+    "annual_volatility_percent": 18.436946664990973,
+    "sortino_ratio": 0.17400090429701162,
+    "calmar_ratio": 0.133034719289036,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Mean Reversion (RSI14: 30/47)",
+    "total_return": 0.4964023549021048,
+    "market_return": 2.1502637334362484,
+    "annual_return": 0.08087771768167973,
+    "volatility": 0.16065740715005405,
+    "sharpe_ratio": 0.5034172971940218,
+    "max_drawdown": 0.14681700003837195,
+    "trades": 142,
+    "win_rate": 1.3943661971830985,
+    "profit_factor": 1.1945066288237345,
+    "percent_profitable_days": 0.15160796324655437,
+    "annual_volatility_percent": 16.059591864786835,
+    "sortino_ratio": 0.41069039084877307,
+    "calmar_ratio": 0.5508743378528481,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.1852,
+      "optimized": 0.5034,
+      "improvement": "171.88%"
+    },
+    "total_return": {
+      "default": 0.1901,
+      "optimized": 0.4964,
+      "improvement": "161.13%"
+    },
+    "max_drawdown": {
+      "default": 0.2567,
+      "optimized": 0.1468,
+      "improvement": "-42.81%"
+    },
+    "win_rate": {
+      "default": 2.0083,
+      "optimized": 1.3944,
+      "improvement": "-30.57%"
+    },
+    "profit_factor": {
+      "default": 1.0787,
+      "optimized": 1.1945,
+      "improvement": "10.74%"
+    },
+    "percent_profitable_days": {
+      "default": 0.1845,
+      "optimized": 0.1516,
+      "improvement": "-17.84%"
+    },
+    "calmar_ratio": {
+      "default": 0.133,
+      "optimized": 0.5509,
+      "improvement": "314.08%"
+    }
+  },
+  "parameter_changes": {
+    "overbought": {
+      "default": 70,
+      "optimized": 47
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "overbought": 47
+      },
+      "value": 0.5034172971940218,
+      "all_metrics": {
+        "strategy_name": "Mean Reversion (RSI14: 30/47)",
+        "total_return": 0.4964023549021048,
+        "market_return": 2.1502637334362484,
+        "annual_return": 0.08087771768167973,
+        "volatility": 0.16065740715005405,
+        "sharpe_ratio": 0.5034172971940218,
+        "max_drawdown": 0.14681700003837195,
+        "trades": 142,
+        "win_rate": 1.3943661971830985,
+        "profit_factor": 1.1945066288237345
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "overbought": 41
+      },
+      "value": 0.4895092773955572,
+      "all_metrics": {
+        "strategy_name": "Mean Reversion (RSI14: 30/41)",
+        "total_return": 0.3961926668423974,
+        "market_return": 2.1502637334362484,
+        "annual_return": 0.06651757365875799,
+        "volatility": 0.13588623695278243,
+        "sharpe_ratio": 0.4895092773955572,
+        "max_drawdown": 0.1901759738164854,
+        "trades": 168,
+        "win_rate": 0.8452380952380952,
+        "profit_factor": 1.2215625032185975
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "overbought": 46
+      },
+      "value": 0.44161740001243743,
+      "all_metrics": {
+        "strategy_name": "Mean Reversion (RSI14: 30/46)",
+        "total_return": 0.41429601799046245,
+        "market_return": 2.1502637334362484,
+        "annual_return": 0.06917204730581972,
+        "volatility": 0.15663342817532008,
+        "sharpe_ratio": 0.44161740001243743,
+        "max_drawdown": 0.14867821923370766,
+        "trades": 150,
+        "win_rate": 1.18,
+        "profit_factor": 1.181179602545565
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.18453292496171517, 'annual_volatility_percent': 18.436946664990973, 'sortino_ratio': 0.17400090429701162, 'calmar_ratio': 0.133034719289036, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.15160796324655437, 'annual_volatility_percent': 16.059591864786835, 'sortino_ratio': 0.41069039084877307, 'calmar_ratio': 0.5508743378528481, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+
+{
+  "timestamp": "2025-05-20 16:43:22",
+  "strategy_type": "trend_following",
+  "api_request_details": {
+    "strategy_type": "trend_following",
+    "param_ranges": {
+      "fast_ma_period": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100
+      ]
+    },
+    "metric": "sharpe_ratio",
+    "start_date": "2020-02-20",
+    "end_date": "2025-02-20"
+  },
+  "param_ranges_request": {
+    "fast_ma_period": "100 values from 1 to 100"
+  },
+  "metric": "sharpe_ratio",
+  "start_date": "2020-02-20",
+  "end_date": "2025-02-20",
+  "full_default_performance": {
+    "strategy_name": "Trend Following (EMA20/SMA50)",
+    "total_return": 52.2800299842106,
+    "market_return": 215.02637334362484,
+    "annual_return": 8.453102122417121,
+    "volatility": 16.694512869343086,
+    "sharpe_ratio": 0.5063401483214253,
+    "max_drawdown": 23.753506325949843,
+    "trades": 24,
+    "win_rate": 1416.6666666666665,
+    "percent_profitable_days": 0.26033690658499237,
+    "annual_volatility_percent": 16.68812351729291,
+    "sortino_ratio": 54.36593612310567,
+    "calmar_ratio": 0.3558675509384656,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "full_optimized_performance": {
+    "strategy_name": "Trend Following (EMA68/SMA50)",
+    "total_return": 81.66027061843309,
+    "market_return": 215.02637334362484,
+    "annual_return": 12.208474435147942,
+    "volatility": 14.516555585574839,
+    "sharpe_ratio": 0.8410035261587503,
+    "max_drawdown": 22.375347991578057,
+    "trades": 22,
+    "win_rate": 877.2727272727274,
+    "percent_profitable_days": 0.14777947932618682,
+    "annual_volatility_percent": 14.511009178076106,
+    "sortino_ratio": 72.29745817833484,
+    "calmar_ratio": 0.5456216564651033,
+    "max_consecutive_wins": 0,
+    "max_consecutive_losses": 0
+  },
+  "performance_comparison": {
+    "sharpe_ratio": {
+      "default": 0.5063,
+      "optimized": 0.841,
+      "improvement": "66.09%"
+    },
+    "total_return": {
+      "default": 52.28,
+      "optimized": 81.6603,
+      "improvement": "56.2%"
+    },
+    "max_drawdown": {
+      "default": 23.7535,
+      "optimized": 22.3753,
+      "improvement": "-5.8%"
+    },
+    "win_rate": {
+      "default": 1416.6667,
+      "optimized": 877.2727,
+      "improvement": "-38.07%"
+    },
+    "percent_profitable_days": {
+      "default": 0.2603,
+      "optimized": 0.1478,
+      "improvement": "-43.24%"
+    },
+    "calmar_ratio": {
+      "default": 0.3559,
+      "optimized": 0.5456,
+      "improvement": "53.32%"
+    }
+  },
+  "parameter_changes": {
+    "fast_ma_period": {
+      "default": 20,
+      "optimized": 68
+    }
+  },
+  "top_results_summary": [
+    {
+      "params": {
+        "fast_ma_period": 68
+      },
+      "value": 0.8410035261587503,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA68/SMA50)",
+        "total_return": 81.66027061843309,
+        "market_return": 215.02637334362484,
+        "annual_return": 12.208474435147942,
+        "volatility": 14.516555585574839,
+        "sharpe_ratio": 0.8410035261587503,
+        "max_drawdown": 22.375347991578057,
+        "trades": 22,
+        "win_rate": 877.2727272727274
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 70
+      },
+      "value": 0.7908360890134081,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA70/SMA50)",
+        "total_return": 76.62075180524847,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.600999067330498,
+        "volatility": 14.669283848443355,
+        "sharpe_ratio": 0.7908360890134081,
+        "max_drawdown": 23.00398605723634,
+        "trades": 16,
+        "win_rate": 1206.25
+      },
+      "metric_debug_logs": []
+    },
+    {
+      "params": {
+        "fast_ma_period": 69
+      },
+      "value": 0.7795638432311892,
+      "all_metrics": {
+        "strategy_name": "Trend Following (EMA69/SMA50)",
+        "total_return": 75.01670212538095,
+        "market_return": 215.02637334362484,
+        "annual_return": 11.404708725623713,
+        "volatility": 14.62960195582276,
+        "sharpe_ratio": 0.7795638432311892,
+        "max_drawdown": 23.312142619165233,
+        "trades": 20,
+        "win_rate": 975.0
+      },
+      "metric_debug_logs": []
+    }
+  ],
+  "default_base_metric_debug_logs": [],
+  "default_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.26033690658499237, 'annual_volatility_percent': 16.68812351729291, 'sortino_ratio': 54.36593612310567, 'calmar_ratio': 0.3558675509384656, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ],
+  "optimized_base_metric_debug_logs": [],
+  "optimized_advanced_metric_debug_logs": [
+    "[INFO] Calculated advanced metrics (to be merged): {'percent_profitable_days': 0.14777947932618682, 'annual_volatility_percent': 14.511009178076106, 'sortino_ratio': 72.29745817833484, 'calmar_ratio': 0.5456216564651033, 'max_consecutive_wins': 0, 'max_consecutive_losses': 0}"
+  ]
+}
+

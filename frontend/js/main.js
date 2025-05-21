@@ -280,9 +280,57 @@ function setupGlobalEventListeners() {
     // Listen for optimization parameter updates
     document.addEventListener('use-optimized-params', (event) => {
         if (event.detail && event.detail.params) {
-            // Find where these parameters should be applied
-            // For example, apply to strategy parameters
-            console.log('Applying optimized parameters:', event.detail.params);
+            // Find the strategy selector
+            const strategySelector = document.getElementById('strategy-select');
+            if (strategySelector) {
+                // Get the strategy type from the optimization panel
+                const optimizationStrategy = document.getElementById('optimization-strategy');
+                if (optimizationStrategy) {
+                    // Set the same strategy in the strategy selector
+                    const strategyValue = optimizationStrategy.value;
+                    if (strategyValue) {
+                        strategySelector.value = strategyValue;
+                        
+                        // Trigger the change event to load the parameters
+                        strategySelector.dispatchEvent(new Event('change'));
+                        
+                        // Wait for parameters to load before applying optimized values
+                        setTimeout(() => {
+                            // Apply parameters to form fields
+                            Object.entries(event.detail.params).forEach(([key, value]) => {
+                                const input = document.querySelector(`#strategy-parameters-form [name="${key}"]`);
+                                if (input) {
+                                    if (input.type === 'checkbox') {
+                                        input.checked = value;
+                                    } else {
+                                        input.value = value;
+                                    }
+                                }
+                            });
+                            
+                            // Log what was applied
+                            const paramType = event.detail.isDefault ? 'default' : 'optimized';
+                            console.log(`Applied ${paramType} parameters to strategy:`, event.detail.params);
+                            
+                            // If backtest section is available, trigger the backtest button
+                            const runBacktestBtn = document.getElementById('run-backtest-btn');
+                            if (runBacktestBtn) {
+                                // Add a visual indicator that parameters were applied
+                                const badge = document.createElement('span');
+                                badge.className = `badge rounded-pill ms-2 ${event.detail.isDefault ? 'bg-secondary' : 'bg-success'}`;
+                                badge.textContent = event.detail.isDefault ? 'Default Parameters' : 'Optimized Parameters';
+                                
+                                // Remove any existing badges
+                                const existingBadges = runBacktestBtn.parentNode.querySelectorAll('.badge');
+                                existingBadges.forEach(b => b.remove());
+                                
+                                // Add the new badge
+                                runBacktestBtn.parentNode.insertBefore(badge, runBacktestBtn.nextSibling);
+                            }
+                        }, 300);
+                    }
+                }
+            }
         }
     });
     

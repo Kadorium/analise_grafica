@@ -11,20 +11,20 @@ export class OptimizationParamTable {
     render() {
         this.container.innerHTML = '';
         const table = document.createElement('table');
-        table.className = 'table table-bordered table-sm';
+        table.className = 'table table-bordered table-hover';
 
         // Table header
         const thead = document.createElement('thead');
         thead.innerHTML = `
             <tr>
-                <th>Optimize?</th>
+                <th style="width: 80px;" class="text-center">Optimize?</th>
                 <th>Parameter</th>
-                <th>Type</th>
-                <th>Min</th>
-                <th>Max</th>
-                <th>Step</th>
+                <th style="width: 100px;">Type</th>
+                <th style="width: 120px;">Min</th>
+                <th style="width: 120px;">Max</th>
+                <th style="width: 120px;">Step</th>
                 <th>Options</th>
-                <th>Default</th>
+                <th style="width: 100px;">Default</th>
             </tr>
         `;
         table.appendChild(thead);
@@ -55,25 +55,69 @@ export class OptimizationParamTable {
             }
             
             const row = document.createElement('tr');
+            
+            // Add highlight effect on hover for better readability
+            row.classList.add('parameter-row');
+            
             row.innerHTML = `
-                <td class="text-center"><input type="checkbox" class="opt-checkbox" data-id="${param.id}"></td>
-                <td>${param.label}</td>
-                <td>${param.type}</td>
-                <td><input type="number" class="form-control form-control-sm min-input" data-id="${param.id}" value="${param.min ?? ''}" ${param.type !== 'number' ? 'disabled' : ''}></td>
-                <td><input type="number" class="form-control form-control-sm max-input" data-id="${param.id}" value="${param.max ?? ''}" ${param.type !== 'number' ? 'disabled' : ''}></td>
-                <td><input type="number" class="form-control form-control-sm step-input" data-id="${param.id}" value="${stepValue}" min="0.000001" step="0.000001" ${param.type !== 'number' ? 'disabled' : ''}></td>
-                <td>${param.type === 'select' && param.options ? param.options.map(opt => `<div class="form-check"><input type="checkbox" class="form-check-input opt-option" data-id="${param.id}" value="${opt.value}"><label class="form-check-label">${opt.label}</label></div>`).join('') : ''}</td>
-                <td>${param.defaultValue ?? ''}</td>
+                <td class="text-center align-middle">
+                    <div class="form-check form-check-inline justify-content-center">
+                        <input type="checkbox" class="form-check-input opt-checkbox" data-id="${param.id}">
+                    </div>
+                </td>
+                <td class="align-middle fw-semibold">${param.label}</td>
+                <td class="align-middle">${param.type}</td>
+                <td>
+                    <input type="number" class="form-control form-control-sm min-input" data-id="${param.id}" 
+                           value="${param.min ?? ''}" ${param.type !== 'number' ? 'disabled' : ''}>
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm max-input" data-id="${param.id}" 
+                           value="${param.max ?? ''}" ${param.type !== 'number' ? 'disabled' : ''}>
+                </td>
+                <td>
+                    <input type="number" class="form-control form-control-sm step-input" data-id="${param.id}" 
+                           value="${stepValue}" min="0.000001" step="0.000001" ${param.type !== 'number' ? 'disabled' : ''}>
+                </td>
+                <td>
+                    ${param.type === 'select' && param.options ? 
+                        param.options.map(opt => 
+                            `<div class="form-check mb-1">
+                                <input type="checkbox" class="form-check-input opt-option" data-id="${param.id}" value="${opt.value}">
+                                <label class="form-check-label">${opt.label}</label>
+                             </div>`
+                        ).join('') 
+                        : ''}
+                </td>
+                <td class="align-middle">${param.defaultValue ?? ''}</td>
             `;
             tbody.appendChild(row);
         });
         table.appendChild(tbody);
 
-        // Create responsive wrapper
+        // Create responsive wrapper with an appropriate height
         const wrapper = document.createElement('div');
         wrapper.className = 'table-responsive';
+        wrapper.style.maxHeight = '500px'; // Increase height for better visibility
         wrapper.appendChild(table);
-        this.container.appendChild(wrapper);
+        
+        // Add a heading and helper text
+        const container = document.createElement('div');
+        container.className = 'mb-3';
+        
+        const heading = document.createElement('h6');
+        heading.className = 'mb-2 fw-bold';
+        heading.textContent = 'Parameter Ranges';
+        
+        const helperText = document.createElement('p');
+        helperText.className = 'text-muted small mb-2';
+        helperText.textContent = 'Check parameters to optimize and set their ranges or options.';
+        
+        container.appendChild(heading);
+        container.appendChild(helperText);
+        container.appendChild(wrapper);
+        
+        this.container.appendChild(container);
 
         // Attach event listeners to update state
         this.attachListeners();

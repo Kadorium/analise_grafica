@@ -363,7 +363,7 @@ Analise_Grafica/
     }
   },
   "backtest_config": {
-    "initial_capital": 10000.0,
+    "initial_capital": 100.0,
     "commission": 0.001,
     "start_date": "2020-01-01",
     "end_date": "2022-12-31"

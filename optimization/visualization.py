@@ -444,6 +444,376 @@ def plot_optimization_comparison(default_signals, optimized_signals, strategy_ty
         logger.error(f"Error creating optimization comparison chart: {str(e)}\nTraceback:\n{error_details}")
         return None, None
 
+def plot_indicators_comparison(default_signals, optimized_signals, strategy_type, default_params, optimized_params):
+    """
+    Generate a comparison chart of default vs optimized strategy indicators.
+    
+    Args:
+        default_signals (pd.DataFrame): DataFrame with default strategy signals
+        optimized_signals (pd.DataFrame): DataFrame with optimized strategy signals
+        strategy_type (str): The type of strategy being compared
+        default_params (dict): Parameters used for the default strategy
+        optimized_params (dict): Parameters used for the optimized strategy
+        
+    Returns:
+        str: HTML representation of the chart
+    """
+    try:
+        if default_signals is None or optimized_signals is None:
+            logger.error("Missing signals data for indicator comparison")
+            return ""
+            
+        if len(default_signals) == 0 or len(optimized_signals) == 0:
+            logger.error("Empty signals data for indicator comparison")
+            return ""
+        
+        # Ensure we have the close price for plotting
+        if 'close' not in default_signals.columns or 'close' not in optimized_signals.columns:
+            logger.error("Missing 'close' column in signals data")
+            return ""
+            
+        # Create figure for the chart
+        plt.figure(figsize=(12, 8))
+        
+        # Plot price data as the baseline
+        plt.subplot(2, 1, 1)
+        plt.plot(default_signals.index, default_signals['close'], color='black', linewidth=1.5, label='Price')
+        
+        # Plot indicators based on strategy type
+        has_indicators = False
+        
+        if strategy_type == 'trend_following' or strategy_type == 'sma_crossover':
+            # Get parameters
+            fast_period_default = default_params.get('fast_period', 20)
+            slow_period_default = default_params.get('slow_period', 50)
+            fast_period_opt = optimized_params.get('fast_period', 20)
+            slow_period_opt = optimized_params.get('slow_period', 50)
+            
+            # Plot default SMAs
+            fast_col = f'sma{fast_period_default}'
+            slow_col = f'sma{slow_period_default}'
+            if fast_col in default_signals.columns:
+                plt.plot(default_signals.index, default_signals[fast_col], 
+                        label=f'Default SMA({fast_period_default})', color='blue', linewidth=1.5)
+                has_indicators = True
+            if slow_col in default_signals.columns:
+                plt.plot(default_signals.index, default_signals[slow_col], 
+                        label=f'Default SMA({slow_period_default})', color='darkblue', linewidth=1.5)
+                has_indicators = True
+            
+            # Plot optimized SMAs
+            fast_col_opt = f'sma{fast_period_opt}'
+            slow_col_opt = f'sma{slow_period_opt}'
+            if fast_col_opt in optimized_signals.columns:
+                plt.plot(optimized_signals.index, optimized_signals[fast_col_opt], 
+                        label=f'Optimized SMA({fast_period_opt})', color='red', linestyle='--', linewidth=1.5)
+                has_indicators = True
+            if slow_col_opt in optimized_signals.columns:
+                plt.plot(optimized_signals.index, optimized_signals[slow_col_opt], 
+                        label=f'Optimized SMA({slow_period_opt})', color='darkred', linestyle='--', linewidth=1.5)
+                has_indicators = True
+        
+        elif strategy_type == 'mean_reversion' or strategy_type == 'rsi':
+            # For RSI strategy
+            if 'rsi' in default_signals.columns and 'rsi' in optimized_signals.columns:
+                rsi_period_default = default_params.get('rsi_period', 14)
+                rsi_period_opt = optimized_params.get('rsi_period', 14)
+                
+                # Plot RSI lines
+                plt.plot(default_signals.index, default_signals['rsi'], 
+                        label=f'Default RSI({rsi_period_default})', color='blue', linewidth=1.5)
+                plt.plot(optimized_signals.index, optimized_signals['rsi'], 
+                        label=f'Optimized RSI({rsi_period_opt})', color='red', linestyle='--', linewidth=1.5)
+                has_indicators = True
+                
+                # Plot threshold lines
+                oversold_default = default_params.get('oversold', 30)
+                overbought_default = default_params.get('overbought', 70)
+                oversold_opt = optimized_params.get('oversold', 30)
+                overbought_opt = optimized_params.get('overbought', 70)
+                
+                plt.axhline(y=oversold_default, color='blue', linestyle=':', label=f'Default Oversold ({oversold_default})')
+                plt.axhline(y=overbought_default, color='blue', linestyle=':', label=f'Default Overbought ({overbought_default})')
+                plt.axhline(y=oversold_opt, color='red', linestyle=':', label=f'Optimized Oversold ({oversold_opt})')
+                plt.axhline(y=overbought_opt, color='red', linestyle=':', label=f'Optimized Overbought ({overbought_opt})')
+        
+        elif strategy_type == 'breakout':
+            # For breakout strategy
+            window_default = default_params.get('window', 20)
+            window_opt = optimized_params.get('window', 20)
+            
+            if 'upper_band' in default_signals.columns and 'lower_band' in default_signals.columns:
+                plt.plot(default_signals.index, default_signals['upper_band'], 
+                        label=f'Default Upper Band ({window_default})', color='blue', linewidth=1.5)
+                plt.plot(default_signals.index, default_signals['lower_band'], 
+                        label=f'Default Lower Band ({window_default})', color='darkblue', linewidth=1.5)
+                has_indicators = True
+            
+            if 'upper_band' in optimized_signals.columns and 'lower_band' in optimized_signals.columns:
+                plt.plot(optimized_signals.index, optimized_signals['upper_band'], 
+                        label=f'Optimized Upper Band ({window_opt})', color='red', linestyle='--', linewidth=1.5)
+                plt.plot(optimized_signals.index, optimized_signals['lower_band'], 
+                        label=f'Optimized Lower Band ({window_opt})', color='darkred', linestyle='--', linewidth=1.5)
+                has_indicators = True
+        
+        if not has_indicators:
+            logger.warning(f"No indicators found for strategy type: {strategy_type}")
+            return ""
+            
+        plt.title(f"Indicators Comparison: Default vs Optimized ({strategy_type.replace('_', ' ').title()})")
+        plt.ylabel('Price/Indicator Value')
+        plt.grid(True, alpha=0.3)
+        plt.legend(loc='best')
+        
+        # Plot the signals in the second subplot
+        plt.subplot(2, 1, 2)
+        
+        # Plot positions or signals
+        position_found = False
+        for pos_col in ['position', 'signal', 'trade_signal']:
+            if pos_col in default_signals.columns and pos_col in optimized_signals.columns:
+                plt.plot(default_signals.index, default_signals[pos_col], 
+                        label=f'Default {pos_col.title()}', color='blue', linewidth=1.5)
+                plt.plot(optimized_signals.index, optimized_signals[pos_col], 
+                        label=f'Optimized {pos_col.title()}', color='red', linestyle='--', linewidth=1.5)
+                position_found = True
+                break
+        
+        if not position_found:
+            # Just show price changes if no position/signal column found
+            plt.plot(default_signals.index, default_signals['close'].pct_change(), 
+                    label='Price Change', color='green', linewidth=1)
+        
+        plt.title('Trading Signals: Default vs Optimized')
+        plt.ylabel('Signal Value')
+        plt.grid(True, alpha=0.3)
+        plt.legend(loc='best')
+        
+        # Adjust layout and save
+        plt.tight_layout()
+        
+        # Save to a buffer
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=100)
+        plt.close()
+        
+        # Convert to base64 for embedding in HTML
+        buf.seek(0)
+        img_str = base64.b64encode(buf.read()).decode('utf-8')
+        
+        # Create HTML for the chart
+        html = f'''
+        <div class="mt-4">
+            <h6 class="mb-3">Indicators Comparison: Default vs Optimized</h6>
+            <div class="text-center">
+                <img src="data:image/png;base64,{img_str}" class="img-fluid" alt="Indicators Comparison" />
+            </div>
+            <div class="mt-2 text-center">
+                <small class="text-muted">
+                    Default parameters: {', '.join([f"{k}={v}" for k, v in default_params.items()])} <br>
+                    Optimized parameters: {', '.join([f"{k}={v}" for k, v in optimized_params.items()])}
+                </small>
+            </div>
+        </div>
+        '''
+        
+        return html
+    except Exception as e:
+        logger.error(f"Error generating indicators comparison chart: {str(e)}")
+        logger.error(traceback.format_exc())
+        return ""
+
+def get_strategy_indicators(strategy_type, default_signals, optimized_signals, default_params, optimized_params):
+    """
+    Get indicator columns based on strategy type.
+    
+    Args:
+        strategy_type (str): Strategy type
+        default_signals (pd.DataFrame): Default signals DataFrame
+        optimized_signals (pd.DataFrame): Optimized signals DataFrame
+        default_params (dict): Default parameters
+        optimized_params (dict): Optimized parameters
+    
+    Returns:
+        dict: Dictionary with default and optimized indicator columns
+    """
+    indicators = {'default': {}, 'optimized': {}}
+    
+    # Map strategy types to their indicator columns
+    if strategy_type == 'trend_following' or strategy_type == 'sma_crossover' or strategy_type == 'ema_crossover':
+        fast_period_default = default_params.get('fast_period', 20)
+        slow_period_default = default_params.get('slow_period', 50)
+        
+        fast_period_opt = optimized_params.get('fast_period', 20)
+        slow_period_opt = optimized_params.get('slow_period', 50)
+        
+        # Look for SMA or EMA columns
+        prefix = 'sma' if strategy_type != 'ema_crossover' else 'ema'
+        
+        indicators['default'][f'{prefix}{fast_period_default}'] = {
+            'label': f'{prefix.upper()}{fast_period_default}', 
+            'color': 'blue', 
+            'linestyle': '-'
+        }
+        indicators['default'][f'{prefix}{slow_period_default}'] = {
+            'label': f'{prefix.upper()}{slow_period_default}', 
+            'color': 'darkblue', 
+            'linestyle': '-'
+        }
+        
+        indicators['optimized'][f'{prefix}{fast_period_opt}'] = {
+            'label': f'{prefix.upper()}{fast_period_opt}', 
+            'color': 'red', 
+            'linestyle': '--'
+        }
+        indicators['optimized'][f'{prefix}{slow_period_opt}'] = {
+            'label': f'{prefix.upper()}{slow_period_opt}', 
+            'color': 'darkred', 
+            'linestyle': '--'
+        }
+    
+    elif strategy_type == 'mean_reversion' or strategy_type == 'rsi':
+        rsi_period_default = default_params.get('rsi_period', 14)
+        oversold_default = default_params.get('oversold', 30)
+        overbought_default = default_params.get('overbought', 70)
+        
+        rsi_period_opt = optimized_params.get('rsi_period', 14)
+        oversold_opt = optimized_params.get('oversold', 30)
+        overbought_opt = optimized_params.get('overbought', 70)
+        
+        indicators['default']['rsi'] = {
+            'label': f'RSI({rsi_period_default})', 
+            'color': 'blue', 
+            'linestyle': '-'
+        }
+        
+        indicators['optimized']['rsi'] = {
+            'label': f'RSI({rsi_period_opt})', 
+            'color': 'red', 
+            'linestyle': '--'
+        }
+    
+    elif strategy_type == 'breakout' or strategy_type == 'donchian_breakout':
+        window_default = default_params.get('window', 20)
+        window_opt = optimized_params.get('window', 20)
+        
+        indicators['default']['upper_band'] = {
+            'label': f'Upper({window_default})', 
+            'color': 'blue', 
+            'linestyle': '-'
+        }
+        indicators['default']['lower_band'] = {
+            'label': f'Lower({window_default})', 
+            'color': 'darkblue', 
+            'linestyle': '-'
+        }
+        
+        indicators['optimized']['upper_band'] = {
+            'label': f'Upper({window_opt})', 
+            'color': 'red', 
+            'linestyle': '--'
+        }
+        indicators['optimized']['lower_band'] = {
+            'label': f'Lower({window_opt})', 
+            'color': 'darkred', 
+            'linestyle': '--'
+        }
+    
+    elif strategy_type == 'bollinger_breakout':
+        window_default = default_params.get('window', 20)
+        std_dev_default = default_params.get('std_dev', 2)
+        
+        window_opt = optimized_params.get('window', 20)
+        std_dev_opt = optimized_params.get('std_dev', 2)
+        
+        indicators['default']['upper_band'] = {
+            'label': f'Upper BBand({window_default},{std_dev_default})', 
+            'color': 'blue', 
+            'linestyle': '-'
+        }
+        indicators['default']['middle_band'] = {
+            'label': f'Middle BBand({window_default})', 
+            'color': 'green', 
+            'linestyle': '-'
+        }
+        indicators['default']['lower_band'] = {
+            'label': f'Lower BBand({window_default},{std_dev_default})', 
+            'color': 'darkblue', 
+            'linestyle': '-'
+        }
+        
+        indicators['optimized']['upper_band'] = {
+            'label': f'Upper BBand({window_opt},{std_dev_opt})', 
+            'color': 'red', 
+            'linestyle': '--'
+        }
+        indicators['optimized']['middle_band'] = {
+            'label': f'Middle BBand({window_opt})', 
+            'color': 'darkgreen', 
+            'linestyle': '--'
+        }
+        indicators['optimized']['lower_band'] = {
+            'label': f'Lower BBand({window_opt},{std_dev_opt})', 
+            'color': 'darkred', 
+            'linestyle': '--'
+        }
+    
+    elif strategy_type == 'macd_crossover':
+        fast_period_default = default_params.get('fast_period', 12)
+        slow_period_default = default_params.get('slow_period', 26)
+        signal_period_default = default_params.get('signal_period', 9)
+        
+        fast_period_opt = optimized_params.get('fast_period', 12)
+        slow_period_opt = optimized_params.get('slow_period', 26)
+        signal_period_opt = optimized_params.get('signal_period', 9)
+        
+        indicators['default']['macd'] = {
+            'label': f'MACD({fast_period_default},{slow_period_default})', 
+            'color': 'blue', 
+            'linestyle': '-'
+        }
+        indicators['default']['signal'] = {
+            'label': f'Signal({signal_period_default})', 
+            'color': 'darkblue', 
+            'linestyle': '-'
+        }
+        
+        indicators['optimized']['macd'] = {
+            'label': f'MACD({fast_period_opt},{slow_period_opt})', 
+            'color': 'red', 
+            'linestyle': '--'
+        }
+        indicators['optimized']['signal'] = {
+            'label': f'Signal({signal_period_opt})', 
+            'color': 'darkred', 
+            'linestyle': '--'
+        }
+    
+    # Add more strategy types as needed...
+    
+    return indicators
+
+def get_signal_column(signals_df):
+    """Find the column that represents the trading signal in the DataFrame"""
+    possible_cols = ['position', 'signal', 'trade_signal']
+    
+    for col in possible_cols:
+        if col in signals_df.columns:
+            return col
+    
+    return None
+
+def format_params_for_display(params):
+    """Format parameters as a readable string"""
+    if not params:
+        return "N/A"
+    
+    param_strs = []
+    for k, v in params.items():
+        param_strs.append(f"{k}={v}")
+    
+    return ", ".join(param_strs)
+
 def plot_to_base64(plt_figure):
     """
     Convert a matplotlib figure to base64 encoded string

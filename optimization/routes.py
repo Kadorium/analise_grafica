@@ -111,73 +111,25 @@ async def get_optimization_results_endpoint(strategy_type: str, request: Request
             return {"status": "in_progress", "message": f"Optimization for {strategy_type} is still in progress"}
 
         # Load the results
-        results, timestamp, error = load_optimization_results(strategy_type)
+        results = load_optimization_results(strategy_type)
         
-        # Log loaded results to check for chart_html
-        logger.info(f"[API /optimization-results] Loaded results for {strategy_type}:")
-        logger.info(f"  chart_html is present in loaded results: {'chart_html' in results}")
-        if 'chart_html' in results and results['chart_html'] is not None:
-            logger.info(f"  chart_html content in loaded (first 100 chars): {str(results['chart_html'])[:100]}...")
-        elif 'chart_html' in results:
-            logger.info(f"  chart_html is present but None in loaded results.")
+        if results:
+            # Log the size of chart_html (if it exists) to help with debugging
+            if 'chart_html' in results:
+                logger.info(f"chart_html size: {len(results['chart_html']) if results['chart_html'] else 0} characters")
+            
+            # Log the size of indicators_chart_html (if it exists)
+            if 'indicators_chart_html' in results:
+                logger.info(f"indicators_chart_html size: {len(results['indicators_chart_html']) if results['indicators_chart_html'] else 0} characters")
+            
+            # Return results as JSON
+            return {"status": "success", "results": results}
         else:
-            logger.info(f"  chart_html is NOT present in loaded results.")
-
-        if error:
-            logger.warning(f"Error loading optimization results: {error}")
-            return {"status": "not_found", "message": error}
-        
-        # Check if comparison data is present in the loaded results
-        has_comparison = ('default_params' in results and 
-                        'optimized_params' in results and
-                        'default_performance' in results and
-                        'optimized_performance' in results)
-        
-        # If no comparison data in the file but we have it in memory, add it to the results
-        if not has_comparison and optimization_status.get('comparison_data'):
-            logger.info(f"Adding comparison data from memory to results: {strategy_type}")
-            results.update(optimization_status.get('comparison_data', {}))
-        
-        # Ensure key fields expected by the frontend are present
-        if 'top_results' not in results:
-            results['top_results'] = []
-            # If we have optimized_params, add them as the best result
-            if 'optimized_params' in results and 'optimized_performance' in results:
-                results['top_results'].append({
-                    'params': results['optimized_params'],
-                    'metrics': results['optimized_performance']
-                })
-        
-        # Rename fields to match frontend expectations if needed
-        if 'total_return_percent' in results.get('default_performance', {}) and 'total_return' not in results['default_performance']:
-            results['default_performance']['total_return'] = results['default_performance']['total_return_percent'] / 100
-        if 'total_return_percent' in results.get('optimized_performance', {}) and 'total_return' not in results['optimized_performance']:
-            results['optimized_performance']['total_return'] = results['optimized_performance']['total_return_percent'] / 100
-        
-        # Sanitize all float values to ensure JSON compatibility
-        sanitized_results = _sanitize_json_values(results)
-        
-        # Log sanitized_results before returning to check chart_html
-        logger.info(f"[API /optimization-results] Sanitized results for {strategy_type} (checking chart_html before JSONResponse):")
-        logger.info(f"  chart_html is present in sanitized_results: {'chart_html' in sanitized_results}")
-        if 'chart_html' in sanitized_results and sanitized_results['chart_html'] is not None:
-            logger.info(f"  chart_html content in sanitized (first 100 chars): {str(sanitized_results['chart_html'])[:100]}...")
-        elif 'chart_html' in sanitized_results:
-            logger.info(f"  chart_html is present but None in sanitized_results.")
-        else:
-            logger.info(f"  chart_html is NOT present in sanitized_results.")
-
-        return JSONResponse(content={
-            "status": "success",
-            "results": sanitized_results,
-            "timestamp": timestamp
-        })
+            return {"status": "not_found", "message": f"No optimization results found for {strategy_type}"}
     except Exception as e:
-        logger.error(f"Error processing optimization results: {str(e)}", exc_info=True)
-        return JSONResponse(
-            status_code=500,
-            content={"success": False, "message": f"Internal server error: {str(e)}"}
-        )
+        logger.error(f"Error getting optimization results: {str(e)}")
+        logger.error(traceback.format_exc())
+        return {"status": "error", "message": str(e)}
 
 def _sanitize_json_values(obj):
     """

@@ -376,9 +376,16 @@ function displayOptimizationResults(results) {
         if (results.chart_html) {
             console.log("[OPTIMIZATION_PANEL] chart_html received from backend. Length:", results.chart_html.length);
             chartSectionHtml = results.chart_html; // Store the HTML string
-                } else {
+        } else {
             console.warn("[OPTIMIZATION_PANEL] No chart_html found in results object. results.chart_html was:", results.chart_html, "Full results object:", results);
             chartSectionHtml = '<div class="alert alert-warning mt-4">No comparison chart available for display.</div>';
+        }
+        
+        // Get the indicators chart if available
+        let indicatorsChartHtml = '';
+        if (results.indicators_chart_html) {
+            console.log("[OPTIMIZATION_PANEL] indicators_chart_html received from backend. Length:", results.indicators_chart_html.length);
+            indicatorsChartHtml = results.indicators_chart_html;
         }
         
         // Build the complete comparison HTML
@@ -417,10 +424,38 @@ function displayOptimizationResults(results) {
                         </tbody>
                     </table>
                     
-                    ${chartSectionHtml} // Use the stored HTML string here
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <ul class="nav nav-tabs" id="comparison-charts-tabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="equity-chart-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#equity-chart-content" type="button" role="tab" 
+                                        aria-controls="equity-chart-content" aria-selected="true">
+                                        Equity Comparison
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="indicators-chart-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#indicators-chart-content" type="button" role="tab" 
+                                        aria-controls="indicators-chart-content" aria-selected="false">
+                                        Indicators Comparison
+                                    </button>
+                                </li>
+                            </ul>
+                            <div class="tab-content mt-3" id="comparison-charts-content">
+                                <div class="tab-pane fade show active" id="equity-chart-content" role="tabpanel" 
+                                    aria-labelledby="equity-chart-tab">
+                                    ${chartSectionHtml}
+                                </div>
+                                <div class="tab-pane fade" id="indicators-chart-content" role="tabpanel" 
+                                    aria-labelledby="indicators-chart-tab">
+                                    ${indicatorsChartHtml || '<div class="alert alert-warning">No indicators comparison chart available.</div>'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        `;
+            </div>`;
     }
 
     // Create a clean and simple display of the best parameters and comparison
@@ -451,24 +486,31 @@ function displayOptimizationResults(results) {
     container.innerHTML = summaryHtml;
     
     // After setting innerHTML, find and execute scripts from chartSectionHtml if it was populated
-    if (results.chart_html) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = results.chart_html; // Parse the chart_html string into a temporary element
-        const scripts = tempDiv.querySelectorAll('script');
-        scripts.forEach(scriptTag => {
-            if (scriptTag.textContent) {
-                try {
-                    console.log("[OPTIMIZATION_PANEL] Attempting to execute script content directly for chart:", scriptTag.textContent.substring(0, 100) + "...");
-                    // Execute the script content in the global scope
-                    // Using new Function() is generally safer than eval()
-                    new Function(scriptTag.textContent)(); 
-                    console.log("[OPTIMIZATION_PANEL] Successfully executed script content for chart.");
-                } catch (e) {
-                    console.error("[OPTIMIZATION_PANEL] Error executing script content:", e);
-                    console.error("[OPTIMIZATION_PANEL] Script content that failed (first 500 chars):", scriptTag.textContent.substring(0, 500));
+    if (results.chart_html || results.indicators_chart_html) {
+        // Function to extract and execute scripts from HTML
+        const executeScriptsFromHtml = (html) => {
+            if (!html) return;
+            
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = html;
+            const scripts = tempDiv.querySelectorAll('script');
+            
+            scripts.forEach(scriptTag => {
+                if (scriptTag.textContent) {
+                    try {
+                        console.log("[OPTIMIZATION_PANEL] Attempting to execute script content:", scriptTag.textContent.substring(0, 50) + "...");
+                        new Function(scriptTag.textContent)();
+                        console.log("[OPTIMIZATION_PANEL] Successfully executed script content.");
+                    } catch (e) {
+                        console.error("[OPTIMIZATION_PANEL] Error executing script content:", e);
+                    }
                 }
-            }
-        });
+            });
+        };
+        
+        // Execute scripts from both chart types
+        executeScriptsFromHtml(results.chart_html);
+        executeScriptsFromHtml(results.indicators_chart_html);
     }
     
     // Add download and use parameter buttons
@@ -478,23 +520,45 @@ function displayOptimizationResults(results) {
         
     addDownloadButton(results, currentStrategy);
     
-    // Add "Use Optimized Parameters" button if not already present
-    if (!document.getElementById('use-optimized-params')) {
-        const useParamsBtn = document.createElement('button');
-        useParamsBtn.id = 'use-optimized-params';
-        useParamsBtn.className = 'btn btn-success ms-2';
-        useParamsBtn.innerHTML = '<i class="bi bi-check-circle"></i> Use Optimized Parameters';
-        useParamsBtn.onclick = () => {
-            if (results.best_params) {
-                useOptimizedParameters(results.best_params);
-            } else if (best && best.params) {
-                useOptimizedParameters(best.params);
-            } else {
-                showError('No optimized parameters available to use');
-            }
-        };
-        document.querySelector('#optimization-results .d-flex').appendChild(useParamsBtn);
+    // Add buttons container if not present
+    let buttonContainer = document.querySelector('#optimization-results .param-buttons-container');
+    if (!buttonContainer) {
+        buttonContainer = document.createElement('div');
+        buttonContainer.className = 'param-buttons-container d-flex mt-3 gap-2';
+        document.getElementById('optimization-results').appendChild(buttonContainer);
+    } else {
+        buttonContainer.innerHTML = ''; // Clear existing buttons
     }
+    
+    // Add "Use Default Parameters" button
+    if (results.default_params) {
+        const useDefaultBtn = document.createElement('button');
+        useDefaultBtn.id = 'use-default-params';
+        useDefaultBtn.className = 'btn btn-outline-primary';
+        useDefaultBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Use Default Parameters';
+        useDefaultBtn.onclick = () => {
+            useOptimizedParameters(results.default_params);
+        };
+        buttonContainer.appendChild(useDefaultBtn);
+    }
+    
+    // Add "Use Optimized Parameters" button
+    const useOptimizedBtn = document.createElement('button');
+    useOptimizedBtn.id = 'use-optimized-params';
+    useOptimizedBtn.className = 'btn btn-success';
+    useOptimizedBtn.innerHTML = '<i class="bi bi-check-circle"></i> Use Optimized Parameters';
+    useOptimizedBtn.onclick = () => {
+        if (results.optimized_params) {
+            useOptimizedParameters(results.optimized_params);
+        } else if (results.best_params) {
+            useOptimizedParameters(results.best_params);
+        } else if (results.top_results && results.top_results.length > 0 && results.top_results[0].params) {
+            useOptimizedParameters(results.top_results[0].params);
+        } else {
+            showError('No optimized parameters available to use');
+        }
+    };
+    buttonContainer.appendChild(useOptimizedBtn);
 }
 
 // Check if Chart.js is loaded and retry if needed
@@ -651,13 +715,57 @@ function initChartToggleHandlers() {
 
 // Use optimized parameters
 export function useOptimizedParameters(params) {
-    if (!params) return;
+    if (!params) {
+        showError('No parameters provided to apply');
+        return;
+    }
     
-    // Trigger event to notify other modules
-    const event = new CustomEvent('use-optimized-params', { detail: { params } });
-    document.dispatchEvent(event);
-    
-    showSuccessMessage('Optimized parameters applied');
+    try {
+        // Determine if these are default or optimized parameters by checking button id
+        const buttonId = document.activeElement ? document.activeElement.id : '';
+        const isDefault = buttonId === 'use-default-params' || 
+                         (document.activeElement && document.activeElement.closest('#use-default-params'));
+        
+        // Trigger event to notify other modules
+        const event = new CustomEvent('use-optimized-params', { 
+            detail: { 
+                params,
+                isDefault: isDefault
+            } 
+        });
+        document.dispatchEvent(event);
+        
+        // Show visual feedback
+        const message = isDefault ? 
+            'Default parameters applied to strategy' : 
+            'Optimized parameters applied to strategy';
+            
+        showSuccessMessage(message);
+        
+        // Highlight the appropriate button
+        document.querySelectorAll('.param-buttons-container button').forEach(btn => {
+            btn.classList.remove('pulse-animation');
+        });
+        
+        const buttonSelector = isDefault ? '#use-default-params' : '#use-optimized-params';
+        const activeButton = document.querySelector(buttonSelector);
+        if (activeButton) {
+            activeButton.classList.add('pulse-animation');
+            // Remove the animation class after it completes
+            setTimeout(() => {
+                activeButton.classList.remove('pulse-animation');
+            }, 1000);
+        }
+        
+        // Scroll to strategy section if needed
+        const strategiesTab = document.getElementById('strategies-tab');
+        if (strategiesTab) {
+            strategiesTab.click();
+        }
+    } catch (error) {
+        console.error('Error applying parameters:', error);
+        showError('Failed to apply parameters. See console for details.');
+    }
 }
 
 function createParameterObjects(paramConfigs) {
@@ -771,13 +879,18 @@ function addDownloadButton(results, strategyType) {
         return;
     }
     
+    // Check if download button already exists
+    if (container.querySelector('.download-results-btn')) {
+        return; // Don't add duplicate buttons
+    }
+    
     const btnContainer = document.createElement('div');
     btnContainer.className = 'd-flex mt-3';
     
     // Add download button
     const btn = document.createElement('button');
-    btn.className = 'btn btn-primary';
-    btn.innerHTML = '<i class="fas fa-download"></i> Download Results (JSON)';
+    btn.className = 'btn btn-primary download-results-btn';
+    btn.innerHTML = '<i class="bi bi-download"></i> Download Results (JSON)';
     btn.onclick = () => {
         try {
             const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
@@ -794,19 +907,6 @@ function addDownloadButton(results, strategyType) {
     };
     
     btnContainer.appendChild(btn);
-    
-    // Add "Use Parameters" button if we have best parameters
-    if (results.top_results && results.top_results.length > 0 && results.top_results[0].params) {
-        const useBtn = document.createElement('button');
-        useBtn.className = 'btn btn-success ml-2';
-        useBtn.style.marginLeft = '10px';
-        useBtn.innerHTML = '<i class="fas fa-check"></i> Use These Parameters';
-        useBtn.onclick = () => {
-            useOptimizedParameters(results.top_results[0].params);
-        };
-        btnContainer.appendChild(useBtn);
-    }
-    
     container.appendChild(btnContainer);
 }
 
