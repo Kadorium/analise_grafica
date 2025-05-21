@@ -19,6 +19,7 @@ class DataLoader:
         """
         self.file_path = file_path
         self.data = None
+        self.multi_asset_data = {}
         
     def load_csv(self, file_path=None):
         """
@@ -170,6 +171,111 @@ class DataLoader:
                                       f"2. {str(e2)}\n"
                                       f"3. {str(e3)}\n"
                                       f"4. {str(e4)}")
+
+    def load_multi_asset_excel(self, file_path=None):
+        """
+        Load data from a multi-sheet Excel file where each sheet represents a different asset.
+        
+        Args:
+            file_path (str, optional): Path to the Excel file. If None, uses the instance's file_path.
+            
+        Returns:
+            dict: A dictionary where keys are asset names (sheet names) and values are DataFrames.
+        """
+        if file_path:
+            self.file_path = file_path
+            
+        if not self.file_path:
+            raise ValueError("File path not provided")
+        
+        # Check if file exists
+        if not os.path.exists(self.file_path):
+            raise FileNotFoundError(f"Excel file not found at {self.file_path}")
+        
+        try:
+            # Get all sheet names
+            excel_file = pd.ExcelFile(self.file_path)
+            sheet_names = excel_file.sheet_names
+            
+            if not sheet_names:
+                raise ValueError("Excel file does not contain any sheets")
+            
+            # Required columns for each asset sheet
+            required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'VWAP', 'Volume']
+            
+            # Process each sheet
+            self.multi_asset_data = {}
+            date_min = None
+            date_max = None
+            
+            for sheet_name in sheet_names:
+                try:
+                    # Read the sheet
+                    sheet_data = pd.read_excel(excel_file, sheet_name=sheet_name)
+                    
+                    # Check for required columns (case-insensitive)
+                    sheet_columns = [col.lower() for col in sheet_data.columns]
+                    required_lower = [col.lower() for col in required_columns]
+                    
+                    # Find missing columns
+                    missing_columns = []
+                    for i, req_col in enumerate(required_lower):
+                        if req_col not in sheet_columns:
+                            missing_columns.append(required_columns[i])
+                    
+                    if missing_columns:
+                        raise ValueError(f"Missing required column(s) in sheet '{sheet_name}': {', '.join(missing_columns)}")
+                    
+                    # Standardize column names to lowercase
+                    column_mapping = {col: col.lower() for col in sheet_data.columns}
+                    sheet_data.rename(columns=column_mapping, inplace=True)
+                    
+                    # Convert date column to datetime
+                    if 'date' in sheet_data.columns:
+                        sheet_data['date'] = pd.to_datetime(sheet_data['date'], errors='coerce')
+                        # Drop rows with invalid dates
+                        sheet_data = sheet_data.dropna(subset=['date'])
+                        
+                        # Update global date range
+                        sheet_min = sheet_data['date'].min()
+                        sheet_max = sheet_data['date'].max()
+                        
+                        if date_min is None or sheet_min < date_min:
+                            date_min = sheet_min
+                        
+                        if date_max is None or sheet_max > date_max:
+                            date_max = sheet_max
+                    
+                    # Ensure numeric columns are numeric
+                    numeric_columns = ['open', 'high', 'low', 'close', 'vwap', 'volume']
+                    for col in numeric_columns:
+                        if col in sheet_data.columns:
+                            sheet_data[col] = pd.to_numeric(sheet_data[col], errors='coerce')
+                    
+                    # Drop rows with NA values in essential columns
+                    sheet_data = sheet_data.dropna(subset=['open', 'high', 'low', 'close', 'volume'])
+                    
+                    # Store processed data
+                    self.multi_asset_data[sheet_name] = sheet_data
+                    
+                except Exception as e:
+                    print(f"Error processing sheet '{sheet_name}': {str(e)}")
+                    # Continue processing other sheets even if one fails
+            
+            # Check if we successfully loaded any data
+            if not self.multi_asset_data:
+                raise ValueError("Could not load any valid data from Excel sheets")
+            
+            # Store overall date range
+            self.multi_asset_date_range = {
+                'start': date_min.strftime('%Y-%m-%d') if date_min else None,
+                'end': date_max.strftime('%Y-%m-%d') if date_max else None
+            }
+            
+            return self.multi_asset_data
+            
+        except Exception as e:
+            raise Exception(f"Failed to load multi-asset Excel file: {str(e)}")
     
     def clean_data(self):
         """
@@ -249,117 +355,163 @@ class DataLoader:
                         print(f"Successfully parsed dates with format: {date_format}")
                         success = True
                         break
-                except Exception as date_err:
-                    print(f"Failed with format {date_format}: {str(date_err)}")
+                except Exception:
                     continue
-                    
+            
             if not success:
-                print("WARNING: Could not parse dates with any common format.")
-        
-        # Ensure numeric types for OHLCV with error handling for different formats
-        for col in ['open', 'high', 'low', 'close', 'volume']:
-            # Replace commas in numeric values if they're being used as decimal separators
-            if self.data[col].dtype == 'object':
-                # European format: replace comma with dot for decimal places
-                self.data[col] = self.data[col].astype(str).str.replace(',', '.')
+                print("Failed to parse dates with common formats. Attempting last resort method...")
+                try:
+                    # Try a more flexible approach by converting string to datetime objects
+                    if self.data['date'].dtype == object:  # If it's string type
+                        # Parse each date individually with multiple formats
+                        parsed_dates = []
+                        for date_str in self.data['date']:
+                            try:
+                                parsed_date = None
+                                for fmt in date_formats:
+                                    try:
+                                        parsed_date = datetime.strptime(str(date_str).strip(), fmt)
+                                        break
+                                    except:
+                                        continue
+                                parsed_dates.append(parsed_date)
+                            except:
+                                parsed_dates.append(None)
+                                
+                        self.data['date'] = parsed_dates
+                        self.data['date'] = pd.to_datetime(self.data['date'])
+                        
+                        if not self.data['date'].isna().all():
+                            print("Successfully parsed dates with manual approach")
+                            success = True
+                    
+                except Exception as e:
+                    print(f"Final date parsing attempt failed: {str(e)}")
                 
-            # Convert to numeric
-            self.data[col] = pd.to_numeric(self.data[col], errors='coerce')
-            
-        # Handle missing values
-        before_rows = len(self.data)
-        self.data.dropna(inplace=True)
-        after_rows = len(self.data)
+                if not success:
+                    raise ValueError("Could not parse date column after trying multiple formats")
         
-        if before_rows > after_rows:
-            print(f"Removed {before_rows - after_rows} rows with missing values.")
-            
-        # If all data was dropped, this is a serious error
-        if after_rows == 0:
-            print("ERROR: All data rows were dropped after cleaning!")
-            print("Most likely causes:")
-            print("1. Date format mismatch - Could not parse any dates")
-            print("2. Number format issues - Cannot convert price/volume data to numbers")
-            print("3. Missing values in critical columns")
-            print("\nOriginal data sample:")
-            print(self.data.head(3))
+        # Convert numeric columns
+        numeric_columns = ['open', 'high', 'low', 'close', 'volume']
+        for col in numeric_columns:
+            if col in self.data.columns:
+                # If column has string type, try to clean it first
+                if self.data[col].dtype == object:
+                    # Replace comma with dot for decimal separator
+                    self.data[col] = self.data[col].astype(str).str.replace(',', '.')
+                    
+                # Convert to numeric
+                self.data[col] = pd.to_numeric(self.data[col], errors='coerce')
         
         # Sort by date
-        self.data.sort_values('date', inplace=True)
+        self.data = self.data.sort_values('date')
         
-        # Add a message for large datasets
-        if len(self.data) > 1000:
-            print(f"Successfully processed {len(self.data)} dates.")
+        # Drop rows with missing values in key columns
+        self.data = self.data.dropna(subset=numeric_columns)
+        
+        # Reset index
+        self.data = self.data.reset_index(drop=True)
         
         return self.data
     
     def save_processed_data(self, output_path=None):
         """
-        Save the processed data to a pickle file.
+        Save the processed data to a CSV file.
         
         Args:
-            output_path (str, optional): Path to save the pickle file. 
-                                        If None, uses 'data/clean_data.pkl'.
-        
+            output_path (str, optional): Path to save the CSV file. 
+                If None, uses the instance's file_path with '_processed' appended.
+                
         Returns:
-            str: Path to the saved file.
+            str: The path where the data was saved.
         """
         if self.data is None:
-            raise ValueError("No data loaded. Call load_csv() first.")
-            
-        if output_path is None:
-            output_path = os.path.join('data', 'clean_data.pkl')
-            
-        # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            raise ValueError("No data to save. Load and clean data first.")
         
-        # Save to pickle
-        self.data.to_pickle(output_path)
+        if output_path is None:
+            if self.file_path:
+                # Create output path by appending '_processed' to the original filename
+                file_dir, file_name = os.path.split(self.file_path)
+                file_base, file_ext = os.path.splitext(file_name)
+                output_path = os.path.join(file_dir, f"{file_base}_processed{file_ext}")
+            else:
+                # Default to a standard name if no file_path is set
+                output_path = "data_processed.csv"
+        
+        # Ensure date is formatted as ISO date strings
+        output_data = self.data.copy()
+        if 'date' in output_data.columns and pd.api.types.is_datetime64_any_dtype(output_data['date']):
+            output_data['date'] = output_data['date'].dt.strftime('%Y-%m-%d')
+        
+        # Save to CSV
+        os.makedirs(os.path.dirname(os.path.abspath(output_path)), exist_ok=True)
+        output_data.to_csv(output_path, index=False)
+        print(f"Data saved to {output_path}")
         
         return output_path
     
     def load_processed_data(self, file_path=None):
         """
-        Load data from a pickle file.
+        Load previously processed data from a CSV file.
         
         Args:
-            file_path (str, optional): Path to the pickle file.
-                                      If None, uses 'data/clean_data.pkl'.
-        
+            file_path (str, optional): Path to the processed CSV file. 
+                If None, tries to use a default path based on the instance's file_path.
+                
         Returns:
-            pandas.DataFrame: The loaded data.
+            pandas.DataFrame: The loaded processed data.
         """
         if file_path is None:
-            file_path = os.path.join('data', 'clean_data.pkl')
-            
-        try:
-            self.data = pd.read_pickle(file_path)
-            return self.data
-        except Exception as e:
-            raise Exception(f"Error loading pickle file: {str(e)}")
-            
+            if self.file_path:
+                # Create input path by appending '_processed' to the original filename
+                file_dir, file_name = os.path.split(self.file_path)
+                file_base, file_ext = os.path.splitext(file_name)
+                file_path = os.path.join(file_dir, f"{file_base}_processed{file_ext}")
+            else:
+                raise ValueError("No file path provided.")
+        
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Processed data file not found: {file_path}")
+        
+        # Load the processed data
+        self.data = pd.read_csv(file_path)
+        
+        # Convert date to datetime
+        if 'date' in self.data.columns:
+            self.data['date'] = pd.to_datetime(self.data['date'])
+        
+        return self.data
+    
     def get_data_range(self, start_date=None, end_date=None):
         """
-        Get data within a specific date range.
+        Get a slice of the data within a specified date range.
         
         Args:
-            start_date (str, optional): Start date in format 'YYYY-MM-DD'.
-            end_date (str, optional): End date in format 'YYYY-MM-DD'.
+            start_date (str, optional): Start date in YYYY-MM-DD format.
+            end_date (str, optional): End date in YYYY-MM-DD format.
             
         Returns:
-            pandas.DataFrame: Data within the specified range.
+            pandas.DataFrame: Filtered data within the specified date range.
         """
         if self.data is None:
-            raise ValueError("No data loaded. Call load_csv() or load_processed_data() first.")
-            
-        data = self.data.copy()
+            raise ValueError("No data loaded. Call load_csv() first.")
         
+        # Make a copy of the data to avoid modifying the original
+        filtered_data = self.data.copy()
+        
+        # Convert date strings to datetime if provided
         if start_date:
             start_date = pd.to_datetime(start_date)
-            data = data[data['date'] >= start_date]
-            
+        
         if end_date:
             end_date = pd.to_datetime(end_date)
-            data = data[data['date'] <= end_date]
-            
-        return data 
+        
+        # Filter by start date
+        if start_date:
+            filtered_data = filtered_data[filtered_data['date'] >= start_date]
+        
+        # Filter by end date
+        if end_date:
+            filtered_data = filtered_data[filtered_data['date'] <= end_date]
+        
+        return filtered_data 

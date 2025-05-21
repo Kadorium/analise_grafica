@@ -11,6 +11,7 @@ from optimization.status import get_optimization_status, set_optimization_status
 from optimization.file_manager import ensure_optimization_directory, load_optimization_results, get_latest_optimization_file
 from optimization.task import run_optimization_task
 from optimization.visualization import get_optimization_chart_path
+from .progress import get_optimization_progress
 
 logger = logging.getLogger(__name__)
 
@@ -195,4 +196,35 @@ async def get_optimization_chart_endpoint(strategy_type: str, timestamp: str):
         return JSONResponse(
             status_code=404,
             content={"message": "Backup chart not found"}
-        ) 
+        )
+
+@router.get("/optimization-progress")
+async def get_optimization_progress_endpoint():
+    """
+    Get the current optimization progress.
+    
+    Returns:
+        dict: Current progress information
+    """
+    try:
+        progress_data = get_optimization_progress()
+        
+        # Format elapsed and estimated times for display
+        if "elapsed_seconds" in progress_data:
+            minutes, seconds = divmod(int(progress_data["elapsed_seconds"]), 60)
+            progress_data["elapsed_formatted"] = f"{minutes}m {seconds}s"
+            
+        if "estimated_remaining_seconds" in progress_data:
+            minutes, seconds = divmod(int(progress_data["estimated_remaining_seconds"]), 60)
+            progress_data["estimated_remaining_formatted"] = f"{minutes}m {seconds}s"
+        
+        return {
+            "success": True,
+            "progress": progress_data
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to get optimization progress: {str(e)}",
+            "traceback": traceback.format_exc()
+        } 

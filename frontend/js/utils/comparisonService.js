@@ -1,7 +1,10 @@
-import { showGlobalLoader, hideGlobalLoader, showError, showSuccessMessage } from './ui.js';
+import { showGlobalLoader, hideGlobalLoader, showError, showSuccessMessage, updateProgressBar } from './ui.js';
 import { fetchApi, API_ENDPOINTS } from './api.js';
 import { appState } from './state.js';
 import { formatNumber, formatDate } from './formatters.js';
+
+// Variable to store the progress polling interval
+let progressIntervalId = null;
 
 /**
  * Run a comparison of multiple trading strategies
@@ -37,6 +40,33 @@ export async function compareStrategies(strategyConfigs, backtestConfig = {}, op
             : 'Comparing strategies...';
         
         showGlobalLoader(loadingMessage);
+        
+        // If optimizing, start progress tracking
+        if (optimize) {
+            // Create progress bar
+            const loaderContainer = document.querySelector('.global-loader');
+            if (loaderContainer) {
+                if (!loaderContainer.querySelector('.progress')) {
+                    const progressHTML = `
+                        <div class="mt-3 mb-2">
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                    role="progressbar" style="width: 0%;" 
+                                    aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                            </div>
+                            <div class="text-center mt-1 small" id="progress-details">
+                                Starting optimization...
+                            </div>
+                            <div class="mt-3" id="interim-results"></div>
+                        </div>
+                    `;
+                    loaderContainer.innerHTML += progressHTML;
+                }
+            }
+            
+            // Start progress polling
+            startProgressPolling();
+        }
 
         // Make API call
         const response = await fetchApi('/api/compare-strategies', {
@@ -44,6 +74,9 @@ export async function compareStrategies(strategyConfigs, backtestConfig = {}, op
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestData)
         });
+
+        // Stop progress polling
+        stopProgressPolling();
 
         // Hide loader
         hideGlobalLoader();
@@ -55,10 +88,115 @@ export async function compareStrategies(strategyConfigs, backtestConfig = {}, op
         showSuccessMessage('Strategy comparison completed successfully');
         return response;
     } catch (error) {
+        // Stop progress polling if there's an error
+        stopProgressPolling();
+        
         hideGlobalLoader();
         showError(error.message || 'Failed to compare strategies');
         console.error('Strategy comparison error:', error);
         return null;
+    }
+}
+
+/**
+ * Start polling for optimization progress
+ */
+function startProgressPolling() {
+    // Clear any existing interval
+    stopProgressPolling();
+    
+    // Poll every 500ms
+    progressIntervalId = setInterval(async () => {
+        try {
+            const response = await fetchApi('/api/optimization-progress', {
+                method: 'GET'
+            });
+            
+            if (response.success && response.progress) {
+                updateOptimizationProgress(response.progress);
+            }
+        } catch (error) {
+            console.warn('Error polling for progress:', error);
+        }
+    }, 500);
+}
+
+/**
+ * Stop polling for optimization progress
+ */
+function stopProgressPolling() {
+    if (progressIntervalId !== null) {
+        clearInterval(progressIntervalId);
+        progressIntervalId = null;
+    }
+}
+
+/**
+ * Update the optimization progress display
+ * @param {Object} progress - Progress data from the API
+ */
+function updateOptimizationProgress(progress) {
+    // Only update if the operation is in progress
+    if (!progress.in_progress) {
+        stopProgressPolling();
+        return;
+    }
+    
+    // Update progress bar
+    const percentage = progress.percentage || 0;
+    updateProgressBar(Math.round(percentage));
+    
+    // Update progress details
+    const detailsElement = document.getElementById('progress-details');
+    if (detailsElement) {
+        // Create status text
+        let statusText = `Processing ${progress.completed_evaluations || 0} of ${progress.total_steps || 0} combinations`;
+        
+        // Add time information if available
+        if (progress.elapsed_formatted) {
+            statusText += ` (Elapsed: ${progress.elapsed_formatted}`;
+            
+            if (progress.estimated_remaining_formatted) {
+                statusText += `, Remaining: ${progress.estimated_remaining_formatted}`;
+            }
+            
+            statusText += ')';
+        }
+        
+        detailsElement.textContent = statusText;
+    }
+    
+    // Update interim results if available
+    const interimContainer = document.getElementById('interim-results');
+    if (interimContainer && progress.interim_results && progress.interim_results.length > 0) {
+        let resultsHTML = '<div class="card"><div class="card-header">Top Results So Far</div><div class="card-body p-2">';
+        resultsHTML += '<table class="table table-sm table-striped mb-0"><thead><tr>';
+        resultsHTML += '<th>Score</th><th>Return</th><th>Sharpe</th><th>Params</th></tr></thead><tbody>';
+        
+        progress.interim_results.forEach(result => {
+            resultsHTML += '<tr>';
+            resultsHTML += `<td>${formatNumber(result.score, 2)}</td>`;
+            
+            // Format metrics
+            const totalReturn = result.metrics.total_return ? 
+                (formatNumber(result.metrics.total_return * 100, 2) + '%') : 'N/A';
+            const sharpeRatio = result.metrics.sharpe_ratio ? 
+                formatNumber(result.metrics.sharpe_ratio, 2) : 'N/A';
+                
+            resultsHTML += `<td>${totalReturn}</td>`;
+            resultsHTML += `<td>${sharpeRatio}</td>`;
+            
+            // Format parameters (shortened version)
+            const paramValues = Object.entries(result.params)
+                .map(([key, value]) => `${key.substring(0, 3)}:${value}`)
+                .join(', ');
+            
+            resultsHTML += `<td title="${JSON.stringify(result.params).replace(/"/g, "'")}">${paramValues}</td>`;
+            resultsHTML += '</tr>';
+        });
+        
+        resultsHTML += '</tbody></table></div></div>';
+        interimContainer.innerHTML = resultsHTML;
     }
 }
 

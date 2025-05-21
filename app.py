@@ -197,6 +197,7 @@ from comparison.routes import compare_strategies_endpoint, get_recent_comparison
 # Global variables for other modules
 UPLOADED_DATA = None
 PROCESSED_DATA = None
+MULTI_ASSET_DATA = {}  # New global to store multi-asset data
 BACKTESTER = None
 CURRENT_CONFIG = cfg.get_all_config()
 
@@ -257,6 +258,14 @@ async def get_optimization_chart(strategy_type: str, timestamp: str):
     """Forward to the modularized endpoint"""
     from optimization.routes import get_optimization_chart_endpoint
     return await get_optimization_chart_endpoint(strategy_type, timestamp)
+
+# Add the optimization progress endpoint
+@app.get("/api/optimization-progress")
+@endpoint_wrapper("GET /api/optimization-progress")
+async def get_optimization_progress(request: Request):
+    """Get the current progress of optimization tasks"""
+    from optimization.routes import get_optimization_progress_endpoint
+    return await get_optimization_progress_endpoint()
 
 # Add global exception handler
 @app.exception_handler(Exception)
@@ -1360,6 +1369,87 @@ def extract_trades(signals_df, commission=0.001, initial_capital=100.0):
             entry_price = 0.0
             entry_date_val = None
     return trades
+
+@app.post("/api/upload-multi-asset")
+@endpoint_wrapper("POST /api/upload-multi-asset")
+async def upload_multi_asset(file: Optional[UploadFile] = None):
+    global MULTI_ASSET_DATA
+    default_file_used = False
+    temp_file_path = None
+
+    try:
+        if file:
+            log_endpoint("POST /api/upload-multi-asset - DETAILS", file_name=file.filename, content_type=file.content_type)
+            contents = await file.read()
+            temp_file_path = os.path.join('data', 'temp_multi_upload.xlsx')
+            os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
+            with open(temp_file_path, 'wb') as f:
+                f.write(contents)
+            logger.info(f"Multi-asset file uploaded by user and saved temporarily to {temp_file_path}")
+        else:
+            default_file_path = os.path.join('data', 'test multidata.xlsx')
+            if not os.path.exists(default_file_path):
+                log_endpoint("POST /api/upload-multi-asset - DETAILS", error=f"Default multi-asset file not found: {default_file_path}")
+                return JSONResponse(
+                    status_code=404,
+                    content={"success": False, "message": f"Default multi-asset file {default_file_path} not found. Please upload a file."}
+                )
+            temp_file_path = default_file_path
+            default_file_used = True
+            log_endpoint("POST /api/upload-multi-asset - DETAILS", using_default_file=temp_file_path)
+            logger.info(f"No file uploaded by user. Using default multi-asset file: {temp_file_path}")
+
+        # Load and process the multi-sheet Excel file
+        data_loader = DataLoader(temp_file_path)
+        MULTI_ASSET_DATA = data_loader.load_multi_asset_excel()
+        
+        # Get assets list and create a preview for each
+        assets = list(MULTI_ASSET_DATA.keys())
+        previews = {}
+        
+        for asset, df in MULTI_ASSET_DATA.items():
+            # Prepare sample for preview (first 5 rows)
+            sample_df = df.head(5)
+            if 'date' in sample_df.columns and pd.api.types.is_datetime64_any_dtype(sample_df['date']):
+                sample_df = sample_df.copy()
+                sample_df['date'] = sample_df['date'].dt.strftime('%Y-%m-%d')
+            previews[asset] = sample_df.to_dict('records')
+        
+        # Get overall date range from loader
+        date_range = getattr(data_loader, 'multi_asset_date_range', {
+            'start': 'N/A',
+            'end': 'N/A'
+        })
+        
+        response_data = {
+            "success": True,
+            "message": "Multi-asset file processed successfully" if default_file_used else "Multi-asset file uploaded and processed successfully",
+            "assets": assets,
+            "date_range": date_range,
+            "previews": previews,
+            "asset_count": len(assets)
+        }
+        
+        log_endpoint("POST /api/upload-multi-asset - DATA_SUMMARY", 
+                    assets=assets,
+                    asset_count=len(assets),
+                    date_range=date_range)
+                    
+        return response_data
+        
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        log_endpoint("POST /api/upload-multi-asset - ERROR", 
+                     error=str(e),
+                     traceback=error_trace)
+        
+        return JSONResponse(
+            status_code=500,
+            content={
+                "success": False, 
+                "message": f"Error processing multi-asset file: {str(e)}"
+            }
+        )
 
 # Run the app
 if __name__ == "__main__":

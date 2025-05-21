@@ -176,9 +176,9 @@
                     <div id="data-section" class="content-section active">
                         <div class="row">
                             <div class="col-md-6">
-                                <div class="card">
+                                <div class="card mb-3">
                                     <div class="card-header">
-                                        <h5>Upload CSV Data</h5>
+                                        <h5>Upload Single Asset Data</h5>
                                     </div>
                                     <div class="card-body">
                                         <form id="upload-form">
@@ -192,16 +192,59 @@
                                         </form>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="col-md-6">
+                                
                                 <div class="card">
                                     <div class="card-header">
-                                        <h5>Data Preview</h5>
+                                        <h5>Upload Multi-Asset Data</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form id="multi-upload-form">
+                                            <div class="mb-3">
+                                                <label for="excel-file" class="form-label">Excel File (Each sheet represents a different asset with Date, Open, High, Low, Close, VWAP, Volume columns)</label>
+                                                <input class="form-control" type="file" id="excel-file" accept=".xlsx">
+                                                <div class="form-text" id="excel-help-text">If no file is selected, <code>data/test multidata.xlsx</code> will be used by default.</div>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary" id="multi-upload-process-btn">Upload and Process</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-header">
+                                        <h5>Single Asset Data Preview</h5>
                                     </div>
                                     <div class="card-body">
                                         <div id="data-info"></div>
                                         <div class="table-responsive">
                                             <table class="table table-striped table-sm" id="data-preview">
+                                                <thead>
+                                                    <tr>
+                                                        <!-- Table headers will be added dynamically -->
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <!-- Table rows will be added dynamically -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5>Multi-Asset Data Preview</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="multi-data-info"></div>
+                                        <div class="mb-3">
+                                            <label for="asset-selector" class="form-label">Select Asset:</label>
+                                            <select class="form-select" id="asset-selector">
+                                                <!-- Options will be populated dynamically -->
+                                            </select>
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table class="table table-striped table-sm" id="multi-data-preview">
                                                 <thead>
                                                     <tr>
                                                         <!-- Table headers will be added dynamically -->

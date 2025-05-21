@@ -24,7 +24,7 @@ export function showLoading(element) {
 export function showGlobalLoader(message = 'Loading...') {
     let loaderEl = document.createElement('div');
     loaderEl.id = 'global-loader';
-    loaderEl.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50';
+    loaderEl.className = 'global-loader position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50';
     loaderEl.style.zIndex = '9999';
     loaderEl.innerHTML = `
         <div class="bg-white p-3 rounded">
@@ -122,4 +122,30 @@ export function activateTab(tabElement) {
     
     // Save the active tab to session storage to persist across page reloads
     sessionStorage.setItem('activeTab', tabElement.id);
+}
+
+// Update progress bar
+export function updateProgressBar(percentage) {
+    const loader = document.querySelector('.global-loader');
+    if (!loader) return;
+    
+    const progressBar = loader.querySelector('.progress-bar');
+    if (!progressBar) return;
+    
+    // Update the progress bar width and text
+    progressBar.style.width = `${percentage}%`;
+    progressBar.setAttribute('aria-valuenow', percentage);
+    progressBar.textContent = `${percentage}%`;
+    
+    // Change color based on progress
+    if (percentage < 30) {
+        progressBar.classList.remove('bg-success', 'bg-warning');
+        progressBar.classList.add('bg-primary');
+    } else if (percentage < 70) {
+        progressBar.classList.remove('bg-primary', 'bg-success');
+        progressBar.classList.add('bg-warning');
+    } else {
+        progressBar.classList.remove('bg-primary', 'bg-warning');
+        progressBar.classList.add('bg-success');
+    }
 }

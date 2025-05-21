@@ -6,6 +6,7 @@ import multiprocessing
 from strategies import create_strategy, get_default_parameters, STRATEGY_REGISTRY, StrategyAdapter
 from backtesting.backtester import Backtester
 import logging
+from .progress import set_optimization_progress, add_interim_result, reset_optimization_progress
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +155,17 @@ def grid_search(data, strategy_type, param_grid, initial_capital=100.0, commissi
     param_values = [param_grid[name] for name in param_names]
     param_combinations = list(itertools.product(*param_values))
     
-    logger.info(f"[grid_search] Generated {len(param_combinations)} parameter combinations to evaluate")
+    total_combinations = len(param_combinations)
+    logger.info(f"[grid_search] Generated {total_combinations} parameter combinations to evaluate")
+    
+    # Initialize progress tracking
+    reset_optimization_progress()
+    set_optimization_progress({
+        "in_progress": True,
+        "strategy_type": strategy_type,
+        "total_steps": total_combinations,
+        "current_step": 0
+    })
     
     # If max_workers is not specified, use the number of CPU cores
     if max_workers is None:
@@ -180,17 +191,38 @@ def grid_search(data, strategy_type, param_grid, initial_capital=100.0, commissi
                                               start_date=start_date,
                                               end_date=end_date))
             
+            completed = 0
             for future in as_completed(futures):
                 try:
                     result = future.result()
+                    # Update progress
+                    completed += 1
+                    set_optimization_progress({
+                        "current_step": completed,
+                        "current_params": result['params']
+                    })
+                    
+                    # Update interim results
+                    add_interim_result(
+                        params=result['params'],
+                        score=result['value'],
+                        metrics=result['all_metrics']
+                    )
+                    
                     results.append(result)
                 except Exception as e:
                     logger.error(f"Error evaluating parameters: {str(e)}")
     else:
         # Sequential execution
-        for params in param_combinations:
+        for i, params in enumerate(param_combinations):
             param_dict = dict(zip(param_names, params))
             try:
+                # Update progress before evaluation
+                set_optimization_progress({
+                    "current_step": i + 1,
+                    "current_params": param_dict
+                })
+                
                 result = _evaluate_params(
                     data=data,
                     strategy_type=strategy_type,
@@ -201,6 +233,14 @@ def grid_search(data, strategy_type, param_grid, initial_capital=100.0, commissi
                     start_date=start_date,
                     end_date=end_date
                 )
+                
+                # Update interim results
+                add_interim_result(
+                    params=result['params'],
+                    score=result['value'],
+                    metrics=result['all_metrics']
+                )
+                
                 results.append(result)
             except Exception as e:
                 logger.error(f"Error evaluating parameters: {str(e)}")
@@ -216,6 +256,12 @@ def grid_search(data, strategy_type, param_grid, initial_capital=100.0, commissi
         best_result = results[0]
         best_params = best_result['params']
         best_value = best_result['value']
+        
+        # Update progress with best results
+        set_optimization_progress({
+            "best_params": best_params,
+            "best_score": best_value
+        })
         
         # Compare best params with default params to see what changed
         changed_params = {}
@@ -239,6 +285,11 @@ def grid_search(data, strategy_type, param_grid, initial_capital=100.0, commissi
         logger.warning(f"[grid_search] No valid results found. Using empty best parameters.")
         best_params = {}
         best_value = None
+    
+    # Reset progress tracking when done
+    set_optimization_progress({
+        "in_progress": False
+    })
     
     return best_params, best_value, results
 

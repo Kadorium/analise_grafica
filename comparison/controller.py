@@ -5,6 +5,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import os
 import json
+from optimization.progress import set_optimization_progress, reset_optimization_progress
 
 from .comparator import StrategyComparator, run_comparison
 
@@ -40,6 +41,16 @@ async def run_comparison_controller(
         # Log whether optimization is enabled
         logger.info(f"Strategy comparison with optimization={optimize}, metric={optimization_metric}")
         
+        # Initialize progress tracking for optimization if needed
+        if optimize:
+            # Reset existing progress and initialize a new progress tracking session
+            reset_optimization_progress()
+            set_optimization_progress({
+                "in_progress": True,
+                "strategy_type": "comparison",  # Using "comparison" as type for multi-strategy optimization
+                "total_steps": sum(1 for config in strategy_configs if 'param_ranges' in config and config['param_ranges'])
+            })
+            
         # Store original parameters for comparison
         original_parameters = {}
         for config in strategy_configs:
@@ -66,6 +77,12 @@ async def run_comparison_controller(
             optimize=optimize,
             optimization_metric=optimization_metric
         )
+        
+        # Mark optimization as complete
+        if optimize:
+            set_optimization_progress({
+                "in_progress": False
+            })
         
         # Get table data for display
         comparator = StrategyComparator(processed_data, initial_capital, commission)
@@ -126,6 +143,12 @@ async def run_comparison_controller(
         return response
         
     except Exception as e:
+        # Make sure to mark optimization as complete even if there's an error
+        if optimize:
+            set_optimization_progress({
+                "in_progress": False
+            })
+            
         error_msg = f"Error in strategy comparison: {str(e)}"
         logger.error(f"{error_msg}\n{traceback.format_exc()}")
         return {"success": False, "message": error_msg}

@@ -27,7 +27,8 @@ export const API_ENDPOINTS = {
     SEASONALITY_VOLATILITY: '/api/seasonality/volatility',
     SEASONALITY_HEATMAP: '/api/seasonality/heatmap',
     SEASONALITY_SUMMARY: '/api/seasonality/summary',
-    DEBUG_INFO: '/api/debug-info'
+    DEBUG_INFO: '/api/debug-info',
+    MULTI_ASSET_UPLOAD: '/api/upload-multi-asset'
 };
 
 // Generic fetch wrapper with error handling
@@ -92,6 +93,54 @@ export async function uploadData(formData) {
         return {
             success: false,
             message: error.message || 'Error uploading data'
+        };
+    }
+}
+
+// Function to upload and process multi-asset data
+export async function uploadMultiAssetData(formData) {
+    // Log what's being uploaded for debugging
+    if (formData.has('file')) {
+        const fileEntry = formData.get('file');
+        if (fileEntry instanceof File) {
+            console.log('Uploading multi-asset file:', fileEntry.name, 'Size:', fileEntry.size);
+        } else {
+            console.log('Uploading with empty file field - server will use default multi-asset file');
+        }
+    }
+    
+    try {
+        console.log('Calling multi-asset upload endpoint');
+        const response = await fetch(API_ENDPOINTS.MULTI_ASSET_UPLOAD, {
+            method: 'POST',
+            body: formData
+        });
+        
+        // Check for HTTP error response
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({
+                message: `HTTP error: ${response.status} ${response.statusText}`
+            }));
+            throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
+        }
+        
+        // Try to parse the response as JSON
+        const data = await response.json().catch(err => {
+            console.error('Failed to parse JSON response:', err);
+            throw new Error('Invalid response format from server');
+        });
+        
+        console.log('Multi-asset upload response:', data);
+        return {
+            success: true,
+            ...data
+        };
+    } catch (error) {
+        console.error('Error uploading multi-asset data:', error);
+        // Return a standardized error response
+        return {
+            success: false,
+            message: error.message || 'Error uploading multi-asset data'
         };
     }
 }
