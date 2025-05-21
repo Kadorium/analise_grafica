@@ -141,12 +141,20 @@ def grid_search(data, strategy_type, param_grid, initial_capital=100.0, commissi
             best_value (float): The best value of the metric.
             all_results (list): List of all results, sorted by the metric.
     """
-    logger.info(f"[grid_search] Received param_grid: {param_grid}, metric: {metric}, start_date: {start_date}, end_date: {end_date}")
+    logger.info(f"[grid_search] Starting grid search for {strategy_type} with {len(param_grid)} parameters")
+    logger.info(f"[grid_search] Parameter grid: {param_grid}")
+    logger.info(f"[grid_search] Optimization metric: {metric}")
+    
+    # Get default parameters for comparison later
+    default_params = get_default_parameters(strategy_type)
+    logger.info(f"[grid_search] Default parameters: {default_params}")
     
     # Create parameter combinations
     param_names = list(param_grid.keys())
     param_values = [param_grid[name] for name in param_names]
     param_combinations = list(itertools.product(*param_values))
+    
+    logger.info(f"[grid_search] Generated {len(param_combinations)} parameter combinations to evaluate")
     
     # If max_workers is not specified, use the number of CPU cores
     if max_workers is None:
@@ -177,7 +185,7 @@ def grid_search(data, strategy_type, param_grid, initial_capital=100.0, commissi
                     result = future.result()
                     results.append(result)
                 except Exception as e:
-                    print(f"An error occurred: {str(e)}")
+                    logger.error(f"Error evaluating parameters: {str(e)}")
     else:
         # Sequential execution
         for params in param_combinations:
@@ -195,7 +203,7 @@ def grid_search(data, strategy_type, param_grid, initial_capital=100.0, commissi
                 )
                 results.append(result)
             except Exception as e:
-                print(f"An error occurred: {str(e)}")
+                logger.error(f"Error evaluating parameters: {str(e)}")
     
     # Sort results by the metric (higher is better, except for max_drawdown)
     if metric == 'max_drawdown':
@@ -208,7 +216,27 @@ def grid_search(data, strategy_type, param_grid, initial_capital=100.0, commissi
         best_result = results[0]
         best_params = best_result['params']
         best_value = best_result['value']
+        
+        # Compare best params with default params to see what changed
+        changed_params = {}
+        for param_name, best_value in best_params.items():
+            if param_name in default_params and default_params[param_name] != best_value:
+                changed_params[param_name] = {
+                    'default': default_params[param_name],
+                    'optimized': best_value
+                }
+        
+        logger.info(f"[grid_search] Best {metric} value: {best_value}")
+        logger.info(f"[grid_search] Best parameters: {best_params}")
+        logger.info(f"[grid_search] Changed parameters from default: {changed_params}")
+        
+        # Log top 3 results for comparison
+        if len(results) > 1:
+            logger.info(f"[grid_search] Top 3 parameter sets:")
+            for i, result in enumerate(results[:min(3, len(results))]):
+                logger.info(f"  #{i+1}: {metric}={result['value']}, params={result['params']}")
     else:
+        logger.warning(f"[grid_search] No valid results found. Using empty best parameters.")
         best_params = {}
         best_value = None
     
@@ -231,6 +259,10 @@ def _evaluate_params(data, strategy_type, params, initial_capital, commission, m
     Returns:
         dict: Dictionary containing the parameters, the value of the metric, and other performance metrics.
     """
+    # Log that we're evaluating this parameter set
+    param_str = ", ".join([f"{k}={v}" for k, v in params.items()])
+    logger.debug(f"[_evaluate_params] Evaluating {strategy_type} with parameters: {param_str}")
+    
     # Filter data by date range if specified
     filtered_data = data.copy()
     
@@ -280,6 +312,15 @@ def _evaluate_params(data, strategy_type, params, initial_capital, commission, m
     if value is None:
         logger.warning(f"Metric '{metric}' not found in performance_metrics for params {params}. Setting value to -infinity.")
         value = -np.inf # Use negative infinity for maximization problems
+    
+    # Log the evaluation result with the score
+    logger.debug(f"[_evaluate_params] {strategy_type} with {param_str} scored {metric}={value}")
+    
+    # For key metrics, add them to the log
+    if isinstance(performance_metrics, dict):
+        key_metrics = ['total_return', 'sharpe_ratio', 'max_drawdown', 'win_rate']
+        metric_values = {k: performance_metrics.get(k) for k in key_metrics if k in performance_metrics}
+        logger.debug(f"[_evaluate_params] Key metrics: {metric_values}")
     
     return {
         'params': params,

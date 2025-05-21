@@ -258,14 +258,22 @@ function displayOptimizationResults(results) {
     // Clear previous content
     container.innerHTML = '';
     
+    // Handle the case where results is an array
+    let resultsData = results;
+    if (Array.isArray(results)) {
+        // Extract the actual results object from the array
+        resultsData = results[0];
+        console.log("Extracted results data from array:", resultsData);
+    }
+    
     // Check if we have results to display
-    if (!results || !results.top_results || results.top_results.length === 0) {
+    if (!resultsData || !resultsData.top_results || resultsData.top_results.length === 0) {
         container.innerHTML = '<div class="alert alert-warning">No optimization results found.</div>';
         return;
     }
 
     // Show only the best result (first in top_results array)
-    const best = results.top_results[0];
+    const best = resultsData.top_results[0];
     let bestParamsHtml = '';
     if (best && best.params) {
         bestParamsHtml = Object.entries(best.params)
@@ -274,22 +282,22 @@ function displayOptimizationResults(results) {
     }
 
     // Check if we have comparison data
-    const hasComparison = results.default_params && results.optimized_params && 
-                         results.default_performance && results.optimized_performance;
+    const hasComparison = resultsData.default_params && resultsData.optimized_params && 
+                         resultsData.default_performance && resultsData.optimized_performance;
                          
     // --- DEBUG LOGGING: Output the actual values used for the table ---
     if (hasComparison) {
-        console.log("[DEBUG] Default Performance:", results.default_performance);
-        console.log("[DEBUG] Optimized Performance:", results.optimized_performance);
-        console.log("[DEBUG] Default Params:", results.default_params);
-        console.log("[DEBUG] Optimized Params:", results.optimized_params);
+        console.log("[DEBUG] Default Performance:", resultsData.default_performance);
+        console.log("[DEBUG] Optimized Performance:", resultsData.optimized_performance);
+        console.log("[DEBUG] Default Params:", resultsData.default_params);
+        console.log("[DEBUG] Optimized Params:", resultsData.optimized_params);
     }
 
     // Create the comparison section if it exists
     let comparisonHtml = '';
     if (hasComparison) {
-        const defaultParams = results.default_params;
-        const optimizedParams = results.optimized_params;
+        const defaultParams = resultsData.default_params;
+        const optimizedParams = resultsData.optimized_params;
         
         // Create parameter comparison table
         let paramComparisonRows = '';
@@ -326,15 +334,15 @@ function displayOptimizationResults(results) {
         ];
         
         for (const metric of metricsToCompare) {
-            if (!results.default_performance || !results.optimized_performance) {
+            if (!resultsData.default_performance || !resultsData.optimized_performance) {
                 console.error("Missing performance data:", { 
-                    default: results.default_performance, 
-                    optimized: results.optimized_performance
+                    default: resultsData.default_performance, 
+                    optimized: resultsData.optimized_performance
                 });
                 continue;
             }
-            let defaultValue = results.default_performance[metric.key];
-            let optimizedValue = results.optimized_performance[metric.key];
+            let defaultValue = resultsData.default_performance[metric.key];
+            let optimizedValue = resultsData.optimized_performance[metric.key];
             if (metric.isPercent) {
                 defaultValue = defaultValue !== undefined ? formatNumber(defaultValue * 100, 2) + '%' : 'N/A';
                 optimizedValue = optimizedValue !== undefined ? formatNumber(optimizedValue * 100, 2) + '%' : 'N/A';
@@ -344,11 +352,11 @@ function displayOptimizationResults(results) {
             }
             let isImproved = false;
             let improvementPercent = '';
-            if (results.default_performance[metric.key] !== undefined && 
-                results.optimized_performance[metric.key] !== undefined &&
-                results.default_performance[metric.key] !== 0) {
-                const defaultVal = results.default_performance[metric.key];
-                const optimizedVal = results.optimized_performance[metric.key];
+            if (resultsData.default_performance[metric.key] !== undefined && 
+                resultsData.optimized_performance[metric.key] !== undefined &&
+                resultsData.default_performance[metric.key] !== 0) {
+                const defaultVal = resultsData.default_performance[metric.key];
+                const optimizedVal = resultsData.optimized_performance[metric.key];
                 if (metric.higherBetter) {
                     isImproved = optimizedVal > defaultVal;
                     if (defaultVal !== 0) {
@@ -373,19 +381,19 @@ function displayOptimizationResults(results) {
         
         // Check if we have a chart
         let chartSectionHtml = '';
-        if (results.chart_html) {
-            console.log("[OPTIMIZATION_PANEL] chart_html received from backend. Length:", results.chart_html.length);
-            chartSectionHtml = results.chart_html; // Store the HTML string
+        if (resultsData.chart_html) {
+            console.log("[OPTIMIZATION_PANEL] chart_html received from backend. Length:", resultsData.chart_html.length);
+            chartSectionHtml = resultsData.chart_html; // Store the HTML string
         } else {
-            console.warn("[OPTIMIZATION_PANEL] No chart_html found in results object. results.chart_html was:", results.chart_html, "Full results object:", results);
+            console.warn("[OPTIMIZATION_PANEL] No chart_html found in results object. results.chart_html was:", resultsData.chart_html, "Full results object:", resultsData);
             chartSectionHtml = '<div class="alert alert-warning mt-4">No comparison chart available for display.</div>';
         }
         
         // Get the indicators chart if available
         let indicatorsChartHtml = '';
-        if (results.indicators_chart_html) {
-            console.log("[OPTIMIZATION_PANEL] indicators_chart_html received from backend. Length:", results.indicators_chart_html.length);
-            indicatorsChartHtml = results.indicators_chart_html;
+        if (resultsData.indicators_chart_html) {
+            console.log("[OPTIMIZATION_PANEL] indicators_chart_html received from backend. Length:", resultsData.indicators_chart_html.length);
+            indicatorsChartHtml = resultsData.indicators_chart_html;
         }
         
         // Build the complete comparison HTML
@@ -486,7 +494,7 @@ function displayOptimizationResults(results) {
     container.innerHTML = summaryHtml;
     
     // After setting innerHTML, find and execute scripts from chartSectionHtml if it was populated
-    if (results.chart_html || results.indicators_chart_html) {
+    if (resultsData.chart_html || resultsData.indicators_chart_html) {
         // Function to extract and execute scripts from HTML
         const executeScriptsFromHtml = (html) => {
             if (!html) return;
@@ -509,8 +517,8 @@ function displayOptimizationResults(results) {
         };
         
         // Execute scripts from both chart types
-        executeScriptsFromHtml(results.chart_html);
-        executeScriptsFromHtml(results.indicators_chart_html);
+        executeScriptsFromHtml(resultsData.chart_html);
+        executeScriptsFromHtml(resultsData.indicators_chart_html);
     }
     
     // Add download and use parameter buttons
@@ -518,7 +526,7 @@ function displayOptimizationResults(results) {
         document.getElementById('optimization-strategy').value : 
         appState.currentOptimizationStrategy;
         
-    addDownloadButton(results, currentStrategy);
+    addDownloadButton(resultsData, currentStrategy);
     
     // Add buttons container if not present
     let buttonContainer = document.querySelector('#optimization-results .param-buttons-container');
@@ -531,13 +539,13 @@ function displayOptimizationResults(results) {
     }
     
     // Add "Use Default Parameters" button
-    if (results.default_params) {
+    if (resultsData.default_params) {
         const useDefaultBtn = document.createElement('button');
         useDefaultBtn.id = 'use-default-params';
         useDefaultBtn.className = 'btn btn-outline-primary';
         useDefaultBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Use Default Parameters';
         useDefaultBtn.onclick = () => {
-            useOptimizedParameters(results.default_params);
+            useOptimizedParameters(resultsData.default_params);
         };
         buttonContainer.appendChild(useDefaultBtn);
     }
@@ -548,12 +556,12 @@ function displayOptimizationResults(results) {
     useOptimizedBtn.className = 'btn btn-success';
     useOptimizedBtn.innerHTML = '<i class="bi bi-check-circle"></i> Use Optimized Parameters';
     useOptimizedBtn.onclick = () => {
-        if (results.optimized_params) {
-            useOptimizedParameters(results.optimized_params);
-        } else if (results.best_params) {
-            useOptimizedParameters(results.best_params);
-        } else if (results.top_results && results.top_results.length > 0 && results.top_results[0].params) {
-            useOptimizedParameters(results.top_results[0].params);
+        if (resultsData.optimized_params) {
+            useOptimizedParameters(resultsData.optimized_params);
+        } else if (resultsData.best_params) {
+            useOptimizedParameters(resultsData.best_params);
+        } else if (resultsData.top_results && resultsData.top_results.length > 0 && resultsData.top_results[0].params) {
+            useOptimizedParameters(resultsData.top_results[0].params);
         } else {
             showError('No optimized parameters available to use');
         }

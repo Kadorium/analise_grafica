@@ -1,0 +1,30 @@
+2025-05-21 15:28:37,825 - test_optimization - INFO - Starting optimization test
+2025-05-21 15:28:37,825 - test_optimization - INFO - Loading test data...
+2025-05-21 15:28:37,835 - test_optimization - INFO - Loaded 3163 rows of data
+2025-05-21 15:28:37,835 - test_optimization - INFO - Creating strategy comparator...
+2025-05-21 15:28:37,836 - test_optimization - INFO - Running optimization...
+2025-05-21 15:28:37,836 - trading-app.comparison - INFO - Optimizing trend_following with parameter ranges: {'fast_ma_type': ['sma', 'ema'], 'fast_ma_period': [5, 10, 15], 'slow_ma_type': ['sma', 'ema'], 'slow_ma_period': [30, 50, 100]}
+2025-05-21 15:28:37,847 - optimization.optimizer - INFO - [grid_search] Starting grid search for trend_following with 4 parameters
+2025-05-21 15:28:37,847 - optimization.optimizer - INFO - [grid_search] Parameter grid: {'fast_ma_type': ['sma', 'ema'], 'fast_ma_period': [5, 10, 15], 'slow_ma_type': ['sma', 'ema'], 'slow_ma_period': [30, 50, 100]}
+2025-05-21 15:28:37,847 - optimization.optimizer - INFO - [grid_search] Optimization metric: sharpe_ratio
+2025-05-21 15:28:37,848 - optimization.optimizer - INFO - [grid_search] Default parameters: {'fast_ma_type': 'ema', 'fast_ma_period': 20, 'slow_ma_type': 'sma', 'slow_ma_period': 50}
+2025-05-21 15:28:37,848 - optimization.optimizer - INFO - [grid_search] Generated 36 parameter combinations to evaluate
+2025-05-21 15:28:40,855 - optimization.optimizer - INFO - [grid_search] Best sharpe_ratio value: 30
+2025-05-21 15:28:40,856 - optimization.optimizer - INFO - [grid_search] Best parameters: {'fast_ma_type': 'ema', 'fast_ma_period': 5, 'slow_ma_type': 'sma', 'slow_ma_period': 30}
+2025-05-21 15:28:40,856 - optimization.optimizer - INFO - [grid_search] Changed parameters from default: {'fast_ma_period': {'default': 20, 'optimized': 5}, 'slow_ma_period': {'default': 50, 'optimized': 30}}
+2025-05-21 15:28:40,857 - optimization.optimizer - INFO - [grid_search] Top 3 parameter sets:
+2025-05-21 15:28:40,857 - optimization.optimizer - INFO -   #1: sharpe_ratio=1.0586352572836237, params={'fast_ma_type': 'ema', 'fast_ma_period': 5, 'slow_ma_type': 'sma', 'slow_ma_period': 30}
+2025-05-21 15:28:40,857 - optimization.optimizer - INFO -   #2: sharpe_ratio=1.0527523987452332, params={'fast_ma_type': 'sma', 'fast_ma_period': 5, 'slow_ma_type': 'sma', 'slow_ma_period': 30}
+2025-05-21 15:28:40,857 - optimization.optimizer - INFO -   #3: sharpe_ratio=1.0286982585407067, params={'fast_ma_type': 'sma', 'fast_ma_period': 5, 'slow_ma_type': 'ema', 'slow_ma_period': 30}
+2025-05-21 15:28:40,858 - trading-app.comparison - INFO - Optimization for trend_following complete. Best score (sharpe_ratio): 30
+2025-05-21 15:28:40,858 - trading-app.comparison - INFO - Best parameters for trend_following: {'fast_ma_type': 'ema', 'fast_ma_period': 5, 'slow_ma_type': 'sma', 'slow_ma_period': 30}
+2025-05-21 15:28:40,964 - matplotlib.category - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-05-21 15:28:41,065 - matplotlib.category - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-05-21 15:28:41,145 - matplotlib.category - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-05-21 15:28:41,237 - matplotlib.category - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2025-05-21 15:28:52,668 - test_optimization - INFO - Optimization completed!
+2025-05-21 15:28:52,669 - test_optimization - INFO - Number of strategies with results: 1
+2025-05-21 15:28:52,669 - test_optimization - INFO - Strategy: trend_following
+2025-05-21 15:28:52,670 - test_optimization - INFO - Parameters: {'fast_ma_type': 'ema', 'fast_ma_period': 5, 'slow_ma_type': 'sma', 'slow_ma_period': 30}
+2025-05-21 15:28:52,670 - test_optimization - INFO - Sharpe ratio: 1.0586352572836237
+2025-05-21 15:28:52,670 - test_optimization - INFO - Test completed

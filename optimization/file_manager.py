@@ -100,14 +100,12 @@ def load_optimization_results(strategy_type):
         strategy_type (str): The strategy type
         
     Returns:
-        tuple: (results, timestamp, error_message)
-            results (dict): The optimization results or None if not found
-            timestamp (str): Timestamp of the file or None if not found
-            error_message (str): Error message or None if successful
+        dict: The optimization results or None if not found
     """
     file_path, error_message = get_latest_optimization_file(strategy_type)
     if error_message:
-        return None, None, error_message
+        logger.warning(f"Error loading optimization results: {error_message}")
+        return None
     
     try:
         with open(file_path, 'r') as f:
@@ -129,8 +127,11 @@ def load_optimization_results(strategy_type):
                 # Create empty top_results if all_results is missing
                 results['top_results'] = []
                 
-        timestamp = datetime.fromtimestamp(os.path.getmtime(file_path)).strftime("%Y-%m-%d %H:%M:%S")
-        return results, timestamp, None
+        # Add timestamp to results
+        if 'timestamp' not in results:
+            results['timestamp'] = datetime.fromtimestamp(os.path.getmtime(file_path)).strftime("%Y-%m-%d %H:%M:%S")
+        
+        return results
     except Exception as e:
         logger.error(f"Error reading optimization results file: {str(e)}")
-        return None, None, f"Error reading optimization results: {str(e)}" 
+        return None 

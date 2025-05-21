@@ -58,6 +58,10 @@ async function runFullComparison() {
             return;
         }
 
+        // Check if optimization is requested
+        const shouldOptimize = document.getElementById('optimize-comparison-checkbox')?.checked || false;
+        console.log(`[Strategy Comparison] Running comparison with optimization: ${shouldOptimize}`);
+
         // Collect strategy configurations
         const strategyConfigs = [];
         
@@ -89,7 +93,13 @@ async function runFullComparison() {
             });
         });
         
-        console.log('Running comparison with strategies:', strategyConfigs);
+        console.log(`[Strategy Comparison] Running comparison with ${strategyConfigs.length} strategies:`);
+        strategyConfigs.forEach(config => {
+            console.log(`- ${config.strategy_id}: ${JSON.stringify(config.parameters)}`);
+            if (config.param_ranges) {
+                console.log(`  With ${Object.keys(config.param_ranges).length} parameter ranges for optimization`);
+            }
+        });
         
         // Get backtest configuration
         const backtestConfig = {
@@ -97,8 +107,7 @@ async function runFullComparison() {
             commission: parseFloat(document.getElementById('commission')?.value || 0.001)
         };
         
-        // Check if optimization is requested
-        const shouldOptimize = document.getElementById('optimize-comparison-checkbox')?.checked || false;
+        console.log(`[Strategy Comparison] Backtest config: ${JSON.stringify(backtestConfig)}`);
         
         // Run the comparison
         const results = await compareStrategies(
@@ -109,6 +118,11 @@ async function runFullComparison() {
         );
         
         if (results && results.success) {
+            console.log(`[Strategy Comparison] Comparison completed successfully`);
+            if (results.optimization) {
+                console.log(`[Strategy Comparison] Optimization was performed for metric: ${results.optimization.metric}`);
+            }
+            
             currentComparisonResults = results;
             displayComparisonResults(results);
         }
@@ -185,7 +199,18 @@ function displayComparisonResults(results) {
     
     // Populate parameters table
     if (parametersContainer && results.parameters) {
-        parametersContainer.innerHTML = generateParametersTableHtml(results.parameters);
+        // Check if we have optimization data with parameter changes
+        if (results.optimization && results.optimization.parameter_changes) {
+            // Generate a more detailed parameters table showing original vs. optimized
+            parametersContainer.innerHTML = generateParametersComparisonHtml(
+                results.parameters, 
+                results.optimization.original_parameters,
+                results.optimization.parameter_changes
+            );
+        } else {
+            // Use the standard parameters table
+            parametersContainer.innerHTML = generateParametersTableHtml(results.parameters);
+        }
     }
     
     // Set up trades selector
@@ -217,11 +242,24 @@ function displayComparisonResults(results) {
     if (results.optimization) {
         const optimizationAlert = document.createElement('div');
         optimizationAlert.className = 'alert alert-info mt-3';
-        optimizationAlert.innerHTML = `
-            <i class="bi bi-info-circle"></i> 
-            Parameters were optimized for ${results.optimization.metric}.
-        `;
         
+        let alertContent = `<i class="bi bi-info-circle"></i> Parameters were optimized for ${results.optimization.metric}.`;
+        
+        // Add information about changed parameters if available
+        if (results.optimization.parameter_changes) {
+            const changedStrategies = Object.entries(results.optimization.parameter_changes)
+                .filter(([_, changes]) => Object.keys(changes).length > 0)
+                .map(([strategyId, _]) => strategyId);
+                
+            if (changedStrategies.length > 0) {
+                alertContent += ` Improvements found for: ${changedStrategies.join(', ')}.`;
+                alertContent += ' <strong>Check the Parameters tab for details.</strong>';
+            } else {
+                alertContent += ' No parameter improvements were found (optimal parameters already selected).';
+            }
+        }
+        
+        optimizationAlert.innerHTML = alertContent;
         compareResultsDisplay.insertBefore(optimizationAlert, compareResultsDisplay.firstChild);
     }
     
@@ -285,29 +323,258 @@ function formatMetricName(metricName) {
 function getParameterRangesForStrategy(strategyId) {
     // Check if optimization is enabled
     const shouldOptimize = document.getElementById('optimize-comparison-checkbox')?.checked || false;
-    if (!shouldOptimize) return null;
+    if (!shouldOptimize) {
+        console.log(`[Strategy Comparison] Optimization disabled for ${strategyId}`);
+        return null;
+    }
     
-    // Get strategy configuration
+    console.log(`[Strategy Comparison] Generating parameter ranges for ${strategyId}`);
+    
+    // Predefined sensible parameter ranges for common strategies
+    const PREDEFINED_RANGES = {
+        'trend_following': {
+            'fast_ma_type': ['sma', 'ema'],
+            'fast_ma_period': [5, 10, 15, 20, 25],
+            'slow_ma_type': ['sma', 'ema'],
+            'slow_ma_period': [30, 50, 100, 150, 200]
+        },
+        'mean_reversion': {
+            'rsi_period': [7, 10, 14, 21],
+            'oversold': [20, 25, 30, 35],
+            'overbought': [65, 70, 75, 80],
+            'exit_middle': [45, 50, 55]
+        },
+        'breakout': {
+            'lookback_period': [10, 15, 20, 25, 30],
+            'volume_threshold': [1.2, 1.5, 2.0, 2.5],
+            'price_threshold': [0.01, 0.02, 0.03, 0.05],
+            'atr_multiplier': [1.5, 2.0, 2.5, 3.0]
+        },
+        'sma_crossover': {
+            'short_period': [5, 10, 20, 50],
+            'long_period': [50, 100, 150, 200]
+        },
+        'ema_crossover': {
+            'short_period': [5, 8, 12, 20],
+            'long_period': [20, 50, 100, 200]
+        },
+        'macd_crossover': {
+            'fast_period': [8, 12, 16],
+            'slow_period': [21, 26, 30],
+            'signal_period': [5, 9, 13]
+        },
+        'rsi': {
+            'period': [7, 10, 14, 21],
+            'buy_level': [20, 25, 30],
+            'sell_level': [70, 75, 80]
+        },
+        'bollinger_breakout': {
+            'period': [10, 15, 20, 25],
+            'std_dev': [1.5, 2.0, 2.5, 3.0]
+        },
+        'supertrend': {
+            'period': [7, 10, 14, 21],
+            'multiplier': [2.0, 2.5, 3.0, 3.5]
+        },
+        'stochastic': {
+            'k_period': [5, 9, 14],
+            'd_period': [3, 5, 7, 9]
+        },
+        'adaptive_trend': {
+            'fast_period': [5, 8, 10, 12, 15],
+            'slow_period': [20, 25, 30, 35, 40],
+            'signal_period': [5, 7, 9, 11, 13]
+        },
+        'accum_dist': {
+            'period': [10, 15, 20, 25, 30]
+        }
+    };
+    
+    // Check if we have predefined ranges for this strategy
+    if (PREDEFINED_RANGES[strategyId]) {
+        console.log(`[Strategy Comparison] Using predefined parameter ranges for ${strategyId}`);
+        return PREDEFINED_RANGES[strategyId];
+    }
+    
+    // Get strategy configuration for strategies not in predefined ranges
     const strategyConfig = getStrategyConfig(strategyId);
-    if (!strategyConfig || !strategyConfig.params) return null;
+    if (!strategyConfig || !strategyConfig.params) {
+        console.warn(`[Strategy Comparison] No config found for ${strategyId}`);
+        return null;
+    }
     
     // Create parameter ranges
     const paramRanges = {};
     
     strategyConfig.params.forEach(param => {
-        // Only add ranges for numeric parameters
+        // Only add ranges for numeric parameters with min/max defined
         if (param.type === 'number' && param.min !== undefined && param.max !== undefined) {
-            // Create a range with 5 steps between min and max
-            const step = (param.max - param.min) / 4;
-            const range = [];
-            
-            for (let i = 0; i <= 4; i++) {
-                range.push(param.min + step * i);
+            // For large ranges like moving average periods
+            if (param.id.includes('period') || param.id.includes('length')) {
+                // Common period values that make sense for most indicators
+                if (param.max >= 100) {
+                    // For longer periods (like slow moving averages)
+                    paramRanges[param.id] = [20, 50, 100, 150, 200];
+                } else {
+                    // For shorter periods (like fast moving averages or RSI)
+                    paramRanges[param.id] = [5, 10, 14, 20, 30];
+                }
+            } else if (param.id.includes('multiplier') || param.id.includes('factor')) {
+                // For multipliers and factors (usually between 1-5)
+                paramRanges[param.id] = [1.0, 1.5, 2.0, 2.5, 3.0];
+            } else if (param.id.includes('threshold')) {
+                // For thresholds
+                paramRanges[param.id] = [
+                    param.min,
+                    param.min + (param.max - param.min) * 0.25,
+                    param.min + (param.max - param.min) * 0.5,
+                    param.min + (param.max - param.min) * 0.75,
+                    param.max
+                ].map(v => Math.round(v * 100) / 100);
+            } else if (param.max - param.min > 10) {
+                // For larger ranges, create sensible steps
+                const steps = Math.min(5, param.max - param.min);
+                const step = (param.max - param.min) / (steps - 1);
+                const range = [];
+                
+                for (let i = 0; i < steps; i++) {
+                    const value = Math.round((param.min + step * i) * 100) / 100; // Round to 2 decimal places
+                    range.push(value);
+                }
+                
+                paramRanges[param.id] = range;
+            } else if (Number.isInteger(param.min) && Number.isInteger(param.max)) {
+                // For smaller integer ranges, include reasonable integers
+                const range = [];
+                // If range is small, use all integers
+                if (param.max - param.min <= 10) {
+                    for (let i = param.min; i <= param.max; i++) {
+                        range.push(i);
+                    }
+                } else {
+                    // Otherwise, distribute evenly
+                    const step = Math.max(1, Math.floor((param.max - param.min) / 4));
+                    for (let i = param.min; i <= param.max; i += step) {
+                        range.push(i);
+                    }
+                    // Make sure max is included
+                    if (range[range.length - 1] !== param.max) {
+                        range.push(param.max);
+                    }
+                }
+                paramRanges[param.id] = range;
+            } else {
+                // For smaller decimal ranges, create a few points
+                paramRanges[param.id] = [
+                    param.min,
+                    param.min + (param.max - param.min) / 3,
+                    param.min + 2 * (param.max - param.min) / 3,
+                    param.max
+                ].map(v => Math.round(v * 100) / 100);
             }
-            
-            paramRanges[param.id] = range;
+        } else if (param.type === 'boolean' || param.type === 'bool') {
+            // For boolean parameters, try both values
+            paramRanges[param.id] = [true, false];
+        } else if (param.type === 'select' && param.options) {
+            // For select parameters, try all options
+            paramRanges[param.id] = param.options.map(opt => opt.value || opt);
         }
     });
     
-    return Object.keys(paramRanges).length > 0 ? paramRanges : null;
+    const hasRanges = Object.keys(paramRanges).length > 0;
+    console.log(`[Strategy Comparison] Generated ranges for ${strategyId}:`, hasRanges ? paramRanges : "None");
+    
+    return hasRanges ? paramRanges : null;
+}
+
+/**
+ * Generate HTML for parameters comparison table showing original vs. optimized values
+ * @param {Object} optimizedParams - The optimized parameters for each strategy
+ * @param {Object} originalParams - The original parameters for each strategy
+ * @param {Object} paramChanges - Parameter changes for each strategy
+ * @returns {String} HTML for parameters comparison table
+ */
+function generateParametersComparisonHtml(optimizedParams, originalParams, paramChanges) {
+    if (!optimizedParams) return '<p>No parameters data available</p>';
+
+    const strategyIds = Object.keys(optimizedParams);
+    if (strategyIds.length === 0) return '<p>No strategies to compare</p>';
+
+    // Get all parameter names across all strategies
+    const allParamNames = new Set();
+    strategyIds.forEach(strategyId => {
+        const params = optimizedParams[strategyId] || {};
+        Object.keys(params).forEach(paramName => allParamNames.add(paramName));
+    });
+
+    const paramNames = Array.from(allParamNames);
+    if (paramNames.length === 0) return '<p>No parameters to compare</p>';
+
+    // Start building the table
+    let html = `
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        ${strategyIds.map(id => `<th colspan="2">${id}</th>`).join('')}
+                    </tr>
+                    <tr>
+                        <th></th>
+                        ${strategyIds.map(() => `<th>Original</th><th>Optimized</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    // Add rows for each parameter
+    paramNames.forEach(paramName => {
+        // Start the row
+        html += `<tr><td>${paramName}</td>`;
+        
+        // Add cells for each strategy
+        strategyIds.forEach(strategyId => {
+            const optimizedValue = optimizedParams[strategyId]?.[paramName];
+            const originalValue = originalParams[strategyId]?.[paramName];
+            
+            // Check if this parameter was changed during optimization
+            const isChanged = paramChanges[strategyId]?.[paramName] !== undefined;
+            const changeClass = isChanged ? 'table-success' : '';
+            
+            // Format the values
+            const formattedOriginal = formatParameterValue(originalValue);
+            const formattedOptimized = formatParameterValue(optimizedValue);
+            
+            html += `<td>${formattedOriginal}</td><td class="${changeClass}">${formattedOptimized}</td>`;
+        });
+        
+        // End the row
+        html += '</tr>';
+    });
+
+    // Close the table
+    html += `
+                </tbody>
+            </table>
+        </div>
+        <div class="small text-muted mt-2">
+            <span class="badge bg-success">Highlighted</span> parameters were improved through optimization.
+        </div>
+    `;
+
+    return html;
+}
+
+/**
+ * Format a parameter value for display
+ * @param {any} value - The parameter value
+ * @returns {String} Formatted parameter value
+ */
+function formatParameterValue(value) {
+    if (value === undefined || value === null) return '-';
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    if (typeof value === 'number') return value.toLocaleString(undefined, {
+        maximumFractionDigits: 4
+    });
+    return String(value);
 } 

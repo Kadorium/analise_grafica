@@ -35,14 +35,13 @@ async def optimize_strategy_endpoint(optimization_config: OptimizationConfig, ba
     Returns:
         JSONResponse: Response with optimization status
     """
-    # Log the incoming optimization request (initial log, can be brief)
-    # The comprehensive log will be written at the end of the task.
-    # log_optimization_request(optimization_config.dict()) # This can be removed if we only want one comprehensive log at the end.
+    # Log the incoming optimization request immediately
+    log_optimization_request(optimization_config.dict())
     logger.info(f"[ENDPOINT] Received optimization config: {optimization_config.dict()}")
 
     if processed_data is None:
-        # Log this specific failure scenario if desired
-        # log_optimization_request(optimization_config.dict(), error="No processed data.") 
+        # Log this specific failure scenario
+        log_optimization_request(optimization_config.dict(), error="No processed data.") 
         return JSONResponse(status_code=400, content={"success": False, "message": "No processed data."})
     
     # Store the initial API request for comprehensive logging at the end of the task

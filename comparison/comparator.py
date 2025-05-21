@@ -104,10 +104,10 @@ class StrategyComparator:
                 
                 # Perform grid search optimization
                 try:
-                    best_params, best_score = grid_search_params(
+                    best_params, best_score, _ = grid_search_params(
                         data=self.data,
                         strategy_type=strategy_id,
-                        param_ranges=param_ranges,
+                        param_grid=param_ranges,
                         initial_capital=self.initial_capital,
                         commission=self.commission,
                         metric=metric,

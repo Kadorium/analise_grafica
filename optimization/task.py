@@ -17,47 +17,52 @@ from optimization.models import OptimizationConfig
 
 logger = logging.getLogger(__name__)
 
-def run_optimization_task(optimization_config):
+def run_optimization_task(data, optimization_config, current_config=None):
     """
     Run the optimization task for the given configuration.
     
     Args:
-        optimization_config (OptimizationConfig): Configuration for optimization.
+        data (pd.DataFrame): The data to optimize on.
+        optimization_config (dict): Configuration for optimization.
+        current_config (dict, optional): Current application configuration.
         
     Returns:
         dict: Dictionary with optimization results.
     """
     try:
-        # Log the optimization request
-        log_optimization_request(optimization_config.model_dump())
+        # Log the optimization request with the complete API request details
+        api_request_details = get_optimization_status().get('current_optimization_api_request', {})
+        log_optimization_request(optimization_config, api_request_details=api_request_details)
         
         # Set optimization status to in-progress
         task_id = str(int(time.time()))
-        set_optimization_status(task_id, True, optimization_config.strategy_type)
+        set_optimization_status({
+            "in_progress": True,
+            "strategy_type": optimization_config.get('strategy_type'),
+            "task_id": task_id
+        })
         
         # Get data slice based on date range
-        data = optimization_config.data
-        
-        if optimization_config.start_date and optimization_config.end_date:
-            data = data[(data.index >= optimization_config.start_date) & 
-                        (data.index <= optimization_config.end_date)].copy()
+        if optimization_config.get('start_date') and optimization_config.get('end_date'):
+            data = data[(data['date'] >= optimization_config.get('start_date')) & 
+                        (data['date'] <= optimization_config.get('end_date'))].copy()
         
         # Get default parameters for the strategy
-        default_params = get_default_parameters(optimization_config.strategy_type)
+        default_params = get_default_parameters(optimization_config.get('strategy_type'))
         
         # Initialize Backtester for default run, passing the main data to its constructor
-        # The Backtester.run_backtest method will handle date filtering internally.
-        backtester_default = Backtester(data=data, # Pass main data here
-                                      initial_capital=optimization_config.get('initial_capital', 100.0), 
-                                      commission=optimization_config.get('commission', 0.001))
-        default_strategy = create_strategy(optimization_config.strategy_type, **default_params)
+        backtester_default = Backtester(
+            data=data,
+            initial_capital=optimization_config.get('initial_capital', 100.0), 
+            commission=optimization_config.get('commission', 0.001)
+        )
+        default_strategy = create_strategy(optimization_config.get('strategy_type'), **default_params)
         
-        # Run backtest for default strategy. run_backtest will use its self.data and filter it.
-        # Backtester.run_backtest returns a dictionary: {'strategy_name', 'performance_metrics', 'signals'}
+        # Run backtest for default strategy
         default_run_results_dict = backtester_default.run_backtest(
             default_strategy,
-            start_date=optimization_config.start_date,
-            end_date=optimization_config.end_date
+            start_date=optimization_config.get('start_date'),
+            end_date=optimization_config.get('end_date')
         )
         
         # Get all metrics for default run
@@ -67,19 +72,27 @@ def run_optimization_task(optimization_config):
         )
         
         # Run optimization
-        set_optimization_status(task_id, True, optimization_config.strategy_type, 'Optimizing strategy parameters...')
+        set_optimization_status({
+            "in_progress": True, 
+            "strategy_type": optimization_config.get('strategy_type'),
+            "status_message": 'Optimizing strategy parameters...'
+        })
         optimization_results = optimize_strategy(
             data,
-            optimization_config.strategy_type,
-            optimization_config.param_grid,
-            metric=optimization_config.metric,
-            start_date=optimization_config.start_date,
-            end_date=optimization_config.end_date,
+            optimization_config.get('strategy_type'),
+            optimization_config.get('param_grid', {}),
+            metric=optimization_config.get('metric'),
+            start_date=optimization_config.get('start_date'),
+            end_date=optimization_config.get('end_date'),
             initial_capital=optimization_config.get('initial_capital', 100.0),
             commission=optimization_config.get('commission', 0.001)
         )
         
-        set_optimization_status(task_id, True, optimization_config.strategy_type, 'Running backtest with optimized parameters...')
+        set_optimization_status({
+            "in_progress": True, 
+            "strategy_type": optimization_config.get('strategy_type'),
+            "status_message": 'Running backtest with optimized parameters...'
+        })
         
         # Get the best parameters from optimization
         optimized_params = optimization_results[0]['params']
@@ -88,12 +101,12 @@ def run_optimization_task(optimization_config):
         backtester_optimized = Backtester(data=data, 
                                          initial_capital=optimization_config.get('initial_capital', 100.0), 
                                          commission=optimization_config.get('commission', 0.001))
-        optimized_strategy = create_strategy(optimization_config.strategy_type, **optimized_params)
+        optimized_strategy = create_strategy(optimization_config.get('strategy_type'), **optimized_params)
         
         optimized_run_results_dict = backtester_optimized.run_backtest(
             optimized_strategy,
-            start_date=optimization_config.start_date,
-            end_date=optimization_config.end_date
+            start_date=optimization_config.get('start_date'),
+            end_date=optimization_config.get('end_date')
         )
         
         # Get all metrics for optimized run
@@ -102,20 +115,24 @@ def run_optimization_task(optimization_config):
             optimized_run_results_dict["performance_metrics"]
         )
         
-        set_optimization_status(task_id, True, optimization_config.strategy_type, 'Generating performance comparison...')
+        set_optimization_status({
+            "in_progress": True, 
+            "strategy_type": optimization_config.get('strategy_type'),
+            "status_message": 'Generating performance comparison...'
+        })
         
         # Generate comparison chart between default and optimized runs
         chart_html = plot_optimization_comparison(
             default_run_results_dict["signals"],
             optimized_run_results_dict["signals"],
-            optimization_config.strategy_type
+            optimization_config.get('strategy_type')
         )
         
         # Generate indicators comparison chart
         indicators_chart_html = plot_indicators_comparison(
             default_run_results_dict["signals"],
             optimized_run_results_dict["signals"],
-            optimization_config.strategy_type,
+            optimization_config.get('strategy_type'),
             default_params,
             optimized_params
         )
@@ -123,7 +140,7 @@ def run_optimization_task(optimization_config):
         # Prepare results object
         results = {
             "task_id": task_id,
-            "strategy_type": optimization_config.strategy_type,
+            "strategy_type": optimization_config.get('strategy_type'),
             "top_results": optimization_results,
             "default_params": default_params,
             "optimized_params": optimized_params,
@@ -135,18 +152,26 @@ def run_optimization_task(optimization_config):
         }
         
         # Save results to file
-        result_file = save_optimization_results(optimization_config.strategy_type, results)
+        result_file = save_optimization_results(optimization_config.get('strategy_type'), results)
         logger.info(f"Optimization results saved to {result_file}")
         
         # Set optimization status to complete
-        set_optimization_status(task_id, False, optimization_config.strategy_type, 'Optimization complete')
+        set_optimization_status({
+            "in_progress": False, 
+            "strategy_type": optimization_config.get('strategy_type'),
+            "status_message": 'Optimization complete'
+        })
         
         return results
     except Exception as e:
         error_msg = f"Error in optimization task: {str(e)}"
         logger.error(error_msg)
         logger.error(traceback.format_exc())
-        set_optimization_status('', False, optimization_config.strategy_type, error_msg)
+        set_optimization_status({
+            "in_progress": False, 
+            "strategy_type": optimization_config.get('strategy_type'),
+            "status_message": error_msg
+        })
         return {"error": error_msg}
 
 # Helper functions for JSON sanitization

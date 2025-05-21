@@ -37,6 +37,15 @@ async def run_comparison_controller(
         return {"success": False, "message": "No strategy configurations provided."}
     
     try:
+        # Log whether optimization is enabled
+        logger.info(f"Strategy comparison with optimization={optimize}, metric={optimization_metric}")
+        
+        # Store original parameters for comparison
+        original_parameters = {}
+        for config in strategy_configs:
+            strategy_id = config.get('strategy_id')
+            original_parameters[strategy_id] = config.get('parameters', {})
+        
         # Set up backtest configuration
         if backtest_config is None:
             backtest_config = {}
@@ -76,8 +85,28 @@ async def run_comparison_controller(
         
         # Add optimization information if applicable
         if optimize:
+            # Create a dictionary to show parameter changes
+            parameter_changes = {}
+            for strategy_id, optimized_params in table_data['parameters'].items():
+                if strategy_id in original_parameters:
+                    original_params = original_parameters[strategy_id]
+                    changes = {}
+                    
+                    # Find changed parameters
+                    for param_name, optimized_value in optimized_params.items():
+                        if param_name in original_params and original_params[param_name] != optimized_value:
+                            changes[param_name] = {
+                                'original': original_params[param_name],
+                                'optimized': optimized_value
+                            }
+                    
+                    parameter_changes[strategy_id] = changes
+            
+            # Add optimization info to response
             response["optimization"] = {
                 "metric": optimization_metric,
+                "original_parameters": original_parameters,
+                "parameter_changes": parameter_changes,
                 "strategies": [
                     {
                         "strategy_id": config.get('strategy_id'),
@@ -85,9 +114,11 @@ async def run_comparison_controller(
                         "optimization_score": config.get('optimization_score', None),
                         "optimization_error": config.get('optimization_error', None)
                     }
-                    for config in strategy_configs if 'optimized' in config
+                    for config in strategy_configs if 'strategy_id' in config
                 ]
             }
+            
+            logger.info(f"Parameter changes from optimization: {parameter_changes}")
         
         # Save comparison results
         save_comparison_results(response)
