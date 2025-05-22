@@ -336,4 +336,351 @@ select[multiple] {
     max-width: 100%;
     height: auto; /* Ensure image scales proportionally and dictates container height */
     display: block; /* Remove extra space below image */
+}
+
+/* Screener Tab Styles */
+#screener-section .card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    margin-bottom: 1.5rem;
+}
+
+#screener-strategies {
+    height: auto;
+    min-height: 100px;
+}
+
+#screener-summary .row {
+    margin-right: -0.5rem;
+    margin-left: -0.5rem;
+}
+
+#screener-summary .col-md-4 {
+    padding-right: 0.5rem;
+    padding-left: 0.5rem;
+}
+
+#screener-table {
+    font-size: 0.875rem;
+}
+
+#screener-table .badge {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+}
+
+#screener-pagination {
+    margin-bottom: 0;
+}
+
+#screener-pagination .page-link {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.signal-buy {
+    background-color: rgba(40, 167, 69, 0.15);
+}
+
+.signal-sell {
+    background-color: rgba(220, 53, 69, 0.15);
+}
+
+@media (max-width: 767.98px) {
+    #screener-section .card-body {
+        padding: 0.75rem;
+    }
+    
+    #screener-summary .row {
+        margin-right: -0.25rem;
+        margin-left: -0.25rem;
+    }
+    
+    #screener-summary .col-md-4 {
+        padding-right: 0.25rem;
+        padding-left: 0.25rem;
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* Weight configuration panel in screener */
+#weight-config-panel {
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    border-radius: 0.25rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+#weight-config-panel .card-header {
+    background-color: #f8f9fa;
+    padding: 0.5rem 1rem;
+}
+
+#weight-config-panel .card-body {
+    padding: 0.75rem;
+}
+
+#weight-config-panel .form-check-inline {
+    margin-right: 0.5rem;
+}
+
+#weight-config-panel .form-range {
+    height: 1.25rem;
+}
+
+#weight-config-panel .form-label {
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+}
+
+#custom-weights-container {
+    background-color: #f8f9fa;
+    border-radius: 0.25rem;
+    padding: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+/* Tooltips for weight sliders */
+#weight-config-panel [data-bs-toggle="tooltip"] {
+    cursor: help;
+}
+
+/* Responsive adjustments for screener panel */
+@media (max-width: 767.98px) {
+    #weight-config-panel {
+        margin-bottom: 1rem;
+    }
+    
+    #screener-strategies {
+        height: 150px;
+    }
+    
+    #custom-weights-container {
+        padding: 0.5rem;
+    }
+}
+
+/* Styles for weighted signal scores */
+.weighted-score-positive {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.weighted-score-positive-light {
+    color: #28a745;
+}
+
+.weighted-score-neutral {
+    color: #ffc107;
+}
+
+.weighted-score-negative {
+    color: #dc3545;
+}
+
+.weighted-score-negative-strong {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+/* Screener panel styling */
+.screener-panel .strategy-selector {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 10px;
+}
+
+.screener-panel .strategy-item {
+    margin-bottom: 5px;
+}
+
+.screener-table {
+    font-size: 0.9rem;
+}
+
+.screener-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.screener-pagination {
+    justify-content: center;
+}
+
+/* ML signals toggle styling */
+.form-check-label[for="include-ml-signals"] {
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-check-input[id="include-ml-signals"]:checked {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+/* Accuracy column styling */
+.table td.text-success.fw-bold {
+    color: #198754 !important;
+    font-weight: 700 !important;
+}
+
+.table td.text-success {
+    color: #198754 !important;
+}
+
+.table td.text-warning {
+    color: #ffc107 !important;
+}
+
+.table td.text-danger {
+    color: #dc3545 !important;
+}
+
+/* ML strategy row highlighting */
+.table tbody tr:has(td:contains("LogisticRegression")) {
+    background-color: rgba(23, 162, 184, 0.05);
+}
+
+/* Tooltip styling for ML toggle */
+.form-check-label[title] {
+    cursor: help;
+}
+
+/* Responsive table for accuracy column */
+@media (max-width: 1200px) {
+    .screener-table th:last-child,
+    .screener-table td:last-child {
+        min-width: 100px;
+    }
+}
+
+/* ML Configuration Panel Styling */
+#ml-config-panel {
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+#ml-config-panel.ml-enabled {
+    border-color: #17a2b8;
+    box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+}
+
+#ml-config-panel .card-header {
+    background: linear-gradient(135deg, #17a2b8, #138496) !important;
+    color: white !important;
+}
+
+#ml-config-panel .card-header h6 {
+    font-weight: 600;
+}
+
+#ml-config-panel .card-header small {
+    opacity: 0.9;
+}
+
+#ml-config-panel .card-body {
+    font-size: 0.85rem;
+}
+
+#ml-config-panel .form-check-input:checked {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+#ml-config-panel .badge {
+    font-size: 0.7rem;
+    padding: 0.25em 0.5em;
+}
+
+#ml-config-panel .small {
+    font-size: 0.75rem;
+}
+
+/* ML Features Status Section */
+#ml-features-status .d-flex {
+    margin-bottom: 0.25rem;
+}
+
+#ml-features-status .badge {
+    font-size: 0.65rem;
+    min-width: 60px;
+    text-align: center;
+}
+
+/* ML Performance Section */
+#ml-performance {
+    background-color: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+#ml-performance .badge {
+    font-weight: 500;
+}
+
+#ml-performance .badge.bg-success {
+    background-color: #198754 !important;
+}
+
+#ml-performance .badge.bg-warning {
+    background-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+#ml-performance .badge.bg-danger {
+    background-color: #dc3545 !important;
+}
+
+/* ML Signal Distribution Badges */
+#ml-buy-count {
+    background-color: #198754 !important;
+}
+
+#ml-sell-count {
+    background-color: #dc3545 !important;
+}
+
+#ml-hold-count {
+    background-color: #6c757d !important;
+}
+
+/* ML Panel Animation */
+#ml-config-panel .card-body > div {
+    transition: opacity 0.2s ease;
+}
+
+#ml-config-panel:not(.ml-enabled) #ml-performance {
+    opacity: 0.6;
+}
+
+/* ML Toggle Switch Styling */
+#include-ml-signals {
+    transform: scale(1.1);
+}
+
+#include-ml-signals:focus {
+    box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+}
+
+/* Responsive adjustments for ML panel */
+@media (max-width: 1200px) {
+    #ml-config-panel .small {
+        font-size: 0.7rem;
+    }
+    
+    #ml-config-panel .badge {
+        font-size: 0.6rem;
+        padding: 0.2em 0.4em;
+    }
+}
+
+@media (max-width: 767.98px) {
+    #ml-config-panel {
+        margin-bottom: 1rem;
+    }
+    
+    #ml-config-panel .card-body {
+        padding: 0.75rem;
+    }
 } 

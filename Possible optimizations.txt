@@ -1,0 +1,59 @@
+Possible optimizations:
+checking creating folder that exists. if error, just warn.
+The current log_optimization_request is called multiple times. It should ideally be called once at the end with all information.
+Pass all four debug log lists to log_optimization_request via its extra_info or by adding dedicated parameters.
+
+optimization : Now I need to add the calculate_equity_curve function since we're referencing it: you have the same in backtesting, no?
+
+we are trying to the a modularization strucuture of the file app.js here. teh modularization plan is attached@modularization-plan.md take a look into this project to see everything. i am manually testing the modularization.
+
+
+The assets displayed in the table will now come from the actual multi-asset data that was uploaded, rather than hardcoded values like JPM and WMT. If no multi-asset data is available, it falls back to a shorter default list.
+
+
+
+
+linha fixa em indicator_utils.py
+ Args:
+        data (pandas.DataFrame): DataFrame containing price and indicator data.
+        plot_config (dict): Configuration for what to plot.
+            Example: {
+                'main_indicators': ['sma_20', 'ema_20', 'bb_upper', 'bb_lower'],
+                'subplot_indicators': ['rsi', 'macd', 'volume'],
+                'title': 'Custom Chart Title',
+                'start_date': '2020-01-01',
+                'end_date': '2023-12-31'
+            }
+        debug_save_path (str, optional): If provided, saves the plot to this path.
+            
+    Returns:
+        str: Base64 encoded PNG image.
+
+
+
+
+
+
+I'm working on modularizing a large HTML/Python project. I've attached the modularization plan at @modularization-plan.md. 
+
+Current status:
+1. Currently working on ADJUST HERE: optimization-section
+
+Main file structure:
+- app.py: Main backend entry point (FastAPI app) that orchestrates the workflow
+- frontend/: Contains web UI with HTML, CSS, JS (modules in js/modules/, utilities in js/utils/)
+- data/: For data files, uploads, and data processing scripts
+- indicators/: Python modules for technical indicators and utilities
+- strategies/: Python modules implementing trading strategies
+- backtesting/: Contains the backtesting engine and related utilities
+- optimization/: Contains code for strategy parameter optimization
+- results/: Stores output files, configs, and optimization result
+
+Here's what I need help with now:
+ADJUST HERE 1 - when selecting a strategy in id="optimization-strategy", with a metric selected in id="optimization-metric", it says Please select at least one parameter to optimize and nothing happens.
+2. Ensure the current implementation aligns with the overall modularization plan
+
+Please analyze the code with these specific considerations:
+1. Maintain consistency with already-modularized sections
+2. Follow the architectural patterns established so far
+3. Identify any potential dependency issues

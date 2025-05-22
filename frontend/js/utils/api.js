@@ -28,7 +28,11 @@ export const API_ENDPOINTS = {
     SEASONALITY_HEATMAP: '/api/seasonality/heatmap',
     SEASONALITY_SUMMARY: '/api/seasonality/summary',
     DEBUG_INFO: '/api/debug-info',
-    MULTI_ASSET_UPLOAD: '/api/upload-multi-asset'
+    MULTI_ASSET_UPLOAD: '/api/upload-multi-asset',
+    GENERATE_SIGNALS: '/api/generate-signals',
+    FETCH_SIGNALS: '/api/fetch-signals',
+    UPDATE_WEIGHTS: '/api/update-weights',
+    FETCH_WEIGHTS: '/api/fetch-weights'
 };
 
 // Generic fetch wrapper with error handling
@@ -65,7 +69,13 @@ export async function uploadData(formData) {
         console.log('Calling upload endpoint');
         const response = await fetch(API_ENDPOINTS.UPLOAD, {
             method: 'POST',
-            body: formData
+            body: formData,
+            // Important: Don't set Content-Type header for multipart/form-data
+            // Let the browser set it with the correct boundary
+            headers: {
+                // Explicitly set to null to prevent default being added
+                'Content-Type': null
+            }
         });
         
         // Check for HTTP error response
@@ -113,7 +123,13 @@ export async function uploadMultiAssetData(formData) {
         console.log('Calling multi-asset upload endpoint');
         const response = await fetch(API_ENDPOINTS.MULTI_ASSET_UPLOAD, {
             method: 'POST',
-            body: formData
+            body: formData,
+            // Important: Don't set Content-Type header for multipart/form-data
+            // Let the browser set it with the correct boundary
+            headers: {
+                // Explicitly set to null to prevent default being added
+                'Content-Type': null
+            }
         });
         
         // Check for HTTP error response
@@ -306,3 +322,225 @@ export async function fetchResultsHistory() {
         method: 'GET'
     });
 }
+
+/**
+ * Generate trading signals for multiple assets using specified strategies.
+ * 
+ * @param {Object} options - Signal generation options
+ * @param {Array} options.strategies - Array of [strategy_type, param_type] pairs
+ * @param {number} [options.max_workers] - Maximum number of worker processes
+ * @param {boolean} [options.refresh_cache] - Whether to refresh cached results
+ * @param {string} [options.weights_file] - Path to weights file
+ * @param {boolean} [options.include_ml] - Whether to include ML signals
+ * @returns {Promise<Object>} Promise resolving to the signal generation result
+ */
+export async function generateSignals(options) {
+    try {
+        const response = await fetch(API_ENDPOINTS.GENERATE_SIGNALS, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                strategies: options.strategies,
+                max_workers: options.max_workers || null,
+                refresh_cache: options.refresh_cache || false,
+                weights_file: options.weights_file || null,
+                include_ml: options.include_ml || false
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to generate signals');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error generating signals:', error);
+        throw error;
+    }
+}
+
+/**
+ * Fetch signals from a cached file.
+ * 
+ * @param {string} cacheFile - The cached file name or path
+ * @returns {Promise<Object>} - Promise resolving to the signals data
+ */
+export async function fetchCachedSignals(cacheFile) {
+    try {
+        // Extract the filename from the cache file path if it includes directories
+        const filename = cacheFile.split('/').pop().split('\\').pop();
+        console.log('Fetching cached signals from:', filename);
+        
+        const response = await fetch(`${API_ENDPOINTS.FETCH_SIGNALS}/${filename}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({
+                message: `HTTP error: ${response.status} ${response.statusText}`
+            }));
+            throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log(`Fetched ${data.count || 0} signals from cache`);
+        
+        if (data.success && data.signals) {
+            // Get the latest weights file to merge with signals
+            try {
+                const latestWeightsResponse = await fetch(`${API_ENDPOINTS.FETCH_WEIGHTS}/latest`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (latestWeightsResponse.ok) {
+                    const weightsData = await latestWeightsResponse.json();
+                    
+                    if (weightsData.success && weightsData.weights) {
+                        // Merge weights and metrics with signals
+                        data.signals.forEach(signal => {
+                            const asset = signal.asset;
+                            const strategyKey = `${signal.strategy}_${signal.parameters}`;
+                            
+                            // Add weight if available
+                            if (weightsData.weights[asset] && weightsData.weights[asset][strategyKey] !== undefined) {
+                                signal.weight = weightsData.weights[asset][strategyKey];
+                            }
+                            
+                            // Add metrics if available
+                            if (weightsData.metrics && 
+                                weightsData.metrics[asset] && 
+                                weightsData.metrics[asset][strategyKey]) {
+                                
+                                const metrics = weightsData.metrics[asset][strategyKey];
+                                signal.total_return = metrics.total_return;
+                                signal.sharpe_ratio = metrics.sharpe_ratio;
+                                signal.max_drawdown = metrics.max_drawdown;
+                                signal.win_rate = metrics.win_rate;
+                                signal.num_trades = metrics.num_trades;
+                            }
+                        });
+                        
+                        console.log('Merged weights and metrics with signals');
+                    }
+                }
+            } catch (weightsError) {
+                console.warn('Could not fetch weights to merge with signals:', weightsError);
+                // Continue with signals only
+            }
+            
+            return {
+                success: true,
+                signals: data.signals
+            };
+        } else {
+            throw new Error(data.message || 'No signals returned from cache');
+        }
+    } catch (error) {
+        console.error('Error fetching cached signals:', error);
+        throw error;
+    }
+}
+
+/**
+ * Calculate performance-based weights for asset-strategy pairs.
+ * 
+ * @param {Object} requestData - Weight calculation configuration
+ * @param {Array} requestData.strategies - Array of [strategy_type, param_type] pairs
+ * @param {string} requestData.goal_seek_metric - Metric to use for weighting
+ * @param {Object} [requestData.custom_weights] - Custom weight factors
+ * @param {string} requestData.lookback_period - Period to look back for backtesting
+ * @param {number} [requestData.max_workers] - Maximum number of worker processes
+ * @param {boolean} [requestData.refresh_cache] - Whether to refresh cached results
+ * @returns {Promise<Object>} Promise resolving to the weight calculation result
+ */
+export async function updateWeights(requestData) {
+    try {
+        console.log('Calling update-weights endpoint:', requestData);
+        
+        const response = await fetch(API_ENDPOINTS.UPDATE_WEIGHTS, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({
+                message: `HTTP error: ${response.status} ${response.statusText}`
+            }));
+            throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Update weights response:', data);
+        
+        return {
+            success: true,
+            ...data
+        };
+    } catch (error) {
+        console.error('Error updating weights:', error);
+        return {
+            success: false,
+            message: error.message || 'Error updating weights'
+        };
+    }
+}
+
+/**
+ * Fetch weights from a cached file.
+ * 
+ * @param {string} cacheFile - The cached file name or path
+ * @returns {Promise<Object>} - Promise resolving to the weights data
+ */
+export async function fetchWeights(cacheFile) {
+    try {
+        // Extract the filename from the cache file path if it includes directories
+        const filename = cacheFile.split('/').pop().split('\\').pop();
+        console.log('Fetching cached weights from:', filename);
+        
+        const response = await fetch(`${API_ENDPOINTS.FETCH_WEIGHTS}/${filename}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({
+                message: `HTTP error: ${response.status} ${response.statusText}`
+            }));
+            throw new Error(errorData.message || `Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        console.log(`Fetched weights from cache`);
+        
+        if (data.success && data.weights) {
+            return data;
+        } else {
+            throw new Error(data.message || 'No weights returned from cache');
+        }
+    } catch (error) {
+        console.error('Error fetching weights:', error);
+        throw error;
+    }
+}
+
+// Add alias exports at the end of the file
+export const getStrategies = fetchAvailableStrategies;
+export const getStrategyParameters = fetchStrategyParameters;
+export const getAnalysis = runSeasonalityAnalysis;
+export const loadConfig = fetchCurrentConfig;
+export const fetchSignals = fetchCachedSignals;
+export const calculateWeights = updateWeights;

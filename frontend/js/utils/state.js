@@ -4,6 +4,7 @@
 export const appState = {
     dataUploaded: false,
     dataProcessed: false,
+    multiAssetUploaded: false,
     availableIndicators: [],
     selectedStrategy: 'trend_following',
     strategyParameters: {},
@@ -17,6 +18,18 @@ export const appState = {
         startDate: '',
         endDate: ''
     },
+    // Screening configuration state
+    screeningConfig: {
+        goalSeekMetric: 'sharpe_ratio',
+        customWeights: {
+            sharpe_ratio: 0.4,
+            total_return: 0.3,
+            max_drawdown: 0.2,
+            win_rate: 0.1
+        },
+        lookbackPeriod: '1 Year',
+        includeMlSignals: false  // Default to false for ML signals
+    },
     
     // Methods to update state
     setDataUploaded(value) {
@@ -27,6 +40,11 @@ export const appState = {
     setDataProcessed(value) {
         this.dataProcessed = value;
         sessionStorage.setItem('dataProcessed', value);
+    },
+    
+    setMultiAssetUploaded(value) {
+        this.multiAssetUploaded = value;
+        sessionStorage.setItem('multiAssetUploaded', value);
     },
     
     setAvailableIndicators(indicators) {
@@ -95,6 +113,21 @@ export const appState = {
         console.log(`Date range set to: ${startDate} - ${endDate}`);
     },
     
+    setScreeningConfig(config) {
+        this.screeningConfig = {
+            ...this.screeningConfig,
+            ...config
+        };
+        sessionStorage.setItem('screeningConfig', JSON.stringify(this.screeningConfig));
+        console.log('Updated screening configuration:', this.screeningConfig);
+    },
+    
+    setIncludeMlSignals(value) {
+        this.screeningConfig.includeMlSignals = value;
+        sessionStorage.setItem('screeningConfig', JSON.stringify(this.screeningConfig));
+        console.log(`ML signals ${value ? 'enabled' : 'disabled'}`);
+    },
+    
     // Load state from session storage
     loadFromSessionStorage() {
         if (sessionStorage.getItem('dataUploaded')) {
@@ -103,6 +136,10 @@ export const appState = {
         
         if (sessionStorage.getItem('dataProcessed')) {
             this.dataProcessed = sessionStorage.getItem('dataProcessed') === 'true';
+        }
+        
+        if (sessionStorage.getItem('multiAssetUploaded')) {
+            this.multiAssetUploaded = sessionStorage.getItem('multiAssetUploaded') === 'true';
         }
         
         if (sessionStorage.getItem('selectedStrategy')) {
@@ -145,12 +182,22 @@ export const appState = {
                 endDate: sessionStorage.getItem('dateRangeEnd')
             };
         }
+        
+        if (sessionStorage.getItem('screeningConfig')) {
+            try {
+                this.screeningConfig = JSON.parse(sessionStorage.getItem('screeningConfig'));
+                console.log('Loaded screening config from session storage:', this.screeningConfig);
+            } catch (e) {
+                console.warn('Failed to parse saved screening config:', e);
+            }
+        }
     },
     
     // Clear all state
     clearState() {
         this.dataUploaded = false;
         this.dataProcessed = false;
+        this.multiAssetUploaded = false;
         this.availableIndicators = [];
         this.selectedStrategy = 'trend_following';
         this.strategyParameters = {};
@@ -163,6 +210,17 @@ export const appState = {
             startDate: '',
             endDate: ''
         };
+        this.screeningConfig = {
+            goalSeekMetric: 'sharpe_ratio',
+            customWeights: {
+                sharpe_ratio: 0.4,
+                total_return: 0.3,
+                max_drawdown: 0.2,
+                win_rate: 0.1
+            },
+            lookbackPeriod: '1 Year',
+            includeMlSignals: false  // Default to false for ML signals
+        };
         
         // Clear intervals
         if (this.optimizationStatusInterval) {
@@ -173,6 +231,7 @@ export const appState = {
         // Clear session storage
         sessionStorage.removeItem('dataUploaded');
         sessionStorage.removeItem('dataProcessed');
+        sessionStorage.removeItem('multiAssetUploaded');
         sessionStorage.removeItem('selectedStrategy');
         sessionStorage.removeItem('strategyParameters');
         sessionStorage.removeItem('currentOptimizationStrategy');
@@ -181,6 +240,7 @@ export const appState = {
         sessionStorage.removeItem('activeTab');
         sessionStorage.removeItem('dateRangeStart');
         sessionStorage.removeItem('dateRangeEnd');
+        sessionStorage.removeItem('screeningConfig');
     }
 };
 

@@ -114,6 +114,73 @@ class StrategyAdapter:
         
         return df
     
+    def generate_signals(self, data):
+        """
+        Generate signals using the strategy function.
+        This method wraps the strategy_func to handle errors and ensure consistency.
+        
+        Args:
+            data: DataFrame with price/volume data
+            
+        Returns:
+            DataFrame with signals added
+        """
+        try:
+            # Make a copy of the data to avoid modifying the original
+            df = data.copy()
+            
+            # Ensure essential columns exist
+            required_cols = ['open', 'high', 'low', 'close', 'volume']
+            missing_cols = [col for col in required_cols if col not in df.columns]
+            
+            if missing_cols:
+                # For missing price columns, fill with close or with a default value
+                for col in missing_cols:
+                    if col in ['open', 'high', 'low'] and 'close' in df.columns:
+                        df[col] = df['close']
+                    elif col == 'volume':
+                        df[col] = 1000.0  # Default volume
+                    else:
+                        df[col] = 100.0  # Default price
+            
+            # Call the strategy function with parameters
+            result = self.strategy_func(df, **self.parameters)
+            
+            # Ensure 'signal' column exists and is normalized
+            if 'signal' not in result.columns:
+                # If there's a position column, derive signal from it
+                if 'position' in result.columns:
+                    # Create a signal column based on position changes
+                    result['signal'] = 'hold'
+                    # Buy when position changes from 0 to 1
+                    result.loc[(result['position'] == 1) & (result['position'].shift(1) == 0), 'signal'] = 'buy'
+                    # Sell when position changes from 1 to 0
+                    result.loc[(result['position'] == 0) & (result['position'].shift(1) == 1), 'signal'] = 'sell'
+                else:
+                    # No signal or position information, default to 'hold'
+                    result['signal'] = 'hold'
+            
+            # Normalize signals
+            # Convert numeric or string values to standard 'buy', 'sell', 'hold'
+            result['signal'] = result['signal'].apply(lambda x: 
+                'buy' if x in [1, '1', 'buy', 'Buy', 'BUY'] else
+                'sell' if x in [-1, '-1', 'sell', 'Sell', 'SELL'] else
+                'hold'
+            )
+            
+            return result
+            
+        except Exception as e:
+            # On error, return the original data with a 'hold' signal and log the error
+            print(f"Error in {self.name} strategy: {str(e)}")
+            
+            # Create a result DataFrame with a 'hold' signal
+            result = data.copy()
+            result['signal'] = 'hold'
+            result['error'] = str(e)
+            
+            return result
+    
     def _sanitize_float(self, value):
         """
         Sanitize float values to ensure they are JSON-compatible
@@ -324,28 +391,63 @@ def create_strategy(strategy_type, **parameters):
     Returns:
         Strategy: An instance of the requested strategy.
     """
-    # First check if it's one of the new modular strategies
-    if strategy_type in STRATEGY_REGISTRY:
-        # Use the default parameters and update with the provided parameters
-        all_params = get_default_parameters(strategy_type).copy()
-        all_params.update(parameters)
+    try:
+        # First check if it's one of the new modular strategies
+        if strategy_type in STRATEGY_REGISTRY:
+            # Use the default parameters and update with the provided parameters
+            all_params = get_default_parameters(strategy_type).copy()
+            all_params.update(parameters)
+            
+            # Create a strategy adapter that wraps the function
+            return StrategyAdapter(
+                name=strategy_type,
+                strategy_func=STRATEGY_REGISTRY[strategy_type],
+                parameters=all_params
+            )
         
-        # Create a strategy adapter that wraps the function
-        return StrategyAdapter(
-            name=strategy_type,
-            strategy_func=STRATEGY_REGISTRY[strategy_type],
-            parameters=all_params
-        )
+        # Otherwise use the legacy strategy classes
+        if strategy_type == 'trend_following':
+            return TrendFollowingStrategy.from_parameters(parameters)
+        elif strategy_type == 'mean_reversion':
+            return MeanReversionStrategy.from_parameters(parameters)
+        elif strategy_type == 'breakout':
+            return BreakoutStrategy.from_parameters(parameters)
+        else:
+            # Check if we need to normalize strategy name (handle case where _ may be missing)
+            normalized_strategy_type = strategy_type.replace(' ', '_').lower()
+            if normalized_strategy_type in STRATEGY_REGISTRY:
+                # Use the default parameters and update with the provided parameters
+                all_params = get_default_parameters(normalized_strategy_type).copy()
+                all_params.update(parameters)
+                
+                # Create a strategy adapter that wraps the function
+                return StrategyAdapter(
+                    name=normalized_strategy_type,
+                    strategy_func=STRATEGY_REGISTRY[normalized_strategy_type],
+                    parameters=all_params
+                )
+            
+            # If we still can't find the strategy, create a fallback strategy
+            print(f"WARNING: Unknown strategy type: {strategy_type}. Creating fallback strategy.")
+            return _create_fallback_strategy(strategy_type)
+    except Exception as e:
+        # Log the error and create a fallback strategy
+        print(f"ERROR creating strategy {strategy_type}: {str(e)}")
+        return _create_fallback_strategy(strategy_type)
+
+def _create_fallback_strategy(strategy_type):
+    """Create a fallback strategy that always returns 'hold' signals"""
+    def fallback_strategy(df, **params):
+        result = df.copy()
+        result['signal'] = 'hold'
+        result['error'] = f"Strategy '{strategy_type}' not implemented or failed to initialize"
+        return result
     
-    # Otherwise use the legacy strategy classes
-    if strategy_type == 'trend_following':
-        return TrendFollowingStrategy.from_parameters(parameters)
-    elif strategy_type == 'mean_reversion':
-        return MeanReversionStrategy.from_parameters(parameters)
-    elif strategy_type == 'breakout':
-        return BreakoutStrategy.from_parameters(parameters)
-    else:
-        raise ValueError(f"Unknown strategy type: {strategy_type}")
+    return StrategyAdapter(
+        name=f"{strategy_type}_fallback",
+        strategy_func=fallback_strategy,
+        parameters={"note": "This is a fallback strategy because the original strategy failed"}
+    )
 
 # Function to get default parameters for each strategy type
 def get_default_parameters(strategy_type):

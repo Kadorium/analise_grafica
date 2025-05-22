@@ -11,6 +11,9 @@ The AI-Powered Trading Analysis System is a modular trading analysis platform bu
 - Data processing (CSV uploads with historical stock data)
 - Technical indicator implementation (Moving Averages, RSI, MACD, Bollinger Bands)
 - Trading strategy execution (Trend Following, Mean Reversion, Breakout)
+- Machine Learning signal generation (Logistic Regression models per asset)
+- Multi-Asset Signal Screener (~1,000 assets daily processing)
+- Performance-based signal weighting with goal-seek optimization
 - Backtesting against historical data
 - Parameter optimization for strategies
 - Results visualization and export (PDF/Excel)
@@ -51,7 +54,12 @@ indicators/              # Technical indicators implementation
 └── indicator_utils.py   # Contains indicator combination logic and utility functions for indicator processing. Includes `normalize_signals_column(df)` utility to standardize signal columns in strategies.
 optimization/            # Strategy optimization modules
 strategies/              # Trading strategy implementations
+signals/                 # Signal generation and ML processing
+├── signal_generator.py  # Rule-based signal generation
+├── ml_signal_generator.py # Machine learning signal generation with logistic regression
+└── weighting_engine.py  # Performance-based signal weighting and goal-seek optimization
 frontend/                # UI files
+└── js/modules/screenerPanel.js # Multi-asset screener with ML toggle and weighted signals
 ```
 
 ## Module Interaction Guidelines for LLMs
@@ -146,6 +154,70 @@ async def run_strategy(request: dict):
     }
 ```
 
+### 5. ML Signal Generation Pattern
+
+```python
+# ML signal generator implementation pattern
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+
+def generate_ml_signals_for_asset(asset_data, asset_name):
+    """
+    Generate ML signals for a single asset using logistic regression
+    
+    Args:
+        asset_data (pd.DataFrame): Price and indicator data for the asset
+        asset_name (str): Name of the asset
+        
+    Returns:
+        dict: Signal result with accuracy and latest signal
+    """
+    # Feature engineering
+    features = create_ml_features(asset_data)
+    
+    # Create target variable (future returns)
+    target = create_target_variable(asset_data)
+    
+    # Train-test split (70/30 with time-based split)
+    X_train, X_test, y_train, y_test = train_test_split(
+        features, target, test_size=0.3, shuffle=False
+    )
+    
+    # Train model
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_test_scaled = scaler.transform(X_test)
+    
+    model = LogisticRegression()
+    model.fit(X_train_scaled, y_train)
+    
+    # Calculate accuracy
+    accuracy = model.score(X_test_scaled, y_test)
+    
+    # Generate latest signal
+    latest_features = features.iloc[-1:].values
+    latest_scaled = scaler.transform(latest_features)
+    signal_proba = model.predict_proba(latest_scaled)[0]
+    
+    # Convert probabilities to buy/sell/hold signals
+    if signal_proba[1] > 0.6:  # High confidence buy
+        signal = 'buy'
+    elif signal_proba[0] > 0.6:  # High confidence sell  
+        signal = 'sell'
+    else:
+        signal = 'hold'
+    
+    return {
+        'asset': asset_name,
+        'strategy': 'LogisticRegression',
+        'parameters': 'ML',
+        'signal': signal,
+        'accuracy': accuracy,
+        'date': asset_data.index[-1]
+    }
+```
+
 ## Development Guidelines for LLMs
 
 ### Code Structure
@@ -183,6 +255,19 @@ When implementing technical indicators:
 3. Handle edge cases (insufficient data points, NaN values)
 4. Optimize for performance with vectorized operations
 
+### ML Signal Development
+
+When implementing machine learning signal generators:
+
+1. Use the `signals/ml_signal_generator.py` pattern for consistent implementation
+2. Include feature engineering with lagged returns and technical indicators
+3. Implement proper train-test splitting with time-aware splits (no future leakage)
+4. Calculate and store out-of-sample accuracy for weighting purposes
+5. Handle insufficient data gracefully with appropriate error logging
+6. Use parallel processing for scalability with large asset counts
+7. Cache models and signals appropriately for performance
+8. Integrate with the weighting engine for performance-based signal weighting
+
 ### 📖 LLM Documentation Update Workflow
 
 Whenever you modify, extend, or create any file or folder in a module or directory, you MUST:
@@ -197,6 +282,7 @@ Whenever you modify, extend, or create any file or folder in a module or directo
 - `optimization/readme_be_optimization.md`
 - `comparison/readme_be_comparison.md`
 - `strategies/readme_be_strategies.md`
+- `signals/readme_be_signals.md`
 - `frontend/README_frontend.md`
 
 **When asked to "read the readmeLLM.md and readme.md", you should also check for and, if relevant, read the appropriate module-level documentation file(s) for the user's query.**

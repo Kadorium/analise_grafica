@@ -2,7 +2,7 @@
 
 // Import dependencies
 import { uploadData, processData, fetchDataStatus, arrangeData, uploadMultiAssetData } from '../utils/api.js';
-import { showError, showLoading, showSuccessMessage, showGlobalLoader, hideGlobalLoader } from '../utils/ui.js';
+import { showError, showLoading, showSuccessMessage, showGlobalLoader, hideGlobalLoader, hideLoading } from '../utils/ui.js';
 import { formatDate } from '../utils/formatters.js';
 import { appState } from '../utils/state.js';
 
@@ -199,32 +199,34 @@ export function updateMultiAssetDataPreview(data) {
         const firstAsset = data.assets[0];
         assetSelector.value = firstAsset;
         updateSelectedAssetPreview(data.previews[firstAsset]);
-    }
-    
-    // Update multi-data info
-    if (multiDataInfo) {
-        let infoHtml = '';
         
-        if (data.assets) {
-            infoHtml += `<p><strong>Number of Assets:</strong> ${data.assets.length}</p>`;
-            infoHtml += `<p><strong>Assets:</strong> ${data.assets.join(', ')}</p>`;
-        }
+        // Enable the screener tab now that we have multi-asset data
+        appState.setMultiAssetUploaded(true);
         
-        if (data.date_range) {
-            infoHtml += `<p><strong>Overall Date Range:</strong> ${data.date_range.start} to ${data.date_range.end}</p>`;
-        }
-        
-        multiDataInfo.innerHTML = infoHtml ? 
-            `<div class="card mb-3"><div class="card-body"><h5 class="card-title">Multi-Asset Summary</h5>${infoHtml}</div></div>` : 
-            '';
-    }
-    
-    // Add success message
-    if (data.success || data.message) {
-        const message = data.message || 'Multi-asset data processed successfully';
+        // Create a data summary in multiDataInfo
         if (multiDataInfo) {
-            multiDataInfo.innerHTML += `<div class="alert alert-success mt-2">${message}</div>`;
+            let infoHtml = `
+                <div class="alert alert-success">
+                    <strong>Multi-Asset Data Loaded:</strong> ${data.assets.length} assets
+                </div>
+                <p><strong>Date Range:</strong> ${data.date_range.start} to ${data.date_range.end}</p>
+            `;
+            multiDataInfo.innerHTML = infoHtml;
         }
+        
+        // Dispatch an event to notify other components that multi-asset data is available
+        document.dispatchEvent(new CustomEvent('multi-asset-data-uploaded', { detail: { assetCount: data.assets.length } }));
+        
+        // Show a success message
+        const message = data.message || 'Multi-asset data processed successfully';
+        showSuccessMessage(message);
+    } else {
+        if (multiDataInfo) {
+            multiDataInfo.innerHTML = '<div class="alert alert-warning">No assets found in the uploaded file.</div>';
+        }
+        
+        // Clear the preview
+        multiDataPreview.innerHTML = '';
     }
 }
 
@@ -319,211 +321,154 @@ export async function checkDataStatus() {
     }
 }
 
-// Initialize data controls and event listeners
+// Initialize the data manager
 export function initializeDataManager() {
+    console.log('Initializing Data Manager');
+    
     // Check data status on init
     checkDataStatus();
     
-    // Attach form submit event for single asset upload
+    // Initialize upload form
     if (uploadForm) {
-        uploadForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        uploadForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
             
             console.log('Upload form submitted');
+            showLoading('Processing data...');
+            
+            const file = csvFileInput.files[0];
             const formData = new FormData();
-            let fileNameForLog = "default_file.csv"; // Default file logging
-
-            if (csvFileInput && csvFileInput.files.length > 0) {
-                const file = csvFileInput.files[0];
+            
+            if (file) {
                 formData.append('file', file);
-                fileNameForLog = file.name;
-                console.log('Uploading selected file:', fileNameForLog);
-            } else {
-                // No file selected - append empty string to ensure proper multipart structure
-                // The backend will use the default file
-                formData.append('file', '');
-                console.log('No file selected, using default file on server');
             }
             
-            // Show loading state
-            if (uploadProcessBtn) uploadProcessBtn.disabled = true;
-            if (dataPreview) showLoading(dataPreview);
-            
             try {
-                // --- UPLOAD PHASE ---
-                console.log('Starting upload phase');
+                // Upload the data
                 const uploadResponse = await uploadData(formData);
-                console.log('Upload response:', uploadResponse);
                 
-                if (uploadResponse && (uploadResponse.success || uploadResponse.data_sample || uploadResponse.preview)) {
-                    updateDataPreview(uploadResponse);
-                    
-                    // Set flag indicating data was uploaded
-                    appState.setDataUploaded(true);
-                    
-                    // --- PROCESS PHASE ---
-                    console.log('Starting process phase');
-                    const processResponse = await processData();
-                    console.log('Process response:', processResponse);
-                    
-                    if (processResponse && (processResponse.success !== false)) {
-                        // Update UI with processing results
-                        updateDataPreview(processResponse);
-                        
-                        // Set flag indicating data was processed
-                        appState.setDataProcessed(true);
-                        
-                        // Enable all tabs
-                        document.querySelectorAll('.nav-link').forEach(tab => {
-                            if (tab && tab.id !== 'data-tab') {
-                                tab.classList.remove('disabled');
-                            }
-                        });
-                        
-                        // Fire event for other components to react
-                        const event = new CustomEvent('data-processed');
-                        document.dispatchEvent(event);
-                        
-                        // Show success message
-                        showSuccessMessage('Data uploaded and processed successfully!');
-                    } else {
-                        // Handle processing error
-                        const errorMessage = processResponse && processResponse.message 
-                            ? processResponse.message 
-                            : 'Failed to process data. Please check the file format.';
-                        
-                        showError(errorMessage);
-                    }
-                } else {
-                    // Handle upload error
-                    const errorMessage = uploadResponse && uploadResponse.message 
-                        ? uploadResponse.message 
-                        : 'Failed to upload file. Please try again.';
-                    
-                    showError(errorMessage);
+                if (!uploadResponse.success && uploadResponse.message) {
+                    showError(uploadResponse.message);
+                    hideLoading(); // Hide loading indicator on error
+                    return;
                 }
+                
+                // Update state
+                appState.setDataUploaded(true);
+                
+                // Update preview with upload response
+                updateDataPreview(uploadResponse);
+                
+                // Now process the data
+                const processResponse = await processData();
+                
+                if (!processResponse.success && processResponse.message) {
+                    showError(processResponse.message);
+                    hideLoading(); // Hide loading indicator on error
+                    return;
+                }
+                
+                // Update state
+                appState.setDataProcessed(true);
+                
+                // Update preview with processed data
+                updateDataPreview(processResponse);
+                
+                // Dispatch event to notify other components
+                const event = new CustomEvent('data-processed', { detail: processResponse });
+                document.dispatchEvent(event);
+                
+                // Hide loading indicator
+                hideLoading();
+                
+                // Show success
+                showSuccessMessage('Data processed successfully');
             } catch (error) {
-                console.error('Error in data upload/process:', error);
-                showError('An error occurred: ' + (error.message || 'Unknown error'));
-            } finally {
-                // Re-enable button
-                if (uploadProcessBtn) uploadProcessBtn.disabled = false;
+                console.error('Error handling data upload:', error);
+                showError(`Error processing data: ${error.message}`);
+                hideLoading(); // Hide loading indicator on error
             }
         });
     }
     
-    // Attach form submit event for multi-asset upload
-    if (multiUploadForm) {
-        multiUploadForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            console.log('Multi-asset upload form submitted');
-            const formData = new FormData();
-            let fileNameForLog = "test multidata.xlsx"; // Default file name
-            
-            if (excelFileInput && excelFileInput.files.length > 0) {
-                const file = excelFileInput.files[0];
-                formData.append('file', file);
-                fileNameForLog = file.name;
-                console.log('Uploading selected file:', fileNameForLog);
-            } else {
-                // No file selected - append empty string to ensure proper multipart structure
-                // The backend will use the default file
-                formData.append('file', '');
-                console.log('No file selected, using default multi-asset file on server');
-            }
-            
-            // Show loading state
-            if (multiUploadProcessBtn) multiUploadProcessBtn.disabled = true;
-            if (multiDataPreview) showLoading(multiDataPreview);
-            
-            try {
-                // Call the API to upload and process the multi-asset Excel file
-                console.log('Starting multi-asset upload and process');
-                const response = await uploadMultiAssetData(formData);
-                console.log('Multi-asset upload response:', response);
-                
-                if (response && response.success !== false) {
-                    // Update the multi-asset data preview
-                    updateMultiAssetDataPreview(response);
-                    
-                    // Show success message
-                    showSuccessMessage('Multi-asset data uploaded and processed successfully!');
-                    
-                    // Note: We don't set appState.setDataUploaded/Processed here
-                    // as that's still controlled by the single asset flow
-                    // This keeps the multi-asset data separate from the main workflow
-                } else {
-                    // Handle error
-                    const errorMessage = response && response.message 
-                        ? response.message 
-                        : 'Failed to upload multi-asset file. Please check the file format.';
-                    
-                    showError(errorMessage);
-                }
-            } catch (error) {
-                console.error('Error in multi-asset data upload/process:', error);
-                showError('An error occurred: ' + (error.message || 'Unknown error'));
-            } finally {
-                // Re-enable button
-                if (multiUploadProcessBtn) multiUploadProcessBtn.disabled = false;
-            }
-        });
-    }
-    
-    // Attach arrange data button event
+    // Initialize arrange button
     if (arrangeBtn) {
-        arrangeBtn.addEventListener('click', async () => {
-            if (!csvFileInput || !csvFileInput.files.length) {
-                showError('Please select a file to arrange');
+        arrangeBtn.addEventListener('click', async function() {
+            if (!csvFileInput.files[0]) {
+                showError('Please select a file to arrange.');
                 return;
             }
+            
+            showLoading('Arranging data...');
             
             const file = csvFileInput.files[0];
             const formData = new FormData();
             formData.append('file', file);
             
-            // Show loading state
-            arrangeBtn.disabled = true;
-            showGlobalLoader('Arranging data...');
-            
             try {
                 const response = await arrangeData(formData);
-                console.log('Arrange response:', response);
                 
-                if (response && (response.success !== false)) {
-                    // Update UI with arranged results
-                    updateDataPreview(response);
-                    showSuccessMessage('Data arranged successfully!');
-                    
-                    // Set flags for data state
-                    appState.setDataUploaded(true);
-                    appState.setDataProcessed(true);
-                    
-                    // Enable all tabs
-                    document.querySelectorAll('.nav-link').forEach(tab => {
-                        if (tab && tab.id !== 'data-tab') {
-                            tab.classList.remove('disabled');
-                        }
-                    });
-                    
-                    // Fire event for other components to react
-                    const event = new CustomEvent('data-processed');
-                    document.dispatchEvent(event);
-                } else {
-                    const errorMessage = response && response.message 
-                        ? response.message 
-                        : 'Failed to arrange data. Please check the file format.';
-                    
-                    showError(errorMessage);
+                if (response.success === false) {
+                    showError(response.message);
+                    hideLoading(); // Hide loading indicator on error
+                    return;
                 }
+                
+                // Update state
+                appState.setDataUploaded(true);
+                appState.setDataProcessed(true);
+                
+                // Update preview
+                updateDataPreview(response);
+                
+                // Hide loading indicator
+                hideLoading();
+                
+                // Show success
+                showSuccessMessage('Data arranged successfully');
             } catch (error) {
-                console.error('Error in data arrange:', error);
-                showError('An error occurred: ' + (error.message || 'Unknown error'));
-            } finally {
-                // Re-enable button and hide loader
-                arrangeBtn.disabled = false;
-                hideGlobalLoader();
+                console.error('Error arranging data:', error);
+                showError(`Error arranging data: ${error.message}`);
+                hideLoading(); // Hide loading indicator on error
+            }
+        });
+    }
+    
+    // Initialize multi-asset upload form
+    if (multiUploadForm) {
+        multiUploadForm.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            
+            console.log('Multi-asset upload form submitted');
+            showLoading('Processing multi-asset data...');
+            
+            const file = excelFileInput.files[0];
+            const formData = new FormData();
+            
+            if (file) {
+                formData.append('file', file);
+            }
+            
+            try {
+                // Upload the multi-asset data
+                const response = await uploadMultiAssetData(formData);
+                
+                if (!response.success && response.message) {
+                    showError(response.message);
+                    hideLoading(); // Hide loading indicator on error
+                    return;
+                }
+                
+                // Update the multi-asset preview
+                updateMultiAssetDataPreview(response);
+                
+                // Hide loading indicator
+                hideLoading();
+                
+            } catch (error) {
+                console.error('Error handling multi-asset data upload:', error);
+                showError(`Error processing multi-asset data: ${error.message}`);
+                hideLoading(); // Hide loading indicator on error
             }
         });
     }

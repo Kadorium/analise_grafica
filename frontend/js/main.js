@@ -14,6 +14,7 @@ import { initializeSeasonalityAnalyzer } from './modules/seasonalityAnalyzer.js'
 import { initializeResultsViewer } from './modules/resultsViewer.js';
 import { initializeConfigManager, fetchCurrentConfig } from './modules/configManager.js';
 import { initializeStrategyComparison } from './modules/strategyComparison.js';
+import { initializeScreenerPanel } from './modules/screenerPanel.js';
 
 // DOM references for tabs and sections
 const tabLinks = document.querySelectorAll('.nav-link');
@@ -23,6 +24,7 @@ const strategiesTab = document.getElementById('strategies-tab');
 // const backtestTab = document.getElementById('backtest-tab'); // Removed as it's merged
 const optimizationTab = document.getElementById('optimization-tab');
 const seasonalityTab = document.getElementById('seasonality-tab');
+const screenerTab = document.getElementById('screener-tab');
 const resultsTab = document.getElementById('results-tab');
 const configTab = document.getElementById('config-tab');
 
@@ -133,6 +135,20 @@ function canActivateTab(targetTab) {
         return true;
     }
     
+    // Special handling for screener tab - needs multi-asset data
+    if (targetTab === '#screener-section') {
+        if (!appState.multiAssetUploaded) {
+            showError('Please upload a multi-sheet Excel file in the Data tab before accessing the Screener.');
+            
+            // Navigate back to data tab
+            const dataTabLink = document.getElementById('data-tab');
+            if (dataTabLink) setTimeout(() => dataTabLink.click(), 100);
+            
+            return false;
+        }
+        return true;
+    }
+    
     // For other tabs, check if data is uploaded and processed
     if (!appState.dataUploaded || !appState.dataProcessed) {
         const errorMessage = !appState.dataUploaded ? 
@@ -205,6 +221,9 @@ export function initializeApp() {
     
     // Initialize config manager
     initializeConfigManager();
+    
+    // Initialize screener panel
+    initializeScreenerPanel();
     
     // Add event listener for data upload
     document.addEventListener('data-uploaded', () => {

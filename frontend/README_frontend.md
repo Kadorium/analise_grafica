@@ -99,6 +99,40 @@ The system employs a classic client-server architecture where the browser (clien
 
 ### 5. `frontend/js/modules/indicatorPanel.js`: Handles all indicator form logic, including select all/group checkboxes, collapsible groups, and indicator state management.
 
+### 6. `frontend/js/modules/screenerPanel.js`: Manages the Multi-Asset Signal Screener, including signal generation, weighting configuration, and results display
+
+- **Screener Panel with Weighting Engine (2024-06-10)**:
+  - The screener panel now includes:
+    - A strategy selection interface where users can select one or more strategies to generate signals across all assets.
+    - A weight configuration panel allowing users to:
+      - Select a goal-seek metric (Sharpe Ratio, Total Return, Max Drawdown, Win Rate, or Custom) for asset weighting.
+      - Configure custom weights via sliders (for Custom metric selection only) with automatic normalization to sum to 1.
+      - Select a lookback period (1 Year, 3 Years, 5 Years) for backtest-based weight calculations.
+    - Results display with signal summary, chart visualization, and paginated signal details table.
+  - The implementation integrates with the backend's `/api/update-weights` endpoint to calculate performance-based weights for each asset-strategy pair.
+  - State management for weight configuration is handled via `appState.screeningConfig`.
+  - These features enable users to:
+    - Screen large numbers of assets (up to 1,000+) quickly
+    - Assign weights based on backtest performance metrics
+    - Customize weighting criteria to match their investment goals
+    - Visualize signal distribution across all assets
+
+- **Enhanced Screener with Performance Metrics (2024-06-11)**:
+  - The signal details table now displays comprehensive metrics for each asset-strategy pair:
+    - Weight: Asset weight based on the selected goal-seek metric (normalized to sum to 1 per asset)
+    - Total Return: Historical total return for the asset-strategy pair
+    - Sharpe Ratio: Risk-adjusted return metric
+    - Max Drawdown: Maximum historical loss from peak to trough
+    - Win Rate: Percentage of profitable trades
+    - Number of Trades: Total number of trades executed
+  - Metrics are color-coded for quick performance assessment (green = good, yellow = neutral, red = poor)
+  - The implementation seamlessly integrates with the backend by:
+    - First generating signals across all assets
+    - Then calculating performance-based weights using the selected goal-seek metric
+    - Merging weights and metrics data with signals for combined display
+    - Using a cached system for efficient retrieval and scalability with large datasets
+  - The enhanced UI provides a complete asset screening and performance analysis tool in a single interface
+
 ---
 
 ## UI Structure & Navigation
@@ -366,4 +400,107 @@ All new or updated logic must be implemented in the files and modules described 
 - **For troubleshooting:** Make extensive use of browser developer tools (Console, Network tab, Sources tab) and the `AppLogger`.
 - **For accessibility:** Continuously strive to make the UI accessible. Test with keyboard navigation and, if possible, screen readers, especially after adding new interactive elements or forms.
 
---- 
+---
+
+# Frontend Documentation for Trading Analysis System
+
+## Overview
+The frontend of the Trading Analysis System provides an interactive interface for users to upload, analyze, and visualize financial data. It supports various technical analysis tools, backtesting of trading strategies, optimization of parameters, and multi-asset signal screening.
+
+## Key Components
+
+### Data Manager
+- Single asset data upload and processing
+- Multi-asset data upload via Excel files (multiple sheets)
+- Data preview and visualization
+
+### Indicators Panel
+- Configuration of technical indicators (Moving Averages, RSI, MACD, etc.)
+- Visualization of indicators on charts
+- Summary of indicator signals
+
+### Strategy & Backtest
+- Selection of trading strategies
+- Configuration of strategy parameters
+- Backtesting with historical data
+- Performance metrics visualization
+
+### Optimization
+- Parameter optimization for strategies
+- Grid search with custom ranges
+- Performance visualization of optimized parameters
+
+### Seasonality Analyzer
+- Analysis of seasonal patterns (day of week, monthly)
+- Volatility and heatmap analysis
+- Visualization of seasonal effects
+
+### Multi-Asset Signal Screener
+- Generate trading signals across multiple assets simultaneously
+- Filter and sort assets based on signals
+- Summary view with signal counts and distributions
+- Detailed view with pagination for large datasets
+
+## Screener Module
+
+The Screener module provides a user interface for analyzing trading signals across multiple assets. It allows users to:
+
+1. **Select Strategies**: Users can choose one or more trading strategies to apply to all assets.
+2. **Configure Signal Weighting**: Users can enable/disable weighted signals that adjust signal strength based on performance metrics.
+3. **Generate Signals**: The system processes all assets with the selected strategies to produce buy/sell/hold signals.
+4. **View Summary**: A summary shows the distribution of signals (buy/sell/hold) with counts and percentages.
+5. **Visual Analysis**: A chart displays the distribution of signals visually (weighted or raw).
+6. **Detailed Results**: A paginated table shows detailed signal information for each asset and strategy, including both raw signals and weighted signal scores.
+
+### Implementation Details
+
+- **State Management**: The screener maintains its own state including strategies, signals, pagination info, and weighting preferences.
+- **Signal Weighting Toggle**: Users can enable/disable weighted signals with a toggle switch in the configuration panel.
+- **Weighted Signal Display**: The signal table shows both raw signals (Buy/Sell/Hold) and weighted signal scores (-1.0 to +1.0).
+- **Weighted Chart Visualization**: When weighted signals are enabled, the chart shows signal distribution based on weighted score thresholds.
+- **Mock Data Support**: For testing purposes, the module can generate mock signals if backend integration is not complete.
+- **Pagination**: Support for handling large datasets with configurable page size (default 50 rows per page).
+- **Responsive Design**: The UI adapts to different screen sizes with appropriate styling.
+
+### Weighted Signal Logic
+
+When weighted signals are enabled:
+
+1. The system calculates performance-based weights for each asset-strategy pair through the `POST /api/update-weights` endpoint.
+2. Raw signals (Buy/Sell/Hold) are converted to numeric values (+1.0, -1.0, 0.0).
+3. Each signal is weighted by multiplying its numeric value by the asset-strategy weight.
+4. Weighted signal scores are used to categorize signals for the chart visualization:
+   - Scores > 0.5: Considered strong Buy signals
+   - Scores < -0.5: Considered strong Sell signals
+   - Scores between -0.5 and 0.5: Considered Hold signals
+
+### Usage
+
+The Screener tab becomes available once multi-asset data has been uploaded via the Data tab. To use:
+
+1. Upload a multi-sheet Excel file in the Data tab (each sheet represents an asset).
+2. Navigate to the Screener tab.
+3. Select one or more strategies.
+4. Configure weighting options (optional):
+   - Enable/disable weighted signals with the toggle
+   - Select a goal-seek metric (Sharpe Ratio, Total Return, etc.)
+   - Set custom weights if using the "Custom" metric
+   - Choose a lookback period for backtesting
+5. Click "Run Screener" to generate and display signals.
+6. View both raw and weighted signal information in the results table.
+
+### Technical Implementation
+
+The Screener functionality is implemented in the following files:
+- `screenerPanel.js`: Main module containing signal generation and display logic
+- `main.js`: Integration with the main application
+- `state.js`: State management for multi-asset data tracking
+- `api.js`: API endpoints for signal generation
+- `ui.js`: UI utilities for loading states and notifications
+
+## Dependencies
+
+- Bootstrap 5.3 for UI components
+- Chart.js for data visualization
+- Plotly for advanced charting
+- Moment.js for date handling 

@@ -9,7 +9,7 @@ export function showError(message) {
 }
 
 // Loading indicator
-export function showLoading(element) {
+export function showLoading(elementOrMessage) {
     const spinnerHtml = `
         <div class="spinner-container">
             <div class="spinner-border text-primary spinner" role="status">
@@ -17,7 +17,46 @@ export function showLoading(element) {
             </div>
         </div>
     `;
-    element.innerHTML = spinnerHtml;
+    
+    // Check if a string message was passed instead of a DOM element
+    if (typeof elementOrMessage === 'string') {
+        // Create or get a loading container
+        let loadingContainer = document.getElementById('global-loading-container');
+        if (!loadingContainer) {
+            loadingContainer = document.createElement('div');
+            loadingContainer.id = 'global-loading-container';
+            loadingContainer.className = 'alert alert-info d-flex align-items-center';
+            document.body.appendChild(loadingContainer);
+        }
+        
+        // Update the loading container with spinner and message
+        loadingContainer.innerHTML = `
+            <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div>${elementOrMessage}</div>
+        `;
+        loadingContainer.style.display = 'flex';
+    } else if (elementOrMessage && typeof elementOrMessage === 'object') {
+        // It's a DOM element, set its innerHTML
+        elementOrMessage.innerHTML = spinnerHtml;
+    } else {
+        console.error('showLoading requires either a DOM element or a message string');
+    }
+}
+
+// Hide loading indicator
+export function hideLoading(element) {
+    if (element && typeof element === 'object') {
+        // If a DOM element was passed
+        element.innerHTML = '';
+    } else {
+        // If no element or a string was passed, hide the global loading container
+        const loadingContainer = document.getElementById('global-loading-container');
+        if (loadingContainer) {
+            loadingContainer.style.display = 'none';
+        }
+    }
 }
 
 // Global loader

@@ -194,6 +194,15 @@ import config as cfg
 # Import the comparison module
 from comparison.routes import compare_strategies_endpoint, get_recent_comparisons_endpoint, ComparisonRequestModel
 
+# Import the signal generator components
+from signals.signal_generator import generate_signals_for_assets, load_cached_signals, get_latest_signals_file
+
+# Import the ML signal generator components
+from signals.ml_signal_generator import generate_ml_signals, load_latest_ml_signals
+
+# Import the weighting engine components
+from signals.weighting_engine import calculate_asset_weights, load_cached_weights, get_latest_weights_file
+
 # Global variables for other modules
 UPLOADED_DATA = None
 PROCESSED_DATA = None
@@ -361,6 +370,22 @@ class PlotConfig(BaseModel):
     title: str = "Price Chart with Indicators"
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+
+# Signal generation endpoint model
+class SignalGenerationRequest(BaseModel):
+    strategies: List[List[str]]  # List of [strategy_type, param_type] pairs
+    max_workers: Optional[int] = None
+    refresh_cache: Optional[bool] = False
+    weights_file: Optional[str] = None  # Path to weights file from POST /api/update-weights
+    include_ml: Optional[bool] = False  # Whether to include ML signals
+
+class WeightCalculationRequest(BaseModel):
+    strategies: List[List[str]]  # List of [strategy_type, param_type] pairs
+    goal_seek_metric: str = 'sharpe_ratio'  # 'total_return', 'sharpe_ratio', 'max_drawdown', 'win_rate', 'custom'
+    custom_weights: Optional[Dict[str, float]] = None
+    lookback_period: str = '1 Year'  # '1 Year', '3 Years', '5 Years'
+    max_workers: Optional[int] = None
+    refresh_cache: Optional[bool] = False
 
 @app.get("/")
 @endpoint_wrapper("GET /")
@@ -1449,6 +1474,587 @@ async def upload_multi_asset(file: Optional[UploadFile] = None):
                 "success": False, 
                 "message": f"Error processing multi-asset file: {str(e)}"
             }
+        )
+
+@app.post("/api/generate-signals")
+@endpoint_wrapper("POST /api/generate-signals")
+async def generate_signals(request: SignalGenerationRequest):
+    """
+    Generate trading signals for multiple assets using specified strategies.
+    
+    Args:
+        request: SignalGenerationRequest containing strategies to use and options
+        
+    Returns:
+        Dict containing results of signal generation
+    """
+    global MULTI_ASSET_DATA
+    
+    log_endpoint(f"POST /api/generate-signals - START", 
+                strategies_count=len(request.strategies),
+                refresh_cache=request.refresh_cache,
+                weights_file=request.weights_file,
+                include_ml=request.include_ml)
+    
+    # Check if we have multi-asset data loaded
+    if not MULTI_ASSET_DATA:
+        try:
+            # Try to load the default multi-asset file
+            default_file_path = os.path.join('data', 'test multidata.xlsx')
+            if not os.path.exists(default_file_path):
+                return JSONResponse(
+                    status_code=400,
+                    content={"success": False, "message": "No multi-asset data loaded and default file not found. Please upload multi-asset data first."}
+                )
+            
+            # Load the default multi-asset data
+            data_loader = DataLoader(default_file_path)
+            MULTI_ASSET_DATA = data_loader.load_multi_asset_excel()
+            log_endpoint(f"POST /api/generate-signals - LOADED DEFAULT DATA", 
+                         asset_count=len(MULTI_ASSET_DATA))
+            
+        except Exception as e:
+            error_msg = f"Error loading default multi-asset data: {str(e)}"
+            log_endpoint(f"POST /api/generate-signals - ERROR", error=error_msg)
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": error_msg}
+            )
+    
+    # Convert strategies format from the request
+    strategies = [(strategy[0], strategy[1]) for strategy in request.strategies]
+    
+    # Check if weights file is valid
+    weights_file = request.weights_file
+    if weights_file:
+        # Validate weights file
+        weights_dir = os.path.join('results', 'signals')
+        weights_path = os.path.join(weights_dir, weights_file)
+        
+        # Security check: ensure the requested file is within the signals directory
+        if not os.path.normpath(weights_path).startswith(os.path.normpath(weights_dir)):
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "Invalid weights file path"}
+            )
+        
+        # Check if the file exists
+        if not os.path.exists(weights_path):
+            log_endpoint(f"POST /api/generate-signals - WARNING", message=f"Weights file not found: {weights_file}")
+            weights_file = None
+        else:
+            log_endpoint(f"POST /api/generate-signals - USING WEIGHTS", weights_file=weights_file)
+    
+    # Check if we can use a cached result
+    if not request.refresh_cache:
+        latest_signals_file = get_latest_signals_file()
+        if latest_signals_file:
+            try:
+                # Check if the cached file is recent (< 24 hours old)
+                file_age_in_hours = (datetime.now() - datetime.fromtimestamp(os.path.getmtime(latest_signals_file))).total_seconds() / 3600
+                
+                if file_age_in_hours < 24:  # If less than 24 hours old
+                    cached_signals = load_cached_signals(latest_signals_file)
+                    if cached_signals is not None:
+                        # Check if cached signals contain exactly the same strategies as requested
+                        cached_strategies = cached_signals[['strategy', 'parameters']].drop_duplicates().values.tolist()
+                        cached_strategy_set = set((s[0], s[1]) for s in cached_strategies)
+                        requested_strategy_set = set(strategies)
+                        
+                        # Only use cache if the strategy sets match exactly
+                        strategies_match_exactly = cached_strategy_set == requested_strategy_set
+                        
+                        # Check if they have weighted signals if weights are requested
+                        has_weighted_signals = 'weighted_signal_score' in cached_signals.columns
+                        
+                        # Additional check: if weights are requested, verify the weights file matches
+                        weights_match = True
+                        if weights_file:
+                            # Check if the cached signals were generated with the same weights file
+                            # This is a simple check - in production you might want to compare file timestamps
+                            cached_weights_info = cached_signals.get('weights_file', [None])[0] if 'weights_file' in cached_signals.columns else None
+                            weights_match = (cached_weights_info is not None and has_weighted_signals)
+                        
+                        if strategies_match_exactly and (not weights_file or (weights_match and has_weighted_signals)):
+                            log_endpoint(f"POST /api/generate-signals - USING CACHE", 
+                                       file=latest_signals_file,
+                                       strategies_count=len(strategies),
+                                       cached_strategies_count=len(cached_strategies))
+                            return create_signal_response(cached_signals, latest_signals_file)
+                        else:
+                            log_endpoint(f"POST /api/generate-signals - CACHE INVALID", 
+                                       strategies_match=strategies_match_exactly,
+                                       weights_match=weights_match,
+                                       requested_strategies=strategies,
+                                       cached_strategies=cached_strategies)
+            except Exception as e:
+                logger.warning(f"Error checking cached signals: {str(e)}")
+                # Continue with generating new signals
+    
+    # Generate timestamp for the cache file
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+    # Ensure the signals directory exists
+    os.makedirs(os.path.join('results', 'signals'), exist_ok=True)
+    
+    # Create cache file path
+    cache_file = os.path.join('results', 'signals', f'signals_{timestamp}.parquet')
+    
+    # Generate signals
+    try:
+        # Generate rule-based signals
+        signals_df = generate_signals_for_assets(
+            MULTI_ASSET_DATA,
+            strategies,
+            max_workers=request.max_workers,
+            cache_file=cache_file,
+            weights_file=weights_file
+        )
+        
+        # Generate ML signals if requested
+        ml_signals_df = None
+        if request.include_ml:
+            log_endpoint(f"POST /api/generate-signals - GENERATING ML SIGNALS", 
+                        asset_count=len(MULTI_ASSET_DATA))
+            try:
+                ml_signals_df = generate_ml_signals(
+                    MULTI_ASSET_DATA,
+                    max_workers=request.max_workers,
+                    cache_models=True
+                )
+                
+                if ml_signals_df is not None and len(ml_signals_df) > 0:
+                    # Combine ML signals with rule-based signals
+                    signals_df = pd.concat([signals_df, ml_signals_df], ignore_index=True)
+                    
+                    log_endpoint(f"POST /api/generate-signals - ML SIGNALS ADDED", 
+                                ml_signals_count=len(ml_signals_df),
+                                total_signals_count=len(signals_df))
+                else:
+                    log_endpoint(f"POST /api/generate-signals - NO ML SIGNALS GENERATED")
+                    
+            except Exception as ml_error:
+                error_msg = f"Error generating ML signals: {str(ml_error)}"
+                log_endpoint(f"POST /api/generate-signals - ML ERROR", error=error_msg)
+                # Continue without ML signals
+        
+        log_endpoint(f"POST /api/generate-signals - COMPLETED", 
+                    signals_count=len(signals_df),
+                    cache_file=cache_file,
+                    with_weights=weights_file is not None,
+                    with_ml=request.include_ml)
+        
+        return create_signal_response(signals_df, cache_file, include_ml=request.include_ml)
+        
+    except Exception as e:
+        error_msg = f"Error generating signals: {str(e)}"
+        log_endpoint(f"POST /api/generate-signals - ERROR", error=error_msg)
+        
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": error_msg}
+        )
+
+def create_signal_response(signals_df: pd.DataFrame, cache_file: str, include_ml: bool = False) -> Dict:
+    """
+    Create a standardized response from signals DataFrame.
+    
+    Args:
+        signals_df: DataFrame containing signal information
+        cache_file: Path to the cached signals file
+        
+    Returns:
+        Dict with signal summary information
+    """
+    # Get signal counts
+    buy_signals = len(signals_df[signals_df['signal'] == 'buy'])
+    sell_signals = len(signals_df[signals_df['signal'] == 'sell'])
+    hold_signals = len(signals_df[signals_df['signal'] == 'hold'])
+    error_signals = len(signals_df[signals_df['signal'].isin(['error', 'insufficient_data', 'no_signal'])])
+    
+    # Get unique asset and strategy counts
+    asset_count = signals_df['asset'].nunique()
+    strategy_count = len(signals_df[['strategy', 'parameters']].drop_duplicates())
+    
+    # Get weighted signal counts if available
+    weighted_signal_info = {}
+    if 'weighted_signal_score' in signals_df.columns:
+        weighted_buy = len(signals_df[signals_df['weighted_signal_score'] > 0.5])
+        weighted_sell = len(signals_df[signals_df['weighted_signal_score'] < -0.5])
+        weighted_hold = len(signals_df[(signals_df['weighted_signal_score'] >= -0.5) & 
+                                        (signals_df['weighted_signal_score'] <= 0.5)])
+        weighted_signal_info = {
+            "weighted_buy_signals": weighted_buy,
+            "weighted_sell_signals": weighted_sell,
+            "weighted_hold_signals": weighted_hold,
+            "has_weights": True
+        }
+    
+    response = {
+        "success": True,
+        "signals_count": len(signals_df),
+        "buy_signals": buy_signals,
+        "sell_signals": sell_signals,
+        "hold_signals": hold_signals,
+        "errors": error_signals,
+        "asset_count": asset_count,
+        "strategy_count": strategy_count,
+        "timestamp": datetime.now().isoformat(),
+        "cached_file": cache_file,
+    }
+    
+    # Add weighted signal info if available
+    if weighted_signal_info:
+        response.update(weighted_signal_info)
+    
+    # Add ML signal info if available
+    if include_ml:
+        ml_signals = signals_df[signals_df['strategy'] == 'LogisticRegression']
+        ml_signals_count = len(ml_signals)
+        
+        if ml_signals_count > 0:
+            # Calculate ML-specific metrics
+            ml_buy_signals = len(ml_signals[ml_signals['signal'] == 'buy'])
+            ml_sell_signals = len(ml_signals[ml_signals['signal'] == 'sell'])
+            ml_hold_signals = len(ml_signals[ml_signals['signal'] == 'hold'])
+            
+            # Calculate average accuracy for successful models
+            successful_ml = ml_signals[ml_signals['accuracy'] > 0]
+            avg_accuracy = successful_ml['accuracy'].mean() if len(successful_ml) > 0 else 0.0
+            
+            response.update({
+                'ml_signals_count': ml_signals_count,
+                'ml_buy_signals': ml_buy_signals,
+                'ml_sell_signals': ml_sell_signals,
+                'ml_hold_signals': ml_hold_signals,
+                'ml_avg_accuracy': round(avg_accuracy, 3) if avg_accuracy > 0 else 0.0,
+                'has_ml_signals': True
+            })
+        else:
+            response.update({
+                'ml_signals_count': 0,
+                'ml_avg_accuracy': 0.0,
+                'has_ml_signals': False
+            })
+    
+    return response
+
+@app.get("/api/fetch-signals/{cache_file}")
+@endpoint_wrapper("GET /api/fetch-signals")
+async def fetch_signals(cache_file: str, request: Request):
+    """
+    Fetch signals from a cached file.
+    
+    Args:
+        cache_file: Name of the cached file (without path)
+        
+    Returns:
+        Dictionary with signals
+    """
+    try:
+        # Validate and clean the cache_file parameter
+        if '..' in cache_file or '/' in cache_file or '\\' in cache_file:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "Invalid cache file name"}
+            )
+        
+        # Construct the full path
+        cache_path = os.path.join('results', 'signals', cache_file)
+        
+        if not os.path.exists(cache_path):
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "message": f"Cache file not found: {cache_file}"}
+            )
+        
+        # Load the signals
+        signals_df = load_cached_signals(cache_path)
+        
+        if signals_df is None:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": f"Failed to load signals from {cache_file}"}
+            )
+        
+        # Convert dataframe to list of dictionaries, ensuring all values are JSON serializable
+        signals_list = []
+        for _, row in signals_df.iterrows():
+            # Convert row to dictionary
+            signal_dict = row.to_dict()
+            
+            # Ensure all values are JSON serializable
+            for key, value in signal_dict.items():
+                if isinstance(value, np.integer):
+                    signal_dict[key] = int(value)
+                elif isinstance(value, np.floating):
+                    signal_dict[key] = float(value)
+                elif isinstance(value, np.ndarray):
+                    signal_dict[key] = value.tolist()
+                elif pd.isna(value):
+                    signal_dict[key] = None
+                elif isinstance(value, pd.Timestamp):
+                    signal_dict[key] = value.strftime('%Y-%m-%d')
+            
+            signals_list.append(signal_dict)
+        
+        return {
+            "success": True,
+            "count": len(signals_list),
+            "signals": signals_list,
+            "timestamp": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        log_endpoint("GET /api/fetch-signals - ERROR", 
+                     error=str(e),
+                     traceback=error_trace)
+        
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Error fetching signals: {str(e)}"}
+        )
+
+@app.post("/api/update-weights")
+@endpoint_wrapper("POST /api/update-weights")
+async def update_weights(request: WeightCalculationRequest):
+    """
+    Calculate performance-based weights for each asset-strategy pair.
+    
+    Request body:
+    - strategies: List of [strategy_type, param_type] pairs
+    - goal_seek_metric: Metric to use for weighting
+    - custom_weights: Dictionary with custom weight factors
+    - lookback_period: Period to look back for backtesting
+    - max_workers: Maximum number of worker processes
+    - refresh_cache: Whether to refresh the cache
+    
+    Returns:
+        Dictionary with weight calculation results
+    """
+    global MULTI_ASSET_DATA
+    
+    # Check if we have multi-asset data
+    if not MULTI_ASSET_DATA:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "No multi-asset data loaded. Please upload data first."}
+        )
+    
+    # Validate request parameters
+    if not request.strategies or len(request.strategies) == 0:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": "No strategies provided. Please select at least one strategy."}
+        )
+    
+    # Validate goal_seek_metric
+    valid_metrics = ['total_return', 'sharpe_ratio', 'max_drawdown', 'win_rate', 'custom']
+    if request.goal_seek_metric not in valid_metrics:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": f"Invalid goal-seek metric: {request.goal_seek_metric}. Valid options are: {', '.join(valid_metrics)}"}
+        )
+    
+    # Validate custom weights if using custom metric
+    if request.goal_seek_metric == 'custom':
+        if not request.custom_weights:
+            return JSONResponse(
+                status_code=400,
+                content={"success": False, "message": "Custom weights must be provided when using 'custom' goal-seek metric."}
+            )
+        
+        # Check if weights sum to approximately 1 (allow small rounding errors)
+        weights_sum = sum(request.custom_weights.values())
+        if abs(weights_sum - 1.0) > 0.01:  # Allow 1% tolerance
+            logger.warning(f"Custom weights do not sum to 1.0 (sum: {weights_sum}). Weights will be normalized.")
+    
+    # Validate lookback_period
+    valid_lookbacks = ['1 Year', '3 Years', '5 Years']
+    if request.lookback_period not in valid_lookbacks:
+        return JSONResponse(
+            status_code=400,
+            content={"success": False, "message": f"Invalid lookback period: {request.lookback_period}. Valid options are: {', '.join(valid_lookbacks)}"}
+        )
+    
+    # Convert strategies list to list of tuples
+    strategies = [(s[0], s[1]) for s in request.strategies]
+    
+    # Check if we have a cached result and aren't asked to refresh
+    if not request.refresh_cache:
+        weights_file = get_latest_weights_file()
+        if weights_file:
+            cached_weights = load_cached_weights(weights_file)
+            if cached_weights is not None:
+                # Check if the cached weights match our request
+                cached_metrics = cached_weights['goal_metric'].iloc[0] if 'goal_metric' in cached_weights.columns else ''
+                cached_lookback = cached_weights['lookback_period'].iloc[0] if 'lookback_period' in cached_weights.columns else ''
+                
+                if cached_metrics == request.goal_seek_metric and cached_lookback == request.lookback_period:
+                    # Filter the cached weights for the requested strategies
+                    strategy_types = [s[0] for s in strategies]
+                    param_types = [s[1] for s in strategies]
+                    
+                    filtered_weights = cached_weights[
+                        cached_weights['strategy'].isin(strategy_types) & 
+                        cached_weights['parameters'].isin(param_types)
+                    ]
+                    
+                    if not filtered_weights.empty:
+                        # Create response
+                        return {
+                            "success": True,
+                            "weights_count": len(filtered_weights),
+                            "asset_count": len(filtered_weights['asset'].unique()),
+                            "strategy_count": len(filtered_weights['strategy'].unique()),
+                            "goal_metric": request.goal_seek_metric,
+                            "lookback_period": request.lookback_period,
+                            "cached_file": weights_file,
+                            "message": "Using cached weights"
+                        }
+    
+    # Calculate weights
+    try:
+        # Start timing
+        start_time = time.time()
+        
+        # Calculate weights
+        weights_and_metrics = calculate_asset_weights(
+            asset_data_dict=MULTI_ASSET_DATA,
+            strategies=strategies,
+            goal_seek_metric=request.goal_seek_metric,
+            custom_weights=request.custom_weights,
+            lookback_period=request.lookback_period,
+            max_workers=request.max_workers,
+            cache_results=True,
+            return_metrics=True  # Request metrics to be returned
+        )
+        
+        # Create response
+        weights_file = get_latest_weights_file()
+        cached_weights = load_cached_weights(weights_file) if weights_file else None
+        
+        if cached_weights is None:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": "Failed to cache weights"}
+            )
+        
+        elapsed_time = time.time() - start_time
+        
+        return {
+            "success": True,
+            "weights_count": len(cached_weights),
+            "asset_count": len(cached_weights['asset'].unique()),
+            "strategy_count": len(cached_weights['strategy'].unique()),
+            "goal_metric": request.goal_seek_metric,
+            "lookback_period": request.lookback_period,
+            "computation_time": f"{elapsed_time:.2f} seconds",
+            "cached_file": weights_file,
+            "has_metrics": True if weights_and_metrics and "metrics" in weights_and_metrics else False
+        }
+        
+    except Exception as e:
+        logger.error(f"Error calculating weights: {str(e)}\n{traceback.format_exc()}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Error calculating weights: {str(e)}"}
+        )
+
+@app.get("/api/fetch-weights/{cache_file}")
+@endpoint_wrapper("GET /api/fetch-weights")
+async def fetch_weights(cache_file: str, request: Request):
+    """
+    Fetch weights from a cached file.
+    
+    Args:
+        cache_file: Name of the cached file (without path) or 'latest' to get the most recent file
+        
+    Returns:
+        DataFrame with weights
+    """
+    try:
+        # Special handling for 'latest' parameter
+        if cache_file == 'latest':
+            cache_path = get_latest_weights_file()
+            if not cache_path:
+                return JSONResponse(
+                    status_code=404,
+                    content={"success": False, "message": "No weights files found"}
+                )
+            cache_file = os.path.basename(cache_path)
+        else:
+            # Validate and clean the cache_file parameter
+            if '..' in cache_file or '/' in cache_file or '\\' in cache_file:
+                return JSONResponse(
+                    status_code=400,
+                    content={"success": False, "message": "Invalid cache file name"}
+                )
+            
+            # Construct the full path
+            cache_path = os.path.join('results', 'signals', cache_file)
+        
+        if not os.path.exists(cache_path):
+            return JSONResponse(
+                status_code=404,
+                content={"success": False, "message": f"Cache file not found: {cache_file}"}
+            )
+        
+        # Load the weights
+        weights_df = load_cached_weights(cache_path)
+        
+        if weights_df is None:
+            return JSONResponse(
+                status_code=500,
+                content={"success": False, "message": f"Failed to load weights from {cache_file}"}
+            )
+        
+        # Convert to JSON-friendly format
+        weights_dict = {}
+        metrics_dict = {}
+        
+        for asset in weights_df['asset'].unique():
+            asset_df = weights_df[weights_df['asset'] == asset]
+            weights_dict[asset] = {}
+            
+            # Check if we have metrics columns
+            has_metrics = all(col in weights_df.columns for col in ['total_return', 'sharpe_ratio', 'max_drawdown', 'win_rate'])
+            
+            if has_metrics:
+                metrics_dict[asset] = {}
+            
+            for _, row in asset_df.iterrows():
+                strategy_key = f"{row['strategy']}_{row['parameters']}"
+                weights_dict[asset][strategy_key] = float(row['weight'])
+                
+                # Add metrics if available
+                if has_metrics:
+                    metrics_dict[asset][strategy_key] = {
+                        'total_return': float(row['total_return']),
+                        'sharpe_ratio': float(row['sharpe_ratio']),
+                        'max_drawdown': float(row['max_drawdown']),
+                        'win_rate': float(row['win_rate']),
+                        'num_trades': int(row['num_trades']) if 'num_trades' in row else 0
+                    }
+        
+        response = {
+            "success": True,
+            "weights": weights_dict,
+            "goal_metric": weights_df['goal_metric'].iloc[0] if 'goal_metric' in weights_df.columns else '',
+            "lookback_period": weights_df['lookback_period'].iloc[0] if 'lookback_period' in weights_df.columns else ''
+        }
+        
+        # Add metrics if we have them
+        if has_metrics:
+            response["metrics"] = metrics_dict
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error fetching weights: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"Error fetching weights: {str(e)}"}
         )
 
 # Run the app
